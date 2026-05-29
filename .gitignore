@@ -1,0 +1,98 @@
+```gitignore id="m9nq0w"
+# =====================================
+# ENV FILES
+# =====================================
+.env
+.env.local
+.env.development
+.env.production
+
+# =====================================
+# NODE MODULES
+# =====================================
+node_modules/
+
+# =====================================
+# LOGS
+# =====================================
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# =====================================
+# TYPESCRIPT
+# =====================================
+dist/
+build/
+coverage/
+
+# =====================================
+# FLUTTER / DART / ANDROID
+# =====================================
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Flutter generated files
+frontend/.dart_tool/
+frontend/.packages
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/build/
+
+# Android
+frontend/android/.gradle/
+frontend/android/app/debug
+frontend/android/app/profile
+frontend/android/app/release
+frontend/android/local.properties
+
+# iOS
+frontend/ios/Pods/
+frontend/ios/.symlinks/
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Flutter/Flutter.podspec
+
+# =====================================
+# IDE FILES
+# =====================================
+.vscode/
+.idea/
+*.iml
+
+# =====================================
+# OS FILES
+# =====================================
+.DS_Store
+Thumbs.db
+
+# =====================================
+# DATABASE
+# =====================================
+*.sqlite
+*.db
+
+# =====================================
+# SUPABASE
+# =====================================
+supabase/.temp/
+supabase/.branches/
+
+# =====================================
+# CACHE
+# =====================================
+.cache/
+.tmp/
+.temp/
+
+# =====================================
+# UPLOADS
+# =====================================
+uploads/
+```
