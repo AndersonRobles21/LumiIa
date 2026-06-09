@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/olvidar_contrase%C3%B1a.dart';
+import 'package:frontend/olvidar_contrasena.dart';
 
 void main() {
   runApp(const IniciarSesion());
@@ -52,8 +52,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     setState(() => _isLoading = true);
-    
+
     await Future.delayed(const Duration(milliseconds: 1500));
+
+    if (!mounted) return;
 
     setState(() => _isLoading = false);
 
@@ -205,8 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  const ForgotPasswordScreen(),
+                              builder: (context) => const OlvidarContrasena(),
                             ),
                           );
                         },
@@ -278,7 +279,7 @@ class _LoginScreenState extends State<LoginScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF3A1B2A),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFCC3355).withOpacity(0.5)),
+        border: Border.all(color: const Color.fromARGB(128, 204, 51, 85)),
       ),
       child: Row(
         children: [
@@ -295,3 +296,4 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
+s
