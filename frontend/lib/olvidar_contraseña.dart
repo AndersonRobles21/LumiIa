@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
-  const ForgotPasswordScreen({super.key});
+class OlvidarContrasena extends StatefulWidget {
+  const OlvidarContrasena({super.key});
 
   @override
-  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+  State<OlvidarContrasena> createState() => _OlvidarContrasenaState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -69,7 +69,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    _verificationCode = '123456'; 
+    _verificationCode = '123456';
     setState(() {
       _isLoading = false;
       _currentStep = 2;
@@ -100,10 +100,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     try {
       final isAuthenticated = await localAuth.authenticate(
         localizedReason: 'Usa tu huella dactilar para recuperar contraseña',
-        options: const AuthenticationOptions(
-          stickyAuth: true,
-          biometricOnly: true,
-        ),
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
       );
 
       if (isAuthenticated) {
@@ -225,7 +223,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           _buildMethodCard(
             icon: Icons.security,
             title: 'Código de Email',
-            description: 'Recibe un código en tu email y verifica tu identidad.',
+            description:
+                'Recibe un código en tu email y verifica tu identidad.',
             onTap: () => setState(() => _currentStep = 1),
           ),
           const SizedBox(height: 16),
@@ -393,7 +392,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: () => setState(() => _currentStep = 1), 
+              onPressed: () => setState(() => _currentStep = 1),
               child: const Text(
                 'Volver',
                 style: TextStyle(
@@ -662,7 +661,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       decoration: BoxDecoration(
         color: const Color(0xFF3A1B2A),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFCC3355).withOpacity(0.5)),
+        border: Border.all(color: const Color.fromARGB(128, 204, 51, 85)),
       ),
       child: Row(
         children: [
@@ -693,7 +692,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF191632),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF9A96B6).withOpacity(0.3)),
+          border: Border.all(color: const Color.fromARGB(77, 154, 150, 182)),
         ),
         child: Row(
           children: [
@@ -701,7 +700,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               width: 50,
               height: 50,
               decoration: BoxDecoration(
-                color: const Color(0xFF9C27B0).withOpacity(0.2),
+                color: const Color.fromARGB(51, 156, 39, 176),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, color: const Color(0xFF9C27B0), size: 28),
@@ -742,3 +741,4 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     );
   }
 }
+s
