@@ -53,12 +53,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
     
-    // Simulación de petición de login a la API/Firebase
     await Future.delayed(const Duration(milliseconds: 1500));
 
     setState(() => _isLoading = false);
 
-    // Aquí irá tu navegación a la pantalla de Inicio/Dashboard en el Sprint 2
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('¡Inicio de sesión simulado con éxito!')),
     );
