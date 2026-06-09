@@ -69,7 +69,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    _verificationCode = '123456'; // Simulación de código enviado
+    _verificationCode = '123456'; 
     setState(() {
       _isLoading = false;
       _currentStep = 2;
@@ -393,7 +393,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           const SizedBox(height: 12),
           Center(
             child: TextButton(
-              onPressed: () => setState(() => _currentStep = 1), // Regresa a ingresar el email
+              onPressed: () => setState(() => _currentStep = 1), 
               child: const Text(
                 'Volver',
                 style: TextStyle(
