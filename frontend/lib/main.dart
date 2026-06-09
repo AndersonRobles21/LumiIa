@@ -57,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = false);
 
+    // Aquí irá tu navegación a la pantalla de Inicio/Dashboard en el Sprint 2
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('¡Inicio de sesión simulado con éxito!')),
     );
