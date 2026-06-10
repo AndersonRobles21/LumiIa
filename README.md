@@ -6,3 +6,4 @@ Desarrollar una aplicación móvil y página web con inteligencia artificial des
 Agroindustria del CBA de Mosquera, con el fin de generar planes de estudio personalizados y fomentar hábitos eficientes que permitan combatir la procrastinación.``
 
 ```env id="n0d82k"
+.
