@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:frontend/olvidar_contrasena.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:frontend/olvidar_contraseña.dart';
+import 'register_screen.dart';
 
 void main() {
   runApp(const IniciarSesion());
@@ -45,6 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordController.text;
 
     setState(() => _errorMessage = null);
+    
+    if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      setState(() => _errorMessage = 'Ingresa un email válido.');
+      return;
+    }
 
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'Por favor, llena todos los campos.');
@@ -59,15 +66,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = false);
 
-    // Aquí irá tu navegación a la pantalla de Inicio/Dashboard en el Sprint 2
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('¡Inicio de sesión simulado con éxito!')),
+      SnackBar(
+        content: Text(
+          '¡Inicio de sesión simulado con éxito!',
+          style: GoogleFonts.orbitron(),
+        ),
+        backgroundColor: const Color(0xFF102CE4),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0813),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -91,32 +104,33 @@ class _LoginScreenState extends State<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
                     Center(
                       child: Image.asset(
-                        'logo/lumi.png',
+                        'logo/Lumi.png',
                         width: 350,
-                        height: 205,
+                        height: 180,
                         fit: BoxFit.contain,
                       ),
                     ),
                     Center(
-                      child: const Text(
+                      child: Text(
                         'Iniciar Sesión',
-                        style: TextStyle(
+                        style: GoogleFonts.orbitron(
                           color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.5,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    const Text(
+                    const SizedBox(height: 32),
+
+                    // --- ETIQUETA EMAIL ---
+                    Text(
                       'Email',
-                      style: TextStyle(
-                        color: Color(0xFFE2E0EE),
-                        fontSize: 14,
+                      style: GoogleFonts.orbitron(
+                        color: const Color(0xFFE2E0EE),
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -127,11 +141,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 20),
-                    const Text(
+
+                    // --- ETIQUETA CONTRASEÑA ---
+                    Text(
                       'Contraseña',
-                      style: TextStyle(
-                        color: Color(0xFFE2E0EE),
-                        fontSize: 14,
+                      style: GoogleFonts.orbitron(
+                        color: const Color(0xFFE2E0EE),
+                        fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -145,30 +161,34 @@ class _LoginScreenState extends State<LoginScreen> {
                           _obscurePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: const Color(0xFF9A96B6),
-                          size: 22,
+                          color: const Color(0xFF102CE4).withValues(alpha: 0.7),
+                          size: 20,
                         ),
                         onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
                         ),
                       ),
                     ),
+
                     if (_errorMessage != null) ...[
                       const SizedBox(height: 14),
                       _buildErrorContainer(_errorMessage!),
                     ],
-                    const SizedBox(height: 40),
+
+                    const SizedBox(height: 32),
+
+                    // --- BOTÓN INICIAR SESIÓN ---
                     SizedBox(
                       width: double.infinity,
                       height: 54,
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: const LinearGradient(
-                            colors: [Color(0xFF9C27B0), Color(0xFFE91E63)],
+                            colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
                             begin: Alignment.centerLeft,
                             end: Alignment.centerRight,
                           ),
-                          borderRadius: BorderRadius.circular(30),
+                          borderRadius: BorderRadius.circular(20),
                         ),
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _login,
@@ -176,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                              borderRadius: BorderRadius.circular(20),
                             ),
                           ),
                           child: _isLoading
@@ -188,19 +208,20 @@ class _LoginScreenState extends State<LoginScreen> {
                                     strokeWidth: 2,
                                   ),
                                 )
-                              : const Text(
+                              : Text(
                                   'Iniciar Sesión',
-                                  style: TextStyle(
+                                  style: GoogleFonts.orbitron(
                                     color: Colors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    letterSpacing: 1,
                                   ),
                                 ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 24),
+
+                    // --- LINKS DE NAVEGACIÓN ---
                     Center(
                       child: TextButton(
                         onPressed: () {
@@ -214,15 +235,47 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextButton.styleFrom(
                           foregroundColor: const Color(0xFFB0AEC4),
                         ),
-                        child: const Text(
+                        child: Text(
                           '¿Olvidaste tu contraseña?',
-                          style: TextStyle(
-                            fontSize: 14,
+                          style: GoogleFonts.orbitron(
+                            fontSize: 13,
                             fontWeight: FontWeight.w400,
                             decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
+                    ),
+
+                    // Enlace hacia RegisterScreen de forma limpia
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '¿No tienes una cuenta? ',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.grey,
+                            fontSize: 12,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const RegisterScreen(),
+                              ),
+                            );
+                          },
+                          child: Text(
+                            'Regístrate',
+                            style: GoogleFonts.orbitron(
+                              color: const Color(0xFF102CE4),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -246,28 +299,24 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
+      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF6B6885), fontSize: 14),
+        hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
         filled: true,
-        fillColor: const Color(0xFF191632),
+        fillColor: const Color(0xFF301642).withValues(alpha: 0.5),
         suffixIcon: suffixIcon,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 18,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
+          horizontal: 20,
+          vertical: 16,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF321438), width: 1.2),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Color(0xFF9C27B0), width: 1.5),
+          borderRadius: BorderRadius.circular(15),
+          borderSide: const BorderSide(color: Color(0xFF102CE4), width: 1.5),
         ),
       ),
     );
@@ -278,7 +327,7 @@ class _LoginScreenState extends State<LoginScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF3A1B2A),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(15),
         border: Border.all(color: const Color.fromARGB(128, 204, 51, 85)),
       ),
       child: Row(
@@ -288,7 +337,10 @@ class _LoginScreenState extends State<LoginScreen> {
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Color(0xFFCC3355), fontSize: 13),
+              style: GoogleFonts.orbitron(
+                color: const Color(0xFFCC3355),
+                fontSize: 12,
+              ),
             ),
           ),
         ],
@@ -296,4 +348,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-s

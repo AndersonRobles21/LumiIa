@@ -241,7 +241,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             const SizedBox(height: 14),
             _buildErrorContainer(_errorMessage!),
           ],
-          const SizedBox(height: 24),
+         const SizedBox(height: 40),
+          _buildPrimaryButton(
+            label: 'Volver al Inicio de Sesión',
+            onPressed: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
+            ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -257,7 +263,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 20),
           Center(
             child: Image.asset(
-              'logo/lumi.png',
+              'logo/Lumi.png',
               width: 350,
               height: 205,
               fit: BoxFit.contain,
@@ -420,7 +426,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 20),
           Center(
             child: Image.asset(
-              'logo/lumi.png',
+              'logo/Lumi.png',
               width: 280,
               height: 160,
               fit: BoxFit.contain,
@@ -616,7 +622,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [Color(0xFF9C27B0), Color(0xFFE91E63)],
+            colors: [Color(0xFFA41CF9), Color(0xFFF716DC)],
             begin: Alignment.centerLeft,
             end: Alignment.centerRight,
           ),
@@ -741,4 +747,5 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     );
   }
 }
+
 
