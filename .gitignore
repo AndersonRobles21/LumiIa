@@ -1,3 +1,113 @@
+# =========================
+# GENERAL
+# =========================
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+
+# =========================
+# ENVIRONMENT VARIABLES
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# NODE.JS / TYPESCRIPT
+# =========================
+node_modules/
+backend/node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build TypeScript
+backend/dist/
+backend/build/
+backend/coverage/
+
+# =========================
+# FLUTTER / DART
+# =========================
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/.pub-cache/
+
+# Flutter generated
+frontend/flutter_export_environment.sh
+
+# =========================
+# ANDROID
+# =========================
+frontend/android/.gradle/
+frontend/android/local.properties
+frontend/android/app/debug/
+frontend/android/app/profile/
+frontend/android/app/release/
+
+# =========================
+# IOS
+# =========================
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Flutter/App.framework
+frontend/ios/Flutter/Generated.xcconfig
+frontend/ios/Flutter/flutter_export_environment.sh
+frontend/ios/Pods/
+
+# =========================
+# LINUX / MACOS / WINDOWS
+# =========================
+frontend/linux/flutter/ephemeral/
+frontend/macos/Flutter/ephemeral/
+frontend/windows/flutter/ephemeral/
+
+# =========================
+# IDES
+# =========================
+.idea/
+.vscode/
+
+# Mantener configuraciones compartidas
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# =========================
+# INTELLIJ / ANDROID STUDIO
+# =========================
+*.iml
+*.ipr
+*.iws
+
+# =========================
+# GENERATED FILES
+# =========================
+*.class
+*.pyc
+*.o
+*.obj
+*.exe
+
+# =========================
+# DATABASE BACKUPS
+# =========================
+*.sql.bak
+*.dump
+*.backup
+
+# =========================
+# GIT
+# =========================
+.git/
 # Flutter
 # Miscellaneous
 *.class
