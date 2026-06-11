@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart'; 
+import 'package:google_fonts/google_fonts.dart';
+import '../servicios/auth_service.dart'; // ajusta la ruta si es diferente
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -13,9 +14,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _cargando = false; // ← AÑADIDO
 
   @override
   void dispose() {
@@ -23,6 +25,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // ← MÉTODO DE REGISTRO AÑADIDO
+  Future<void> _crearCuenta() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _cargando = true);
+
+    try {
+      final resultado = await AuthService.registrar(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      if (!mounted) return;
+
+      if (resultado['exito'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✅ ¡Cuenta creada exitosamente!',
+              style: GoogleFonts.orbitron(),
+            ),
+            backgroundColor: const Color(0xFF102CE4),
+          ),
+        );
+        // Navigator.pushReplacementNamed(context, '/home'); // descomenta cuando tengas la ruta
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '❌ ${resultado['error']}',
+              style: GoogleFonts.orbitron(),
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '❌ Error de conexión',
+            style: GoogleFonts.orbitron(),
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _cargando = false);
+    }
   }
 
   @override
@@ -55,7 +109,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const SizedBox(height: 20),
-                      
+
                       // --- TÍTULO PRINCIPAL ---
                       Center(
                         child: Text(
@@ -75,13 +129,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa tu email@'),
+                        style: GoogleFonts.orbitron(
+                            color: Colors.white, fontSize: 14),
+                        decoration:
+                            _buildInputDecoration('Ingresa tu email@'),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Por favor, ingresa tu correo electrónico';
                           }
-                          final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                          final emailRegex =
+                              RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
                           if (!emailRegex.hasMatch(value.trim())) {
                             return 'Introduce un correo electrónico válido';
                           }
@@ -96,19 +153,21 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa una contraseña').copyWith(
+                        style: GoogleFonts.orbitron(
+                            color: Colors.white, fontSize: 14),
+                        decoration:
+                            _buildInputDecoration('Ingresa una contraseña')
+                                .copyWith(
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscurePassword ? Icons.lock_outline : Icons.lock_open,
+                              _obscurePassword
+                                  ? Icons.lock_outline
+                                  : Icons.lock_open,
                               color: const Color(0xFF102CE4).withValues(alpha: 0.7),
                               size: 20,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscurePassword = !_obscurePassword;
-                              });
-                            },
+                            onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword),
                           ),
                         ),
                         validator: (value) {
@@ -129,19 +188,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa una contraseña').copyWith(
+                        style: GoogleFonts.orbitron(
+                            color: Colors.white, fontSize: 14),
+                        decoration:
+                            _buildInputDecoration('Ingresa una contraseña')
+                                .copyWith(
                           suffixIcon: IconButton(
                             icon: Icon(
-                              _obscureConfirmPassword ? Icons.lock_outline : Icons.lock_open,
+                              _obscureConfirmPassword
+                                  ? Icons.lock_outline
+                                  : Icons.lock_open,
                               color: const Color(0xFF102CE4).withValues(alpha: 0.7),
                               size: 20,
                             ),
-                            onPressed: () {
-                              setState(() {
-                                _obscureConfirmPassword = !_obscureConfirmPassword;
-                              });
-                            },
+                            onPressed: () => setState(() =>
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword),
                           ),
                         ),
                         validator: (value) {
@@ -163,27 +225,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(20),
-                            gradient: const LinearGradient(
-                              colors: [
-                                Color(0xFFF716DC),
-                                Color(0xFFA41CF9),
-                              ],
+                            gradient: LinearGradient(
+                              colors: _cargando
+                                  ? [
+                                      const Color(0xFF888888),
+                                      const Color(0xFF555555),
+                                    ]
+                                  : [
+                                      const Color(0xFFF716DC),
+                                      const Color(0xFFA41CF9),
+                                    ],
                             ),
                           ),
                           child: ElevatedButton(
-                            onPressed: () {
-                              if (_formKey.currentState!.validate()) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      '¡Validación local exitosa!',
-                                      style: GoogleFonts.orbitron(),
-                                    ),
-                                    backgroundColor: const Color(0xFF102CE4),
-                                  ),
-                                );
-                              }
-                            },
+                            onPressed: _cargando ? null : _crearCuenta,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.transparent,
                               shadowColor: Colors.transparent,
@@ -191,14 +246,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 borderRadius: BorderRadius.circular(20),
                               ),
                             ),
-                            child: Text(
-                              'Crear cuenta',
-                              style: GoogleFonts.orbitron(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                            child: _cargando
+                                ? const SizedBox(
+                                    height: 22,
+                                    width: 22,
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white,
+                                      strokeWidth: 2.5,
+                                    ),
+                                  )
+                                : Text(
+                                    'Crear cuenta',
+                                    style: GoogleFonts.orbitron(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                           ),
                         ),
                       ),
@@ -210,12 +274,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         children: [
                           Text(
                             'Listo para iniciar ',
-                            style: GoogleFonts.orbitron(color: Colors.grey, fontSize: 12),
+                            style: GoogleFonts.orbitron(
+                                color: Colors.grey, fontSize: 12),
                           ),
                           GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
+                            onTap: () => Navigator.pop(context),
                             child: Text(
                               'continua',
                               style: GoogleFonts.orbitron(
@@ -239,7 +302,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  // Helper de etiquetas de texto
   Widget _buildInputLabel(String labelText) {
     return Text(
       labelText,
@@ -257,24 +319,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
       hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
       filled: true,
       fillColor: const Color(0xFF301642).withValues(alpha: 0.5),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFF321438), width: 1.2),
+        borderSide:
+            const BorderSide(color: Color(0xFF321438), width: 1.2),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Color(0xFF102CE4), width: 1.5),
+        borderSide:
+            const BorderSide(color: Color(0xFF102CE4), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+        borderSide:
+            const BorderSide(color: Colors.redAccent, width: 1.2),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
         borderSide: const BorderSide(color: Colors.red, width: 1.5),
       ),
-      errorStyle: GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 11),
+      errorStyle:
+          GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 11),
     );
   }
 }
