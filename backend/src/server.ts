@@ -1,29 +1,32 @@
+
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
+
+
+
 dotenv.config();
 
 import { pool } from "./config/db";
 import authRoutes from "./rutas/authRoutes";
 
+
 const app = express();
 
-// Middlewares
+app.use(cors());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
-// Rutas
 app.use("/api/auth", authRoutes);
 
-// Ruta de salud
 app.get("/", async (req, res) => {
   const resultado = await pool.query("SELECT NOW()");
+
   res.json({
-    mensaje: "LUMI Backend funcionando",
+    mensaje: "Conexión exitosa con Supabase",
     fecha: resultado.rows[0],
   });
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(` Servidor LUMI corriendo en http://localhost:${PORT}`);
+app.listen(3000, "0.0.0.0", () => {
+  console.log("Servidor funcionando en http://localhost:3000");
 });
