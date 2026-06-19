@@ -34,7 +34,16 @@ router.get("/profile/:id", async (req, res) => {
       });
     }
 
-    res.status(200).json(resultado.rows[0]);
+    const usuario = resultado.rows[0];
+    const horariosResult = await pool.query(
+      `SELECT dia, hora_inicio, hora_fin FROM horarios WHERE usuario_id = $1 ORDER BY dia, hora_inicio`,
+      [id]
+    );
+
+    res.status(200).json({
+      ...usuario,
+      horario: horariosResult.rows,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({

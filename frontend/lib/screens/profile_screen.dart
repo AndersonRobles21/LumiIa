@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'edit_profile_screen.dart';
+import 'login_screen.dart'; // Asegúrate de importar tu pantalla de Login aquí
 
 void main() {
   runApp(
@@ -94,6 +95,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
     return false; // Todo libre
   }
+  // Diálogo de cerrar sesión — "Sí" manda a /login, "No" cierra el diálogo
+  // --- DIÁLOGO DE CERRAR SESIÓN (DISEÑO CYBERPUNK OPTIMIZADO) ---
+  void _mostrarDialogoCerrarSesion() {
+    showDialog(
+      context: context,
+      builder: (BuildContext logoutContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1A1040),
+          alignment: Alignment.center,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(
+              color: const Color(0xFFFF44AA).withValues(alpha: 0.3),
+              width: 1.5, 
+            ),
+          ),
+          title: const Text(
+            '¿Cerrar sesión?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+          content: const Text(
+            '¿Quieres cerrar sesión de tu cuenta?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white70, 
+              fontSize: 14,
+            ),
+          ),
+          actionsAlignment: MainAxisAlignment.spaceEvenly, 
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(logoutContext),
+              style: TextButton.styleFrom(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+              ),
+              child: const Text(
+                'No', 
+                style: TextStyle(
+                  color: Colors.white54, 
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFFCC00CC).withValues(alpha: 0.2), 
+                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: const BorderSide(color: Color(0xFFCC00CC), width: 1),
+                ),
+              ),
+              onPressed: () {
+                Navigator.pop(logoutContext);
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              child: const Text(
+                'Sí',
+                style: TextStyle(
+                  color: Color(0xFFFF66FF), 
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   // Cuadro de diálogo interactivo para añadir, ver y remover múltiples tiempos por día
   Future<void> _configurarTiemposMultiples(int dayIndex) async {
@@ -344,11 +425,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final data = await ApiService.getProfile(_userId);
 
     if (data != null) {
+      final scheduleFromServer = List<List<String>>.generate(5, (_) => []);
+
+      if (data['horario'] != null && data['horario'] is List) {
+        final List<dynamic> horarioServer = data['horario'];
+        for (final item in horarioServer) {
+          if (item is Map<String, dynamic>) {
+            final String dia = item['dia']?.toString() ?? '';
+            final String horaInicio = item['hora_inicio']?.toString() ?? '';
+            final String horaFin = item['hora_fin']?.toString() ?? '';
+            final int dayIndex = _days.indexOf(dia);
+
+            if (dayIndex != -1 && horaInicio.isNotEmpty && horaFin.isNotEmpty) {
+              scheduleFromServer[dayIndex].add('$horaInicio - $horaFin');
+            }
+          }
+        }
+      }
+
       setState(() {
         _nameController.text = data['nombre'] ?? '';
 
         String metodoServer = data['metodo_estudio'] ?? 'POMODORO';
-        _methodSelected = [false, false, false, false]; 
+        _methodSelected = [false, false, false, false];
 
         if (metodoServer == 'POMODORO') _methodSelected[0] = true;
         if (metodoServer == 'SPACED_REPETITION') _methodSelected[1] = true;
@@ -356,6 +455,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (metodoServer == 'FEYNMAN') _methodSelected[3] = true;
 
         if (!_methodSelected.contains(true)) _methodSelected[0] = true;
+        _scheduleData = scheduleFromServer;
       });
     }
     setState(() => _isLoading = false);
@@ -380,11 +480,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
       metodoParaEnviar = "FEYNMAN";
     }
 
+    final horarioParaBackend = <Map<String, String>>[];
+    for (int i = 0; i < _scheduleData.length; i++) {
+      final String diaNombre = _days[i];
+      for (final rango in _scheduleData[i]) {
+        final partes = rango.split(' - ');
+        if (partes.length == 2) {
+          horarioParaBackend.add({
+            'dia': diaNombre,
+            'hora_inicio': partes[0].trim(),
+            'hora_fin': partes[1].trim(),
+          });
+        }
+      }
+    }
+
     final resultado = await ApiService.updateProfile(
       userId: _userId,
       nombre: _nameController.text.trim(),
       apellido: '',
       metodoEstudio: metodoParaEnviar,
+      horario: horarioParaBackend,
     );
 
     setState(() => _isLoading = false);
@@ -431,10 +547,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          Align(
+Align(
                             alignment: Alignment.centerLeft,
                             child: GestureDetector(
-                              onTap: () => Navigator.maybePop(context),
+                              onTap: () => _mostrarDialogoCerrarSesion(),
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
@@ -473,17 +589,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   metodoActual = 'FEYNMAN';
                                 }
 
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => EditProfileScreen(
-                                      userId: _userId,
-                                      nombreInicial: _nameController.text.trim(),
-                                      apellidoInicial: '',
-                                      metodoInicial: metodoActual,
-                                    ),
-                                  ),
-                                );
+
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(8),
@@ -500,9 +606,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: Color(0xFFFF44AA),
                                   size: 18,
                                 ),
+                                
                               ),
                             ),
                           ),
+                          
+                          
                         ],
                       ),
                     ),
@@ -838,6 +947,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _methods[index],
                 style: const TextStyle(color: Colors.white, fontSize: 13),
               ),
+              
             ],
           ),
         );
