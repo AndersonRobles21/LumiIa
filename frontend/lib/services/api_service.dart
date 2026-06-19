@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:io';
 
 class ApiService {
   static const String baseUrl =
@@ -26,15 +27,15 @@ static Future<Map<String, dynamic>?> getProfile(
 
 /*
 ============================
-UPDATE PROFILE
+UPDATE PROFILE (Corregido)
 ============================
 */
-static Future<bool> updateProfile(
-  String userId,
-  String nombre,
-  List<List<bool>> schedule,
-  List<bool> methods,
-) async {
+static Future<Map<String, dynamic>?> updateProfile({
+  required String userId,
+  required String nombre,
+  required String apellido,
+  required String metodoEstudio,
+}) async {
   final response = await http.put(
     Uri.parse('$baseUrl/profile/$userId'),
     headers: {
@@ -42,10 +43,17 @@ static Future<bool> updateProfile(
     },
     body: jsonEncode({
       'nombre': nombre,
+      'apellido': apellido,
+      'metodo_estudio': metodoEstudio,
     }),
   );
 
-  return response.statusCode == 200;
+  if (response.statusCode != 200) {
+    return null; // O puedes lanzar una Excepción con el mensaje del backend si prefieres
+  }
+
+  final data = jsonDecode(response.body);
+  return data['usuario']; // Retorna directamente el mapa del usuario actualizado
 }
 
 /*
@@ -158,4 +166,6 @@ static Future<bool> resetPassword(
 
     return true;
   }
+
+  
 }

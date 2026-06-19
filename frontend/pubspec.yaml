@@ -37,7 +37,8 @@ dependencies:
   supabase_flutter: ^2.12.4
   google_fonts: ^8.1.0
   local_auth: ^3.0.1
-  http: ^1.2.1
+  http: ^1.6.0
+  image_picker: ^1.2.2
 
 dev_dependencies:
   flutter_test:
