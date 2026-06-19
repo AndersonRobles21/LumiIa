@@ -167,11 +167,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   color: Colors.redAccent,
                                   size: 18,
                                 ),
-                                onPressed: () {
-                                  setDialogState(() {
-                                    _scheduleData[dayIndex].removeAt(index);
-                                  });
-                                },
+                               onPressed: () {
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        backgroundColor: const Color(0xFF1A1040),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        title: const Text(
+          '¿Eliminar bloque?',
+          style: TextStyle(
+            color: Colors.white, 
+            fontSize: 16, 
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: const Text(
+          'Este horario se borrará por completo de la lista actual.',
+          style: TextStyle(
+            color: Colors.white70, 
+            fontSize: 14,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext), // Cierra la alerta sin borrar
+            child: const Text(
+              'CANCELAR', 
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(dialogContext); // Cierra la alerta
+              // Borra el horario real dentro del modal de horarios
+              setDialogState(() {
+                _scheduleData[dayIndex].removeAt(index);
+              });
+            },
+            child: const Text(
+              'ELIMINAR', 
+              style: TextStyle(
+                color: Colors.redAccent, 
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+},
                               ),
                             ),
                           );
