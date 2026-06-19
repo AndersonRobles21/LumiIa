@@ -3,109 +3,119 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 
 class ApiService {
-  static const String baseUrl =
-      'http://localhost:3000/api/auth';
+  static const String baseUrl = 'http://localhost:3000/api/auth';
 
-      /*
-============================
-GET PROFILE
-============================
-*/
-static Future<Map<String, dynamic>?> getProfile(
-  String userId,
-) async {
-  final response = await http.get(
-    Uri.parse('$baseUrl/profile/$userId'),
-  );
+  /*
+  ============================
+  GET PROFILE
+  ============================
+  */
+  static Future<Map<String, dynamic>?> getProfile(
+    String userId,
+  ) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/profile/$userId'),
+    );
 
-  if (response.statusCode != 200) {
-    return null;
+    if (response.statusCode != 200) {
+      return null;
+    }
+
+    return jsonDecode(response.body);
   }
 
-  return jsonDecode(response.body);
-}
+  /*
+  ============================
+  UPDATE PROFILE (Sincronizado con Node.js)
+  ============================
+  */
+  static Future<Map<String, dynamic>?> updateProfile({
+    required String userId,
+    required String nombre,
+    required String apellido,
+    required String metodoEstudio,
+    List<Map<String, String>>? horario, // Bloques de horas seleccionados
+  }) async {
+    try {
+      // 1. Se cambió la URL para inyectar el ID como parámetro de ruta
+      final url = Uri.parse('$baseUrl/profile/$userId'); 
+      
+      // 2. Se cambió el método a PUT para coincidir con router.put
+      final response = await http.put(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        // 3. Claves corregidas en formato snake_case según tu consulta SQL de Express
+        body: jsonEncode({
+          'nombre': nombre,
+          'apellido': apellido,
+          'metodo_estudio': metodoEstudio, 
+          'horario': horario, 
+        }),
+      );
 
-/*
-============================
-UPDATE PROFILE (Corregido)
-============================
-*/
-static Future<Map<String, dynamic>?> updateProfile({
-  required String userId,
-  required String nombre,
-  required String apellido,
-  required String metodoEstudio,
-}) async {
-  final response = await http.put(
-    Uri.parse('$baseUrl/profile/$userId'),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: jsonEncode({
-      'nombre': nombre,
-      'apellido': apellido,
-      'metodo_estudio': metodoEstudio,
-    }),
-  );
-
-  if (response.statusCode != 200) {
-    return null; // O puedes lanzar una Excepción con el mensaje del backend si prefieres
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print('Error en la respuesta del servidor: ${response.body}');
+        return null;
+      }
+    } catch (e) {
+      print('Error en ApiService: $e');
+      return null;
+    }
   }
 
-  final data = jsonDecode(response.body);
-  return data['usuario']; // Retorna directamente el mapa del usuario actualizado
-}
+  /*
+  ============================
+  REQUEST PASSWORD RESET
+  ============================
+  */
+  static Future<Map<String, dynamic>?> requestPasswordReset(
+    String correo,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/password/request'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'correo': correo,
+      }),
+    );
 
-/*
-============================
-REQUEST PASSWORD RESET
-============================
-*/
-static Future<Map<String, dynamic>?> requestPasswordReset(
-  String correo,
-) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/password/request'),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: jsonEncode({
-      'correo': correo,
-    }),
-  );
+    if (response.statusCode != 200) {
+      return null;
+    }
 
-  if (response.statusCode != 200) {
-    return null;
+    return jsonDecode(response.body);
   }
 
-  return jsonDecode(response.body);
-}
+  /*
+  ============================
+  RESET PASSWORD
+  ============================
+  */
+  static Future<bool> resetPassword(
+    String correo,
+    String password,
+    String code,
+  ) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/password/reset'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'correo': correo,
+        'password': password,
+        'code': code,
+      }),
+    );
 
-
-/*
-============================
-RESET PASSWORD
-============================
-*/
-static Future<bool> resetPassword(
-  String correo,
-  String password,
-  String code,
-) async {
-  final response = await http.post(
-    Uri.parse('$baseUrl/password/reset'),
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: jsonEncode({
-      'correo': correo,
-      'password': password,
-      'code': code,
-    }),
-  );
-
-  return response.statusCode == 200;
-}
+    return response.statusCode == 200;
+  }
 
   /*
   ============================
@@ -166,6 +176,4 @@ static Future<bool> resetPassword(
 
     return true;
   }
-
-  
 }

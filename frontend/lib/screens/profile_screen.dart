@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import 'dart:convert';
@@ -31,7 +30,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   final List<String> _days = ['lun', 'mar', 'mie', 'jue', 'vie'];
 
-  // --- CAMBIO CLAVE: Ahora cada día maneja una LISTA de bloques de tiempo ---
+  // --- Manejo de bloques de tiempo múltiples por cada día ---
   late List<List<String>> _scheduleData;
 
   final List<String> _methods = [
@@ -48,9 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   void initState() {
     super.initState();
-    // Inicializamos los 5 días de la semana vacíos (sin bloques asignados)
     _scheduleData = List.generate(5, (_) => []);
-    _methodSelected = [true, true, true, true];
+    _methodSelected = [true, false, false, false];
     _cargarDatosDeBaseDeDatos();
   }
 
@@ -58,6 +56,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void dispose() {
     _nameController.dispose();
     super.dispose();
+  }
+
+  // Helper para convertir un String "HH:MM" (o con formato AM/PM) a minutos para validaciones precisas
+  int _convertTimeToMinutes(String timeStr, BuildContext context) {
+    try {
+      // Intenta parsear basándose en el formato de localización local del dispositivo
+      final timeOfDay = TimeOfDay.fromDateTime(DateTime.parse("2026-01-01 $timeStr"));
+      return (timeOfDay.hour * 60) + timeOfDay.minute;
+    } catch (_) {
+      // Fallback manual para formatos estándar de 12 horas o 24 horas si falla el parse rápido
+      final cleanStr = timeStr.replaceAll(RegExp(r'[^\d:]'), '').trim();
+      final parts = cleanStr.split(':');
+      int hour = int.parse(parts[0]);
+      int minute = int.parse(parts[1]);
+
+      if (timeStr.toLowerCase().contains('pm') && hour < 12) hour += 12;
+      if (timeStr.toLowerCase().contains('am') && hour == 12) hour = 0;
+
+      return (hour * 60) + minute;
+    }
+  }
+
+  // Verifica si el rango nuevo choca con alguno ya existente en ese día específico
+  bool _verificarChoqueHorario(int dayIndex, int nuevoInicioMin, int nuevoFinMin) {
+    for (String rangoExistente in _scheduleData[dayIndex]) {
+      final partes = rangoExistente.split(' - ');
+      if (partes.length != 2) continue;
+
+      int extInicioMin = _convertTimeToMinutes(partes[0], context);
+      int extFinMin = _convertTimeToMinutes(partes[1], context);
+
+      // Condición lógica de traslape: (InicioA < FinB) && (FinA > InicioB)
+      if (nuevoInicioMin < extFinMin && nuevoFinMin > extInicioMin) {
+        return true; // Hay choque
+      }
+    }
+    return false; // Todo libre
   }
 
   // Cuadro de diálogo interactivo para añadir, ver y remover múltiples tiempos por día
@@ -84,7 +119,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       letterSpacing: 1,
                     ),
                   ),
-                  // Botón "+" para agregar un nuevo rango de horas a este día
                   IconButton(
                     icon: const Icon(
                       Icons.add_circle,
@@ -104,7 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       if (!context.mounted) return;
 
                       TimeOfDay horaFin = TimeOfDay(
-                        hour: pickedInicio.hour + 2,
+                        hour: (pickedInicio.hour + 2) % 24,
                         minute: pickedInicio.minute,
                       );
                       final TimeOfDay? pickedFin = await showTimePicker(
@@ -114,6 +148,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         builder: (context, child) => _timePickerTheme(child),
                       );
                       if (pickedFin == null) return;
+
+                      if (!context.mounted) return;
+
+                      // Transformar tiempos a minutos para comparar el choque matemático de forma exacta
+                      final int nuevoInicioMin = (pickedInicio.hour * 60) + pickedInicio.minute;
+                      final int nuevoFinMin = (pickedFin.hour * 60) + pickedFin.minute;
+
+                      if (nuevoInicioMin >= nuevoFinMin) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('La hora de fin debe ser mayor a la de inicio.')),
+                        );
+                        return;
+                      }
+
+                      // Restricción de duplicados/cruces el mismo día
+                      if (_verificarChoqueHorario(dayIndex, nuevoInicioMin, nuevoFinMin)) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Ya tienes un horario que se cruza o coincide en este mismo día.'),
+                            backgroundColor: Colors.amber,
+                          ),
+                        );
+                        return;
+                      }
 
                       final String nuevoRango =
                           '${pickedInicio.format(context)} - ${pickedFin.format(context)}';
@@ -168,9 +226,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   size: 18,
                                 ),
                                 onPressed: () {
-                                  setDialogState(() {
-                                    _scheduleData[dayIndex].removeAt(index);
-                                  });
+                                  // Anuncio / Alerta de confirmación antes de eliminar el slot
+                                  showDialog(
+                                    context: context,
+                                    builder: (BuildContext confirmContext) {
+                                      return AlertDialog(
+                                        backgroundColor: const Color(0xFF0D0D2B),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(14),
+                                          side: BorderSide(color: Colors.redAccent.withOpacity(0.5)),
+                                        ),
+                                        title: const Text(
+                                          '¿Estás seguro?',
+                                          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                        ),
+                                        content: const Text(
+                                          '¿Realmente quieres eliminar este horario asignado?',
+                                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.pop(confirmContext),
+                                            child: const Text('Cancelar', style: TextStyle(color: Colors.white54)),
+                                          ),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                            onPressed: () {
+                                              Navigator.pop(confirmContext); // Cierra el modal de confirmación
+                                              setDialogState(() {
+                                                _scheduleData[dayIndex].removeAt(index); // Remueve el elemento
+                                              });
+                                            },
+                                            child: const Text('Eliminar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -191,7 +283,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   onPressed: () {
-                    // Cierra el cuadro guardando el estado general de la app
                     setState(() {});
                     Navigator.pop(context);
                   },
@@ -256,16 +347,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _nameController.text = data['nombre'] ?? '';
 
-        // Leemos el método de estudio real de la BD y activamos el checkbox correspondiente
         String metodoServer = data['metodo_estudio'] ?? 'POMODORO';
-        _methodSelected = [false, false, false, false]; // Reseteamos todos
+        _methodSelected = [false, false, false, false]; 
 
         if (metodoServer == 'POMODORO') _methodSelected[0] = true;
         if (metodoServer == 'SPACED_REPETITION') _methodSelected[1] = true;
         if (metodoServer == 'ACTIVE_RECALL') _methodSelected[2] = true;
         if (metodoServer == 'FEYNMAN') _methodSelected[3] = true;
 
-        // Si por alguna razón ninguno se marcó, dejamos el primero por defecto
         if (!_methodSelected.contains(true)) _methodSelected[0] = true;
       });
     }
@@ -283,13 +372,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String metodoParaEnviar = "POMODORO";
     if (_methodSelected[0]) {
       metodoParaEnviar = "POMODORO";
+    } else if (_methodSelected[1]) {
+      metodoParaEnviar = "SPACED_REPETITION";
     } else if (_methodSelected[2]) {
       metodoParaEnviar = "ACTIVE_RECALL";
     } else if (_methodSelected[3]) {
       metodoParaEnviar = "FEYNMAN";
     }
 
-    // CAMBIO AQUÍ: Recibimos el Map? en lugar de un bool
     final resultado = await ApiService.updateProfile(
       userId: _userId,
       nombre: _nameController.text.trim(),
@@ -299,7 +389,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() => _isLoading = false);
 
-    // CAMBIO AQUÍ: Si el resultado NO es null, la actualización fue exitosa
     if (resultado != null) {
       _showSnackBar('¡Perfil guardado en la Base de Datos correctamente!');
     } else {
@@ -369,14 +458,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               letterSpacing: 2,
                             ),
                           ),
-                          // ========================================================
-                          // NUEVO BOTÓN: ENTRAR A EDITAR PERFIL (AGREGAR DESDE AQUÍ)
-                          // ========================================================
                           Align(
                             alignment: Alignment.centerRight,
                             child: GestureDetector(
                               onTap: () {
-                                // 1. Detectamos cuál método de estudio está seleccionado actualmente en los checkboxes
                                 String metodoActual = 'POMODORO';
                                 if (_methodSelected[1]) {
                                   metodoActual = 'SPACED_REPETITION';
@@ -388,14 +473,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   metodoActual = 'FEYNMAN';
                                 }
 
-                                // 2. Navegamos pasando todos los parámetros obligatorios que exige EditProfileScreen
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => EditProfileScreen(
                                       userId: _userId,
                                       nombreInicial: _nameController.text.trim(),
-                                      apellidoInicial: '', // Enviamos vacío por integridad, igual que en tu función _handleSend
+                                      apellidoInicial: '',
                                       metodoInicial: metodoActual,
                                     ),
                                   ),
@@ -409,23 +493,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   border: Border.all(
                                     color: const Color(0xFFFF44AA).withOpacity(0.4),
                                     width: 1,
-                                  ), // Borde neón sutil
+                                  ),
                                 ),
                                 child: const Icon(
                                   Icons.edit,
                                   color: Color(0xFFFF44AA),
                                   size: 18,
-                                ), // Icono rosa neón tecnológico
+                                ),
                               ),
                             ),
                           ),
-                          // ========================================================
-                          // TÉRMINO DEL NUEVO BOTÓN
-                          // ========================================================
                         ],
                       ),
                     ),
-
                     Expanded(
                       child: Center(
                         child: ConstrainedBox(
@@ -492,13 +572,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
-
-                                // Cuadrícula interactiva estilizada
                                 _buildGridSchedule(),
-
                                 const SizedBox(height: 28),
                                 const Text(
-                                  'Metodos de estudio',
+                                  'Métodos de estudio',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 15,
@@ -508,7 +585,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(height: 14),
                                 _buildMethods(),
                                 const SizedBox(height: 36),
-
                                 SizedBox(
                                   width: double.infinity,
                                   height: 52,
@@ -528,9 +604,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         backgroundColor: Colors.transparent,
                                         shadowColor: Colors.transparent,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            30,
-                                          ),
+                                          borderRadius: BorderRadius.circular(30),
                                         ),
                                       ),
                                       child: const Text(
@@ -623,7 +697,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // Renderiza los bloques físicos. Se iluminan si el día tiene al menos 1 horario agregado.
   Widget _buildGridSchedule() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -693,7 +766,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }),
         ),
         const SizedBox(height: 8),
-        // Pequeño visor de texto resumido abajo de la matriz para verificar los rangos activos
         Center(
           child: Wrap(
             spacing: 6,
@@ -737,7 +809,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       itemBuilder: (_, index) {
         final selected = _methodSelected[index];
         return GestureDetector(
-          onTap: () => setState(() => _methodSelected[index] = !selected),
+          onTap: () {
+            setState(() {
+              _methodSelected = [false, false, false, false];
+              _methodSelected[index] = true;
+            });
+          },
           child: Row(
             children: [
               AnimatedContainer(
@@ -745,14 +822,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 width: 20,
                 height: 20,
                 decoration: BoxDecoration(
-                  color: selected
-                      ? const Color(0xFFCC00CC)
-                      : const Color(0xFF2A2550),
+                  color: selected ? const Color(0xFFCC00CC) : const Color(0xFF2A2550),
                   borderRadius: BorderRadius.circular(5),
                   border: Border.all(
-                    color: selected
-                        ? const Color(0xFFCC00CC)
-                        : const Color(0xFF5555AA),
+                    color: selected ? const Color(0xFFCC00CC) : const Color(0xFF5555AA),
                     width: 1.5,
                   ),
                 ),
@@ -772,4 +845,3 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 }
-
