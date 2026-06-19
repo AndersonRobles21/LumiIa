@@ -40,7 +40,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     // 1. Inicializamos la matriz de horarios vacía para los 5 días
     _scheduleData = List.generate(5, (_) => []);
     
-    // 2. Pre-cargamos los datos inmediatos que vienen del constructor para evitar pantallas vacías
+    // 2. Pre-cargamos los datos inmediatos que vienen del constructor
     _nameController.text = widget.nombreInicial;
     _mapearMetodoInicial(widget.metodoInicial);
 
@@ -56,7 +56,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   // Sincroniza el formato de texto de la navegación con el del Dropdown
   void _mapearMetodoInicial(String metodo) {
-    switch (metodo) {
+    switch (metodo.toUpperCase()) {
       case 'SPACED_REPETITION':
         _selectedMethod = 'Spaced Repetition';
         break;
@@ -67,7 +67,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         _selectedMethod = 'Feynman';
         break;
       default:
-        _selectedMethod = 'pomodoro';
+        _selectedMethod = 'pomodoro'; // Coincide exactamente con el item de la lista
     }
   }
 
@@ -77,7 +77,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     try {
       final data = await ApiService.getProfile(widget.userId);
       
-      // Control de brecha asíncrona: detiene el hilo si la pantalla se cerró en medio de la petición
       if (!mounted) return;
 
       if (data != null) {
@@ -86,7 +85,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             _nameController.text = data['nombre'];
           }
           
-          // Mapeamos el horario que viene en texto desde la base de datos
           if (data['horario'] != null) {
             List<dynamic> horarioServer = data['horario'];
             for (int i = 0; i < horarioServer.length && i < 5; i++) {
@@ -102,10 +100,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       debugPrint('Error cargando horario: $e');
-    }
-    
-    if (mounted) {
-      setState(() => _isLoading = false);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -139,7 +137,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       if (pickedInicio == null) return;
                       if (!context.mounted) return;
 
-                      TimeOfDay horaFin = TimeOfDay(hour: pickedInicio.hour + 2, minute: pickedInicio.minute);
+                      TimeOfDay horaFin = TimeOfDay(hour: (pickedInicio.hour + 2) % 24, minute: pickedInicio.minute);
                       final TimeOfDay? pickedFin = await showTimePicker(
                         context: context,
                         initialTime: horaFin,
@@ -247,8 +245,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
   }
 
-  // Guarda toda la información modificada en la Base de Datos
-  void _guardarCambios() async {
+void _guardarCambios() async {
   if (_nameController.text.trim().isEmpty) {
     _showSnackBar('Por favor, ingresa tu nombre.');
     return;
@@ -256,26 +253,44 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   setState(() => _isLoading = true);
 
-  // 1. Convertimos el string del dropdown al formato en MAYÚSCULAS esperado por el backend
+  // 1. Mapear el método al formato de la base de datos
   String metodoBackend = 'POMODORO';
   if (_selectedMethod == 'Spaced Repetition') metodoBackend = 'SPACED_REPETITION';
   if (_selectedMethod == 'Active Recall') metodoBackend = 'ACTIVE_RECALL';
   if (_selectedMethod == 'Feynman') metodoBackend = 'FEYNMAN';
 
-  // 2. CORREGIDO: Recibimos el resultado como un mapa (o null) en vez de un bool
+  // 2. Convertir la matriz visual en el formato estructurado para PostgreSQL
+  List<Map<String, String>> horarioParaBackend = [];
+  
+  for (int i = 0; i < _scheduleData.length; i++) {
+    String diaNombre = _days[i]; // 'lun', 'mar', 'mie', 'jue', 'vie'
+    
+    for (String rango in _scheduleData[i]) {
+      List<String> partes = rango.split(' - ');
+      if (partes.length == 2) {
+        horarioParaBackend.add({
+          'dia': diaNombre,
+          'hora_inicio': partes[0].trim(), // Enviaremos "HH:MM"
+          'hora_fin': partes[1].trim(),    // Enviaremos "HH:MM"
+        });
+      }
+    }
+  }
+
+  // 3. Enviar los datos al ApiService (Fíjate que agregamos 'horario')
   final resultado = await ApiService.updateProfile(
     userId: widget.userId,
     nombre: _nameController.text.trim(),
     apellido: widget.apellidoInicial, 
     metodoEstudio: metodoBackend,
+    horario: horarioParaBackend, // <-- Enviamos la lista de bloques armada
   );
 
   if (!mounted) return;
   setState(() => _isLoading = false);
 
-  // 3. CORREGIDO: Si el resultado no es nulo, significa que el backend respondió con éxito (200 OK)
   if (resultado != null) {
-    _showSnackBar('¡Perfil y método actualizados con éxito!');
+    _showSnackBar('¡Perfil y horarios guardados con éxito!');
     if (mounted) Navigator.pop(context, true); 
   } else {
     _showSnackBar('Error al conectar con el servidor.');

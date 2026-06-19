@@ -45,15 +45,15 @@ router.get("/profile/:id", async (req, res) => {
 
 /*
 =================================
-UPDATE PROFILE (Con validación de consistencia)
+UPDATE PROFILE (Con transacción SQL para sincronizar horarios)
 PUT /api/auth/profile/:id
 =================================
 */
 router.put("/profile/:id", async (req, res) => {
   const { id } = req.params;
-  const { nombre, apellido, metodo_estudio } = req.body;
+  const { nombre, apellido, metodo_estudio, horario } = req.body;
 
-  // CAMBIO NECESARIO: Validar métodos permitidos igual que en el registro
+  // Validar métodos permitidos igual que en el registro
   const metodosPermitidos = [
     "POMODORO",
     "FEYNMAN",
@@ -68,34 +68,82 @@ router.put("/profile/:id", async (req, res) => {
     });
   }
 
+  // Solicitamos un cliente del pool para manejar de forma segura la transacción SQL
+  const client = await pool.connect();
+
   try {
-    const resultado = await pool.query(
-      `
+    // Iniciamos la transacción
+    await client.query("BEGIN");
+
+    // Paso A: Actualizar los datos del usuario en la tabla usuarios
+    const updateUsuarioQuery = `
       UPDATE usuarios 
       SET nombre = $1, 
           apellido = $2, 
           metodo_estudio = $3, 
           updated_at = NOW() 
       WHERE id = $4 
-      RETURNING id, nombre, apellido, correo, metodo_estudio
-      `,
-      [nombre, apellido, metodo_estudio, id]
-    );
+      RETURNING id, nombre, apellido, correo, metodo_estudio;
+    `;
+    const resultadoUsuario = await client.query(updateUsuarioQuery, [
+      nombre, 
+      apellido, 
+      metodo_estudio, 
+      id
+    ]);
 
-    if (resultado.rows.length === 0) {
+    if (resultadoUsuario.rows.length === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ mensaje: "Usuario no encontrado" });
     }
 
+    // Paso B: Si viene el array de horarios, sincronizarlo con la tabla horarios
+    if (horario && Array.isArray(horario)) {
+      
+      // 1. Eliminamos de golpe todos los bloques de horario viejos del usuario
+      await client.query("DELETE FROM horarios WHERE usuario_id = $1", [id]);
+
+      // 2. Si la nueva lista contiene registros, los insertamos uno por uno dentro del flujo
+      if (horario.length > 0) {
+        for (const bloque of horario) {
+          const insertHorarioQuery = `
+            INSERT INTO horarios (usuario_id, dia, hora_inicio, hora_fin)
+            VALUES ($1, $2, $3, $4);
+          `;
+          await client.query(insertHorarioQuery, [
+            id,
+            bloque.dia,          // Ej: 'lun'
+            bloque.hora_inicio,  // Ej: '14:30'
+            bloque.hora_fin      // Ej: '16:30'
+          ]);
+        }
+      }
+    }
+
+    // Si todo se ejecutó sin errores, guardamos los cambios definitivamente
+    await client.query("COMMIT");
+    
     return res.status(200).json({
-      mensaje: "Perfil actualizado con éxito",
-      usuario: resultado.rows[0], // Este es el nodo que el frontend ahora leerá correctamente
+      mensaje: "Perfil y horarios actualizados con éxito",
+      usuario: resultadoUsuario.rows[0], // Nodo que lee el frontend
     });
+
   } catch (error) {
+    // Si algo falla, cancelamos toda la operación para evitar datos corruptos
+    try {
+      await client.query("ROLLBACK");
+    } catch (rollbackError) {
+      console.error("Error al ejecutar ROLLBACK:", rollbackError);
+    }
+
     console.error(error);
     return res.status(500).json({
-      mensaje: "Error interno al actualizar el perfil en la base de datos",
+      mensaje: "Error interno al actualizar el perfil y horarios en la base de datos",
       error: error instanceof Error ? error.message : error,
     });
+  } finally {
+    // Liberamos el cliente de vuelta al pool pase lo que pase
+    client.release();
   }
 });
 
@@ -287,11 +335,9 @@ router.post("/password/request", async (req, res) => {
     const codigoSimulado = "123456";
     console.log(`[TEST] Código enviado a ${correo}: ${codigoSimulado}`);
 
-    // Nota: En producción, aquí guardarías el código con expiración en la BD y enviarías un email real.
-
     return res.status(200).json({ 
       mensaje: "Código de recuperación enviado con éxito",
-      token: "TOKEN_PROVISIONAL_TEST" // Retorno plano para que api_service no de error
+      token: "TOKEN_PROVISIONAL_TEST" 
     });
   } catch (error) {
     console.error(error);
@@ -322,7 +368,7 @@ router.post("/password/reset", async (req, res) => {
     const nuevoPasswordHash = await bcrypt.hash(password, 10);
 
     // Actualizar en la base de datos
-    const resultado = await pool.query(
+    await pool.query(
       "UPDATE usuarios SET password_hash = $1 WHERE correo = $2",
       [nuevoPasswordHash, correo]
     );
