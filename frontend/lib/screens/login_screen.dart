@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:frontend/screens/olvidar_contrase%C3%B1a.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart'; // Obligatorio para la autenticación
+import 'package:frontend/screens/olvidar_contraseña.dart'; 
 import 'register_screen.dart';
 import '/screens/profile_screen.dart';
 import '../services/api_service.dart'; 
-
 
 void main() {
   runApp(const IniciarSesion());
@@ -46,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // --- FUNCIÓN DE LOGUEO HÍBRIDO (SUPABASE AUTH + NODE.JS & POSTGRESQL) ---
   void _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -57,7 +58,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
       setState(() => _errorMessage = 'Ingresa un email válido.');
       return;
     }
@@ -65,13 +66,30 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // andrey aca va la conexion con el backend
-      final userData = await ApiService.login(correo: email, password: password);
+      // PASO 1: Autenticación real y segura en el módulo de Supabase Auth
+      final AuthResponse response = await Supabase.instance.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw Exception('No se pudo recuperar la sesión del usuario.');
+      }
+
+      // PASO 2: Sincronización con tu ApiService en Node.js pasándole el userId (UUID) real
+      final userData = await ApiService.login(userId: user.id);
 
       if (!mounted) return;
       setState(() => _isLoading = false);
 
-      String userId = userData['usuario']['id'] ?? 'id-temporal';
+      // Leemos la estructura JSON limpia devuelta por el pool.query de tu Backend
+      String userId = '';
+      if (userData['usuario'] != null && userData['usuario']['id'] != null) {
+        userId = userData['usuario']['id'].toString();
+      } else {
+        throw Exception('El servidor no retornó un identificador de usuario válido.');
+      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -80,12 +98,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
       
+      // Navegación limpia enviando el ID a tu ProfileScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => ProfileScreen(
-  userId: userId,
-),
+          builder: (context) => ProfileScreen(userId: userId),
         ),
       );
 
@@ -93,7 +110,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
+        // Limpiamos los encabezados de excepción genéricos para el visor del usuario
+        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
       });
     }
   }
@@ -175,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: const Color(0xFF102CE4).withValues(alpha: 0.7),
+                          color: const Color(0xFF102CE4).withOpacity(0.7),
                           size: 20,
                         ),
                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -295,7 +313,7 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
         filled: true,
-        fillColor: const Color(0xFF301642).withValues(alpha: 0.5),
+        fillColor: const Color(0xFF301642).withOpacity(0.5),
         suffixIcon: suffixIcon,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         enabledBorder: OutlineInputBorder(
@@ -332,5 +350,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-  
 }
