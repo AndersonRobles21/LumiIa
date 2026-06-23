@@ -1,337 +1,177 @@
-import { Router } from "express";
+import { Router, Request, Response } from "express";
 import { pool } from "../config/db";
-import bcrypt from "bcrypt";
 
 const router = Router();
 
 /*
-=================================
-GET PROFILE
-GET /api/auth/profile/:id
-=================================
+============================================================
+REGISTRO
+POST /api/auth/register
+============================================================
 */
-router.get("/profile/:id", async (req, res) => {
+router.post("/register", async (req: Request, res: Response): Promise<any> => {
   try {
-    const { id } = req.params;
+    const { id, nombre, apellido, rol_id } = req.body;
+
+    if (!id || !nombre) {
+      return res.status(400).json({
+        mensaje: "Faltan campos obligatorios en el cuerpo: id o nombre.",
+      });
+    }
+
+    const queryText = `
+      INSERT INTO usuarios (id, nombre, apellido, rol_id)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, nombre, apellido, rol_id, fecha_registro;
+    `;
+    const values = [
+      id,
+      nombre.trim(),
+      apellido && apellido.trim() !== "" ? apellido.trim() : null,
+      rol_id || null
+    ];
+    
+    const result = await pool.query(queryText, values);
+
+    // Inicializa preventivamente el perfil de estudio con valores vacíos
+    await pool.query(
+      "INSERT INTO perfiles_estudio (usuario_id, horas_disponibles, objetivo, nivel_procrastinacion) VALUES ($1, 0, '', 1) ON CONFLICT DO NOTHING",
+      [id]
+    );
+
+    // Inicializa estadísticas para la gamificación
+    await pool.query(
+      "INSERT INTO estadisticas (usuario_id) VALUES ($1) ON CONFLICT DO NOTHING",
+      [id]
+    );
+
+    return res.status(201).json({
+      mensaje: "Usuario registrado correctamente en LUMI",
+      usuario: result.rows[0],
+    });
+  } catch (error: any) {
+    console.error("❌ Error en POST /register:", error);
+    return res.status(500).json({
+      mensaje: "Error interno al insertar el perfil en PostgreSQL",
+      detalle: error.message || String(error)
+    });
+  }
+});
+
+/*
+============================================================
+LOGIN
+POST /api/auth/login
+============================================================
+*/
+router.post("/login", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({
+        mensaje: "El campo id (UUID) es requerido para validar el login.",
+      });
+    }
 
     const resultado = await pool.query(
-      `
-      SELECT
-      id,
-      nombre,
-      apellido,
-      correo,
-      metodo_estudio
-      FROM usuarios
-      WHERE id = $1
-      `,
+      "SELECT id, nombre, apellido, rol_id, fecha_registro FROM usuarios WHERE id = $1",
       [id]
     );
 
     if (resultado.rows.length === 0) {
       return res.status(404).json({
-        mensaje: "Usuario no encontrado",
+        mensaje: "El usuario no tiene un perfil creado en PostgreSQL. Regístrate primero.",
       });
-    }
-
-    res.status(200).json(resultado.rows[0]);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      mensaje: "Error al obtener perfil",
-    });
-  }
-});
-
-/*
-=================================
-UPDATE PROFILE (Con validación de consistencia)
-PUT /api/auth/profile/:id
-=================================
-*/
-router.put("/profile/:id", async (req, res) => {
-  const { id } = req.params;
-  const { nombre, apellido, metodo_estudio } = req.body;
-
-  // CAMBIO NECESARIO: Validar métodos permitidos igual que en el registro
-  const metodosPermitidos = [
-    "POMODORO",
-    "FEYNMAN",
-    "ACTIVE_RECALL",
-    "MAPA_MENTAL",
-    "SPACED_REPETITION"
-  ];
-
-  if (metodo_estudio && !metodosPermitidos.includes(metodo_estudio)) {
-    return res.status(400).json({
-      mensaje: "Método de estudio inválido",
-    });
-  }
-
-  try {
-    const resultado = await pool.query(
-      `
-      UPDATE usuarios 
-      SET nombre = $1, 
-          apellido = $2, 
-          metodo_estudio = $3, 
-          updated_at = NOW() 
-      WHERE id = $4 
-      RETURNING id, nombre, apellido, correo, metodo_estudio
-      `,
-      [nombre, apellido, metodo_estudio, id]
-    );
-
-    if (resultado.rows.length === 0) {
-      return res.status(404).json({ mensaje: "Usuario no encontrado" });
     }
 
     return res.status(200).json({
-      mensaje: "Perfil actualizado con éxito",
-      usuario: resultado.rows[0], // Este es el nodo que el frontend ahora leerá correctamente
-    });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({
-      mensaje: "Error interno al actualizar el perfil en la base de datos",
-      error: error instanceof Error ? error.message : error,
-    });
-  }
-});
-
-/*
-=================================
-REGISTRO
-POST /api/auth/register
-=================================
-*/
-router.post("/register", async (req, res) => {
-  try {
-    const {
-      nombre,
-      apellido,
-      correo,
-      password,
-      metodo_estudio,
-    } = req.body;
-
-    const metodosPermitidos = [
-      "POMODORO",
-      "FEYNMAN",
-      "ACTIVE_RECALL",
-      "MAPA_MENTAL",
-      "SPACED_REPETITION"
-    ];
-
-    const metodoFinal = metodo_estudio || "POMODORO";
-
-    if (!metodosPermitidos.includes(metodoFinal)) {
-      return res.status(400).json({
-        mensaje: "Método de estudio inválido",
-      });
-    }
-
-    if (!nombre || !correo || !password) {
-      return res.status(400).json({
-        mensaje: "Faltan campos obligatorios",
-      });
-    }
-
-    const usuarioExistente = await pool.query(
-      "SELECT * FROM usuarios WHERE correo = $1",
-      [correo]
-    );
-
-    if (usuarioExistente.rows.length > 0) {
-      return res.status(400).json({
-        mensaje: "El correo ya está registrado",
-      });
-    }
-
-    const passwordHash = await bcrypt.hash(password, 10);
-
-    const resultado = await pool.query(
-      `
-      INSERT INTO usuarios
-      (
-        nombre,
-        apellido,
-        correo,
-        password_hash,
-        metodo_estudio
-      )
-      VALUES
-      (
-        $1,
-        $2,
-        $3,
-        $4,
-        $5
-      )
-      RETURNING
-      id,
-      nombre,
-      apellido,
-      correo,
-      metodo_estudio,
-      created_at
-      `,
-      [
-        nombre,
-        apellido,
-        correo,
-        passwordHash,
-        metodoFinal,
-      ]
-    );
-
-    res.status(201).json({
-      mensaje: "Usuario registrado correctamente",
+      mensaje: "Inicio de sesión verificado correctamente en PostgreSQL",
       usuario: resultado.rows[0],
     });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      mensaje: "Error al registrar usuario",
-    });
+  } catch (error: any) {
+    console.error("❌ Error en POST /login:", error);
+    return res.status(500).json({ mensaje: "Error interno en el servidor local durante el login" });
   }
 });
 
 /*
-=================================
-LOGIN
-POST /api/auth/login
-=================================
+============================================================
+GET PROFILE (Conectado estrictamente a perfiles_estudio)
+GET /api/auth/profile/:id
+============================================================
 */
-router.post("/login", async (req, res) => {
+// Actualiza el GET /profile/:id en tu archivo de Node para incluir foto_perfil:
+router.get("/profile/:id", async (req: Request, res: Response): Promise<any> => {
   try {
-    const { correo, password } = req.body;
-    if (!correo || !password) {
-      return res.status(400).json({
-        mensaje: "Faltan credenciales"
-      });
-    }
+    const { id } = req.params;
+    const usuarioRes = await pool.query("SELECT id, nombre, apellido, rol_id FROM usuarios WHERE id = $1", [id]);
+    if (usuarioRes.rows.length === 0) return res.status(404).json({ mensaje: "Usuario no encontrado" });
+    const usuario = usuarioRes.rows[0];
 
-    const resultado = await pool.query(
-      `
-      SELECT
-      id,
-      nombre,
-      apellido,
-      correo,
-      metodo_estudio,
-      password_hash
-      FROM usuarios
-      WHERE correo = $1
-      `,
-      [correo]
+    const perfilEstudioRes = await pool.query(
+      "SELECT id, horas_disponibles, objetivo, nivel_procrastinacion, foto_perfil FROM perfiles_estudio WHERE usuario_id = $1",
+      [id]
     );
+    const horariosRes = await pool.query("SELECT id, dia, hora_inicio, hora_fin FROM horarios WHERE usuario_id = $1", [id]);
 
-    if (resultado.rows.length === 0) {
-      return res.status(401).json({
-        mensaje: "Correo o contraseña incorrectos",
-      });
-    }
-
-    const usuario = resultado.rows[0];
-
-    const passwordValida = await bcrypt.compare(
-      password,
-      usuario.password_hash
-    );
-
-    if (!passwordValida) {
-      return res.status(401).json({
-        mensaje: "Correo o contraseña incorrectos",
-      });
-    }
-
-    res.status(200).json({
-      mensaje: "Login exitoso",
-      usuario: {
-        id: usuario.id,
-        nombre: usuario.nombre,
-        apellido: usuario.apellido,
-        correo: usuario.correo,
-        metodo_estudio: usuario.metodo_estudio,
-      },
+    return res.status(200).json({
+      id: usuario.id,
+      nombre: usuario.nombre,
+      apellido: usuario.apellido,
+      rol_id: usuario.rol_id,
+      perfil_estudio: perfilEstudioRes.rows[0] || { horas_disponibles: 0, objetivo: "", nivel_procrastinacion: 1, foto_perfil: null },
+      horarios: horariosRes.rows,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      mensaje: "Error al iniciar sesión",
-    });
+    return res.status(500).json({ mensaje: "Error al obtener perfil" });
   }
 });
 
-/*
-=================================
-REQUEST PASSWORD RESET
-POST /api/auth/password/request
-=================================
-*/
-router.post("/password/request", async (req, res) => {
+// Actualiza el PUT /profile/:id en tu archivo de Node:
+router.put("/profile/:id", async (req: Request, res: Response): Promise<any> => {
+  const { id } = req.params;
+  const { nombre, apellido, horas_disponibles, objetivo, nivel_procrastinacion, foto_perfil, horario } = req.body;
+  const client = await pool.connect();
   try {
-    const { correo } = req.body;
-    if (!correo) {
-      return res.status(400).json({ mensaje: "El correo es obligatorio" });
+    await client.query("BEGIN");
+    
+    // 1. Actualiza tabla de usuarios
+    await client.query("UPDATE usuarios SET nombre = $1, apellido = $2 WHERE id = $3", [nombre.trim(), apellido || null, id]);
+
+    // 2. Hace UPSERT en perfiles_estudio leyendo los datos exactos del body
+    const perfilQuery = `
+      INSERT INTO perfiles_estudio (usuario_id, horas_disponibles, objetivo, nivel_procrastinacion, foto_perfil)
+      VALUES ($1, $2, $3, $4, $5)
+      ON CONFLICT (usuario_id) 
+      DO UPDATE SET 
+        horas_disponibles = EXCLUDED.horas_disponibles,
+        objetivo = EXCLUDED.objetivo,
+        nivel_procrastinacion = EXCLUDED.nivel_procrastinacion,
+        foto_perfil = EXCLUDED.foto_perfil;
+    `;
+    await client.query(perfilQuery, [
+      id, 
+      horas_disponibles || 0, 
+      objetivo || '', 
+      nivel_procrastinacion || 1, 
+      foto_perfil || null
+    ]);
+
+    // 3. Sincroniza horarios
+    if (horario && Array.isArray(horario)) {
+      await client.query("DELETE FROM horarios WHERE usuario_id = $1", [id]);
+      for (const b of horario) {
+        await client.query("INSERT INTO horarios (usuario_id, dia, hora_inicio, hora_fin) VALUES ($1, $2, $3, $4)", [id, b.dia.trim(), b.hora_inicio.trim(), b.hora_fin.trim()]);
+      }
     }
-
-    // 1. Verificar si el usuario existe
-    const usuario = await pool.query("SELECT id FROM usuarios WHERE correo = $1", [correo]);
-    if (usuario.rows.length === 0) {
-      return res.status(404).json({ mensaje: "No existe una cuenta con ese correo" });
-    }
-
-    // 2. Mock del código de verificación (Simulado para pruebas locales del Sprint 1)
-    const codigoSimulado = "123456";
-    console.log(`[TEST] Código enviado a ${correo}: ${codigoSimulado}`);
-
-    // Nota: En producción, aquí guardarías el código con expiración en la BD y enviarías un email real.
-
-    return res.status(200).json({ 
-      mensaje: "Código de recuperación enviado con éxito",
-      token: "TOKEN_PROVISIONAL_TEST" // Retorno plano para que api_service no de error
-    });
+    
+    await client.query("COMMIT");
+    return res.status(200).json({ mensaje: "Perfil de LUMI guardado exitosamente" });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
-    return res.status(500).json({ mensaje: "Error al solicitar recuperación" });
-  }
+    return res.status(500).json({ mensaje: "Error al guardar perfil" });
+  } finally { client.release(); }
 });
-
-/*
-=================================
-RESET PASSWORD
-POST /api/auth/password/reset
-=================================
-*/
-router.post("/password/reset", async (req, res) => {
-  try {
-    const { correo, password, code } = req.body;
-
-    if (!correo || !password || !code) {
-      return res.status(400).json({ mensaje: "Faltan campos obligatorios" });
-    }
-
-    // Validar el código simulado para pruebas locales
-    if (code !== "123456") {
-      return res.status(400).json({ mensaje: "Código de verificación inválido o expirado" });
-    }
-
-    // Encriptar nueva contraseña
-    const nuevoPasswordHash = await bcrypt.hash(password, 10);
-
-    // Actualizar en la base de datos
-    const resultado = await pool.query(
-      "UPDATE usuarios SET password_hash = $1 WHERE correo = $2",
-      [nuevoPasswordHash, correo]
-    );
-
-    return res.status(200).json({ mensaje: "Contraseña actualizada correctamente" });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ mensaje: "Error al restablecer la contraseña" });
-  }
-});
-
 export default router;
