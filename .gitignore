@@ -96,3 +96,7 @@ supabase/.branches/
 # =====================================
 uploads/
 ```
+backend/package.json
+backend/src/server.ts
+frontend/lib/services/api_service.dart
+backend/package.json
