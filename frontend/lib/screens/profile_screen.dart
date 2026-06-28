@@ -153,112 +153,82 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               content: SizedBox(
-                width: double.maxFinite,
-                child: _scheduleData[dayIndex].isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 20.0),
-                        child: Text(
-                          'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
-                          style: TextStyle(color: Colors.white54, fontSize: 13),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _scheduleData[dayIndex].length,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F5A),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              leading: const Icon(Icons.access_time_filled, color: Color(0xFFFF44AA), size: 18),
-                              title: Text(
-                                _scheduleData[dayIndex][index],
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  // Botoncito para editar las horas de este bloque específico con tu reloj nativo
-                                  IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 18),
-                                    onPressed: () => _abrirSelectorReloj(dayIndex, index, setDialogState),
-                                  ),
-                                  // Botoncito para eliminar este bloque específico con letrero de confirmación
-                                  IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
-                                    onPressed: () => _confirmarEliminarBloque(dayIndex, index, setDialogState),
-                                  ),
-                                ],
-                              trailing: IconButton(
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.redAccent,
-                                  size: 18,
+  width: double.maxFinite,
+  child: _scheduleData[dayIndex].isEmpty
+      ? const Padding(
+          padding: EdgeInsets.symmetric(vertical: 20.0),
+          child: Text(
+            'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+            textAlign: TextAlign.center,
+          ),
+        )
+      : ListView.builder(
+          shrinkWrap: true,
+          itemCount: _scheduleData[dayIndex].length,
+          itemBuilder: (context, index) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2A1F5A),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: ListTile(
+                dense: true,
+                leading: const Icon(Icons.access_time_filled, color: Color(0xFFFF44AA), size: 18),
+                title: Text(
+                  _scheduleData[dayIndex][index],
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+                // AQUÍ ESTÁ LA CORRECCIÓN: Un solo trailing con los dos botones
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Botón Editar
+                    IconButton(
+                      icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 18),
+                      onPressed: () => _abrirSelectorReloj(dayIndex, index, setDialogState),
+                    ),
+                    // Botón Eliminar
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
+                      onPressed: () {
+                        showDialog(
+                          context: context,
+                          builder: (BuildContext dialogContext) {
+                            return AlertDialog(
+                              backgroundColor: const Color(0xFF1A1040),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              title: const Text('¿Eliminar bloque?', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                              content: const Text('Este horario se borrará por completo de la lista actual.', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(dialogContext),
+                                  child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
                                 ),
-                               onPressed: () {
-  showDialog(
-    context: context,
-    builder: (BuildContext dialogContext) {
-      return AlertDialog(
-        backgroundColor: const Color(0xFF1A1040),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
-        title: const Text(
-          '¿Eliminar bloque?',
-          style: TextStyle(
-            color: Colors.white, 
-            fontSize: 16, 
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: const Text(
-          'Este horario se borrará por completo de la lista actual.',
-          style: TextStyle(
-            color: Colors.white70, 
-            fontSize: 14,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext), // Cierra la alerta sin borrar
-            child: const Text(
-              'CANCELAR', 
-              style: TextStyle(color: Colors.white54),
-            ),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext); // Cierra la alerta
-              // Borra el horario real dentro del modal de horarios
-              setDialogState(() {
-                _scheduleData[dayIndex].removeAt(index);
-              });
-            },
-            child: const Text(
-              'ELIMINAR', 
-              style: TextStyle(
-                color: Colors.redAccent, 
-                fontWeight: FontWeight.bold,
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.pop(dialogContext);
+                                    setDialogState(() {
+                                      _scheduleData[dayIndex].removeAt(index);
+                                    });
+                                  },
+                                  child: const Text('ELIMINAR', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-        ],
-      );
-    },
-  );
-},
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
+            );
+          },
+        ),
+),
+
               actions: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
