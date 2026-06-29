@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; // Obligatorio para la autenticación
-import 'package:frontend/screens/olvidar_contraseña.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:frontend/screens/olvidar_contraseña.dart';
 import 'register_screen.dart';
 import '/screens/dashboard_screen.dart';
-import '../services/api_service.dart'; 
+import '../services/api_service.dart';
 
 void main() {
   runApp(const IniciarSesion());
@@ -46,13 +46,12 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  // --- FUNCIÓN DE LOGUEO HÍBRIDO (SUPABASE AUTH + NODE.JS & POSTGRESQL) ---
   void _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
     setState(() => _errorMessage = null);
-    
+
     if (email.isEmpty || password.isEmpty) {
       setState(() => _errorMessage = 'Por favor, llena todos los campos.');
       return;
@@ -66,7 +65,7 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // PASO 1: Autenticación real y segura en el módulo de Supabase Auth
+      // PASO 1: Autenticación real con Supabase Auth
       final AuthResponse response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -77,19 +76,17 @@ class _LoginScreenState extends State<LoginScreen> {
         throw Exception('No se pudo recuperar la sesión del usuario.');
       }
 
-      // PASO 2: Sincronización con tu ApiService en Node.js pasándole el userId (UUID) real
-      final userData = await ApiService.login(userId: user.id);
+      // PASO 2: El userId viene directamente de Supabase Auth (UUID real)
+      // Intentamos sincronizar con el backend Node, pero no bloqueamos el login si falla
+      final String userId = user.id;
+      try {
+        await ApiService.login(userId: userId);
+      } catch (_) {
+        // El backend es opcional para navegar; Supabase Auth es la fuente de verdad
+      }
 
       if (!mounted) return;
       setState(() => _isLoading = false);
-
-      // Leemos la estructura JSON limpia devuelta por el pool.query de tu Backend
-      String userId = '';
-      if (userData['usuario'] != null && userData['usuario']['id'] != null) {
-        userId = userData['usuario']['id'].toString();
-      } else {
-        throw Exception('El servidor no retornó un identificador de usuario válido.');
-      }
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -97,8 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
           backgroundColor: const Color(0xFF102CE4),
         ),
       );
-      
-      // Navegación limpia enviando el ID real (de Supabase + Postgres) al Dashboard
+
+      // Navegación al Dashboard con el UUID real de Supabase
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -110,7 +107,6 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
-        // Limpiamos los encabezados de excepción genéricos para el visor del usuario
         _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
       });
     }
