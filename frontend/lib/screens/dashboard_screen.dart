@@ -14,29 +14,65 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = false;
   List<dynamic> _tareasPendientes = [];
+  int _racha = 0;
+  int _tareasCompletadas = 0;
 
   @override
   void initState() {
     super.initState();
-    _cargarPlanesYTareas();
+    _cargarTodo();
   }
 
-  void _cargarPlanesYTareas() async {
+  Future<void> _cargarTodo() async {
     setState(() => _isLoading = true);
-    // Jalamos los planes/tareas reales guardados transaccionalmente por la IA
+    await Future.wait([
+      _cargarPlanes(),
+      _cargarEstadisticas(),
+    ]);
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> _cargarPlanes() async {
     final lista = await ApiService.getPlanesEstudio(widget.userId);
-    setState(() {
-      _tareasPendientes = lista ?? [];
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _tareasPendientes = lista ?? [];
+      });
+    }
+  }
+
+  Future<void> _cargarEstadisticas() async {
+    final stats = await ApiService.getEstadisticas(widget.userId);
+    if (mounted && stats != null) {
+      setState(() {
+        _racha = (stats['racha'] ?? 0) as int;
+        _tareasCompletadas = (stats['tareas_completadas'] ?? 0) as int;
+      });
+    }
+  }
+
+  Future<void> _registrarEstudioHoy() async {
+    final ok = await ApiService.registrarRachaHoy(widget.userId);
+    if (ok) {
+      await _cargarEstadisticas();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('🔥 ¡Racha actualizada!'),
+            backgroundColor: Color(0xFF2E1B4E),
+          ),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final diaActual = _racha;
+    final diaSiguiente = _racha + 1;
+
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF0B0813,
-      ), // Tu fondo ultra oscuro original
+      backgroundColor: const Color(0xFF0B0813),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -44,358 +80,351 @@ class _DashboardScreenState extends State<DashboardScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF14002A),
-              Color(0xFF0B0813),
-            ], // Degradado violeta profundo de la captura
+            colors: [Color(0xFF14002A), Color(0xFF0B0813)],
           ),
         ),
         child: SafeArea(
           child: Stack(
             children: [
-              SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24.0,
-                  vertical: 16.0,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // --- HEADER ORIGINAL ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Tu plan de estudio',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.notifications_none,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                          onPressed: () {}, // Icono de la campanita
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // --- REQUISITO: CUADRADITO DE TRABAJOS PENDIENTES (CON AGREGAR) ---
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white24, width: 1),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              RefreshIndicator(
+                color: const Color(0xFFFF44AA),
+                backgroundColor: const Color(0xFF1F1A3A),
+                onRefresh: _cargarTodo,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // HEADER
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Text(
-                                'Trabajos pendientes',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              // Botón neón para abrir la pantalla dedicada de agregar tareas
-                              GestureDetector(
-                                onTap: () async {
-                                  final cargoNuevo = await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => AgregarTareaScreen(
-                                        userId: widget.userId,
-                                      ),
-                                    ),
-                                  );
-                                  if (cargoNuevo == true) {
-                                    _cargarPlanesYTareas(); // Actualiza reactivamente
-                                  }
-                                },
-                                child: const Icon(
-                                  Icons.add_circle_outline,
-                                  color: Color(0xFFFF44AA),
-                                  size: 22,
-                                ),
-                              ),
-                            ],
+                          const Text(
+                            'Tu plan de estudio',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
                           ),
-                          const SizedBox(height: 16),
-
-                          _isLoading
-                              ? const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Color(0xFFFF44AA),
-                                  ),
-                                )
-                              : _tareasPendientes.isEmpty
-                              ? const Padding(
-                                  padding: EdgeInsets.symmetric(vertical: 20.0),
-                                  child: Center(
-                                    child: Text(
-                                      'No hay tareas agregadas.\nToca el "+" para crear una con IA.',
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: Colors.white30,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : ListView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: _tareasPendientes.length,
-                                  itemBuilder: (context, index) {
-                                    final t = _tareasPendientes[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 12.0,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              const Text(
-                                                '• ',
-                                                style: TextStyle(
-                                                  color: Color(0xFFFF44AA),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              Text(
-                                                (t['nombre'] ?? '')
-                                                    .toString()
-                                                    .toUpperCase(),
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.w600,
-                                                  letterSpacing: 0.5,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          const Text(
-                                            '7:00 am - 1hr', // Formato estético mapeado de tu captura
-                                            style: TextStyle(
-                                              color: Colors.white38,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
+                          IconButton(
+                            icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                            onPressed: () {},
+                          ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 24),
 
-                    // --- SECCIÓN: LA RACHA DE HOY ---
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'LA RACHA DE HOY',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.5,
-                          ),
+                      // TRABAJOS PENDIENTES
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white24, width: 1),
                         ),
-                        GestureDetector(
-                          onTap: () {},
-                          child: const Text(
-                            'VER',
-                            style: TextStyle(
-                              color: Color(0xFFFF44AA),
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 16,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                            child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'MAÑANA 16',
-                                      style: TextStyle(
-                                        color: Colors.white38,
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'DIA 15',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 24,
-                                        fontWeight: FontWeight
-                                            .bold, // Corregido aquí con la propiedad nativa de Flutter
-                                        letterSpacing: 1,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                // Icono del fuego original de la captura
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF2E1B4E),
-                                    shape: BoxShape.circle,
+                                Text(
+                                  'Trabajos pendientes (${_tareasPendientes.length})',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
                                   ),
-                                  child: const Text(
-                                    '🔥',
-                                    style: TextStyle(fontSize: 28),
+                                ),
+                                GestureDetector(
+                                  onTap: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => AgregarTareaScreen(userId: widget.userId),
+                                      ),
+                                    );
+                                    _cargarPlanes();
+                                  },
+                                  child: const Icon(
+                                    Icons.add_circle_outline,
+                                    color: Color(0xFFFF44AA),
+                                    size: 22,
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 20,
-                          height: 80,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white12),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 28),
+                            const SizedBox(height: 16),
 
-                    // --- SECCIÓN: IA ESTADÍSTICAS ---
-                    const Text(
-                      'IA Estadisticas',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.5,
+                            _isLoading
+                                ? const Center(
+                                    child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
+                                  )
+                                : _tareasPendientes.isEmpty
+                                    ? const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 20.0),
+                                        child: Center(
+                                          child: Text(
+                                            'No hay tareas agregadas.\nToca el "+" para crear una.',
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(color: Colors.white30, fontSize: 12),
+                                          ),
+                                        ),
+                                      )
+                                    : ListView.builder(
+                                        shrinkWrap: true,
+                                        physics: const NeverScrollableScrollPhysics(),
+                                        itemCount: _tareasPendientes.length,
+                                        itemBuilder: (context, index) {
+                                          final t = _tareasPendientes[index];
+                                          final nombre = (t['nombre'] ?? '').toString();
+                                          final fecha = t['fecha_creacion'] != null
+                                              ? _formatFecha(t['fecha_creacion'].toString())
+                                              : '';
+                                          return Padding(
+                                            padding: const EdgeInsets.only(bottom: 12.0),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              children: [
+                                                Expanded(
+                                                  child: Row(
+                                                    children: [
+                                                      const Text(
+                                                        '• ',
+                                                        style: TextStyle(
+                                                          color: Color(0xFFFF44AA),
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      Expanded(
+                                                        child: Text(
+                                                          nombre.toUpperCase(),
+                                                          overflow: TextOverflow.ellipsis,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 12,
+                                                            fontWeight: FontWeight.w600,
+                                                            letterSpacing: 0.5,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                                Text(
+                                                  fecha,
+                                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                          ],
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(20),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.white12),
+                      const SizedBox(height: 28),
+
+                      // LA RACHA DE HOY
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'LA RACHA DE HOY',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
                             ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                          ),
+                          GestureDetector(
+                            onTap: _registrarEstudioHoy,
+                            child: const Text(
+                              '+ MARCAR DÍA',
+                              style: TextStyle(
+                                color: Color(0xFFFF44AA),
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'TU PROGRESO EN TUS',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      Text(
-                                        'TAREAS',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                      SizedBox(height: 6),
-                                      Text(
-                                        'Mira tu ultimo progreso en tus trabajos',
-                                        style: TextStyle(
+                                        diaActual == 0 ? '¡EMPIEZA HOY!' : 'MAÑANA DÍA $diaSiguiente',
+                                        style: const TextStyle(
                                           color: Colors.white38,
-                                          fontSize: 11,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        diaActual == 0 ? 'DÍA 0' : 'DÍA $diaActual',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 24,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        diaActual == 0
+                                            ? 'Toca "+ MARCAR DÍA" para iniciar'
+                                            : '$_tareasCompletadas tareas completadas',
+                                        style: const TextStyle(
+                                          color: Colors.white30,
+                                          fontSize: 10,
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                                Container(
-                                  width: 50,
-                                  height: 50,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF2E1B4E),
-                                    borderRadius: BorderRadius.circular(12),
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: const BoxDecoration(
+                                      color: Color(0xFF2E1B4E),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      diaActual == 0 ? '⭐' : '🔥',
+                                      style: const TextStyle(fontSize: 28),
+                                    ),
                                   ),
-                                  child: const Icon(
-                                    Icons.timer_outlined,
-                                    color: Colors.orangeAccent,
-                                    size: 26,
-                                  ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Container(
-                          width: 20,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: Colors.white12),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 20,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white12),
+                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 600),
+                                  height: 80 * (_racha > 0 ? (_racha % 7) / 7 : 0),
+                                  color: const Color(0xFFFF44AA).withOpacity(0.7),
+                                ),
+                              ),
+                            ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 28),
+
+                      // IA ESTADÍSTICAS
+                      const Text(
+                        'IA Estadisticas',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
                         ),
-                      ],
-                    ),
-                    const SizedBox(
-                      height: 80,
-                    ), // Espaciador final para el navbar
-                  ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white12),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'TU PROGRESO EN TUS',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const Text(
+                                          'TAREAS',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '$_tareasCompletadas tareas completadas • racha de $_racha días',
+                                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    width: 50,
+                                    height: 50,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF2E1B4E),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.timer_outlined, color: Colors.orangeAccent, size: 26),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 20,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.white12),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 80),
+                    ],
+                  ),
                 ),
               ),
               _buildBottomNavbar(),
@@ -406,7 +435,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- REQUISITO: NAVBAR REDIRECCIONANDO AL PERFIL ---
+  String _formatFecha(String fechaStr) {
+    try {
+      final fecha = DateTime.parse(fechaStr).toLocal();
+      return '${fecha.day}/${fecha.month}/${fecha.year}';
+    } catch (_) {
+      return '';
+    }
+  }
+
   Widget _buildBottomNavbar() {
     return Align(
       alignment: Alignment.bottomCenter,
@@ -416,47 +453,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF1B1437),
           borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black54,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            const Icon(
-              Icons.home,
-              color: Color(0xFFFF44AA),
-              size: 24,
-            ), // Seleccionado
-            const Icon(
-              Icons.calendar_month_outlined,
-              color: Colors.white38,
-              size: 24,
-            ),
-            const Icon(
-              Icons.psychology_outlined,
-              color: Colors.white38,
-              size: 24,
-            ),
-            // REQUISITO: Al darle click a la personita te manda al perfil perfectamente
+            const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
+            const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
+            const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
             GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => ProfileScreen(userId: widget.userId),
-                  ),
+                  MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
                 );
               },
-              child: const Icon(
-                Icons.person_outline,
-                color: Colors.white38,
-                size: 24,
-              ),
+              child: const Icon(Icons.person_outline, color: Colors.white38, size: 24),
             ),
           ],
         ),
