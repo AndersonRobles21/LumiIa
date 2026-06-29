@@ -4,7 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; // Obligatorio para la autenticación
 import 'package:frontend/screens/olvidar_contraseña.dart'; 
 import 'register_screen.dart';
-import '/screens/profile_screen.dart';
+import '/screens/dashboard_screen.dart';
 import '../services/api_service.dart'; 
 
 void main() {
@@ -98,11 +98,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
       
-      // Navegación limpia enviando el ID a tu ProfileScreen
+      // Navegación limpia enviando el ID real (de Supabase + Postgres) al Dashboard
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => ProfileScreen(userId: userId),
+          builder: (context) => DashboardScreen(userId: userId),
         ),
       );
 
