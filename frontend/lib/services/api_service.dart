@@ -5,6 +5,8 @@ import 'dart:io';
 class ApiService {
   // Base URL apuntando limpiamente a tus rutas locales de Node.js
   static const String baseUrl = 'http://localhost:3000/api/auth';
+  // Base URL para el módulo de tareas / planes de estudio (IA)
+  static const String tareasBaseUrl = 'http://localhost:3000/api/tareas';
 
   /*
   ============================
@@ -173,6 +175,74 @@ class ApiService {
       throw Exception('Respuesta inválida del servidor (No se pudo procesar el JSON).');
     } catch (e) {
       rethrow;
+    }
+  }
+
+  /*
+  ============================
+  GET PLANES DE ESTUDIO (tareas pendientes reales del usuario)
+  ============================
+  */
+  static Future<List<dynamic>?> getPlanesEstudio(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$tareasBaseUrl/$userId'),
+      );
+
+      if (response.statusCode != 200 || response.body.isEmpty) {
+        return null;
+      }
+
+      final data = jsonDecode(response.body);
+      // Aceptamos tanto una lista directa como un objeto { tareas: [...] }
+      if (data is List) return data;
+      if (data is Map && data['tareas'] != null) return data['tareas'];
+      return null;
+    } catch (e) {
+      print('Error en ApiService getPlanesEstudio: $e');
+      return null;
+    }
+  }
+
+  /*
+  ============================
+  GENERAR PLAN CON IA (crea una tarea/plan a partir de un título y fecha)
+  ============================
+  */
+  static Future<Map<String, dynamic>?> generarPlanIA({
+    required String userId,
+    required String titulo,
+    required String descripcion,
+    required String fechaEntrega,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$tareasBaseUrl/generar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'usuario_id': userId,
+          'nombre': titulo,
+          'descripcion': descripcion,
+          'fecha_entrega': fechaEntrega,
+        }),
+      );
+
+      if (response.body.isEmpty) {
+        throw Exception('El servidor Node.js devolvió una respuesta vacía al generar el plan.');
+      }
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception(
+          data['mensaje'] ?? 'Error al generar el plan con la IA.',
+        );
+      }
+
+      return data;
+    } catch (e) {
+      print('Error en ApiService generarPlanIA: $e');
+      return null;
     }
   }
 }
