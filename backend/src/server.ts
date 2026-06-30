@@ -9,6 +9,7 @@ import { pool } from "./config/db";
 import authRoutes from "./rutas/authRoutes";
 import horarios from "./rutas/horarios";
 import tareas from "./rutas/tareas.routes";
+import iaRoutes from "./rutas/ia.routes";
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/horarios", horarios);
 app.use("/api/tareas", tareas);
+app.use("/api/ia", iaRoutes);
 
 app.get("/", async (req, res) => {
   const resultado = await pool.query("SELECT NOW()");

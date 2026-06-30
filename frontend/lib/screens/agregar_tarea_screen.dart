@@ -64,15 +64,20 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
 
     if (!mounted) return;
 
-    if (resultado != null && resultado['datos_plan'] != null) {
-      await Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => GuiaDetalleScreen(guiaData: resultado['datos_plan']),
-        ),
-      );
-      if (mounted) Navigator.pop(context);
-    } else {
+   if (resultado != null && resultado['plan'] != null) {
+  await Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => GuiaDetalleScreen(
+        guiaData: resultado['plan'],
+      ),
+    ),
+  );
+
+  if (mounted) {
+    Navigator.pop(context);
+  }
+} else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error al conectar con el servidor. Verifica que el backend esté corriendo.'),

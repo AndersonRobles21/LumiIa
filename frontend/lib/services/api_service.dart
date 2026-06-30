@@ -5,6 +5,7 @@ import 'dart:io';
 class ApiService {
   static const String baseUrl = 'http://localhost:3000/api/auth';
   static const String tareasBaseUrl = 'http://localhost:3000/api/tareas';
+  static const String iaBaseUrl = 'http://localhost:3000/api/ia';
 
   /*
   ============================
@@ -62,7 +63,9 @@ class ApiService {
   REQUEST PASSWORD RESET
   ============================
   */
-  static Future<Map<String, dynamic>?> requestPasswordReset(String correo) async {
+  static Future<Map<String, dynamic>?> requestPasswordReset(
+    String correo,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/password/request'),
@@ -81,7 +84,11 @@ class ApiService {
   RESET PASSWORD
   ============================
   */
-  static Future<bool> resetPassword(String correo, String password, String code) async {
+  static Future<bool> resetPassword(
+    String correo,
+    String password,
+    String code,
+  ) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/password/reset'),
@@ -112,13 +119,17 @@ class ApiService {
       );
 
       if (response.body.isEmpty) {
-        throw Exception('El servidor Node.js devolvió una respuesta vacía en el inicio de sesión.');
+        throw Exception(
+          'El servidor Node.js devolvió una respuesta vacía en el inicio de sesión.',
+        );
       }
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200) {
-        throw Exception(data['mensaje'] ?? 'Error al iniciar sesión en el servidor local.');
+        throw Exception(
+          data['mensaje'] ?? 'Error al iniciar sesión en el servidor local.',
+        );
       }
 
       return data;
@@ -156,7 +167,9 @@ class ApiService {
 
       return true;
     } on FormatException catch (_) {
-      throw Exception('Respuesta inválida del servidor (No se pudo procesar el JSON).');
+      throw Exception(
+        'Respuesta inválida del servidor (No se pudo procesar el JSON).',
+      );
     } catch (e) {
       rethrow;
     }
@@ -205,9 +218,7 @@ class ApiService {
   */
   static Future<List<dynamic>?> getPlanesEstudio(String userId) async {
     try {
-      final response = await http.get(
-        Uri.parse('$tareasBaseUrl/$userId'),
-      );
+      final response = await http.get(Uri.parse('$tareasBaseUrl/$userId'));
 
       if (response.statusCode != 200 || response.body.isEmpty) return null;
 
@@ -221,11 +232,6 @@ class ApiService {
     }
   }
 
-  /*
-  ============================
-  GENERAR PLAN CON IA
-  ============================
-  */
   static Future<Map<String, dynamic>?> generarPlanIA({
     required String userId,
     required String titulo,
@@ -234,7 +240,7 @@ class ApiService {
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$tareasBaseUrl/generar'),
+        Uri.parse('$iaBaseUrl/generar'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'usuario_id': userId,
@@ -245,19 +251,46 @@ class ApiService {
       );
 
       if (response.body.isEmpty) {
-        throw Exception('El servidor Node.js devolvió una respuesta vacía al generar el plan.');
+        throw Exception('Respuesta vacía del servidor.');
       }
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception(data['mensaje'] ?? 'Error al generar el plan con la IA.');
+        throw Exception(data['mensaje'] ?? 'Error al generar el plan.');
       }
 
       return data;
     } catch (e) {
-      print('Error en ApiService generarPlanIA: $e');
+      print("Error generarPlanIA: $e");
       return null;
     }
   }
+
+  /*
+============================
+COMPLETAR TAREA
+============================
+*/
+static Future<bool> completarTarea({
+  required String tareaId,
+  required bool completada,
+}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$tareasBaseUrl/$tareaId/completar'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'completada': completada,
+      }),
+    );
+
+    return response.statusCode == 200;
+  } catch (e) {
+    print('Error completarTarea: $e');
+    return false;
+  }
+}
 }
