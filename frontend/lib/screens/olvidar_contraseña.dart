@@ -38,18 +38,25 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   }
 
   Future<void> _checkBiometric() async {
-    final LocalAuthentication localAuth = LocalAuthentication();
-    try {
-      final isDeviceSupported = await localAuth.canCheckBiometrics;
-      final availableBiometrics = await localAuth.getAvailableBiometrics();
-      setState(() {
-        _biometricAvailable =
-            isDeviceSupported && availableBiometrics.isNotEmpty;
-      });
-    } catch (e) {
-      setState(() => _biometricAvailable = false);
-    }
+  final LocalAuthentication localAuth = LocalAuthentication();
+
+  try {
+    final canCheck = await localAuth.canCheckBiometrics;
+    final isSupported = await localAuth.isDeviceSupported();
+    final biometrics = await localAuth.getAvailableBiometrics();
+
+    print('canCheckBiometrics: $canCheck');
+    print('isDeviceSupported: $isSupported');
+    print('Biometrics: $biometrics');
+
+    setState(() {
+      _biometricAvailable =
+          (canCheck || isSupported) && biometrics.isNotEmpty;
+    });
+  } catch (e) {
+    print(e);
   }
+}
 
   Future<void> _sendEmailCode() async {
     final email = _emailController.text.trim();
