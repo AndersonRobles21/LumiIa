@@ -14,8 +14,8 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _loadingController;
   late AnimationController _fadeController;
   late AnimationController _glowController;
-  late AnimationController _pulseController; // NUEVO: pulso de escala
-  late AnimationController _ringController;  // NUEVO: anillo de energía
+  late AnimationController _pulseController; 
+  late AnimationController _ringController; 
 
   late Animation<double> _bounceAnimation;
   late Animation<double> _loadingAnimation;
@@ -62,7 +62,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _glowController.repeat(reverse: true);
 
-    // NUEVO: pulso sutil de escala, distinto del bounce
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -74,15 +73,15 @@ class _SplashScreenState extends State<SplashScreen>
 
     _pulseController.repeat(reverse: true);
 
-    // NUEVO: anillo de energía girando lento detrás del robot
     _ringController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 8000),
     )..repeat();
 
-    _ringAnimation = Tween<double>(begin: 0.0, end: 2 * pi).animate(
-      _ringController,
-    );
+    _ringAnimation = Tween<double>(
+      begin: 0.0,
+      end: 2 * pi,
+    ).animate(_ringController);
 
     _loadingController = AnimationController(
       vsync: this,
@@ -116,7 +115,20 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final robotSize = screenWidth * 1.05; // NUEVO: robot proporcional y más grande
+    final screenHeight = MediaQuery.of(context).size.height;
+    final robotSize =
+        (screenWidth < 600 ? screenWidth * 0.55 : screenWidth * 0.28).clamp(
+          180.0,
+          320.0,
+        );
+    final titleSize = screenWidth < 400
+        ? 48.0
+        : screenWidth < 700
+        ? 56.0
+        : 72.0;
+    final subtitleSize = screenWidth < 400 ? 11.0 : 13.0;
+    final loadingBarWidth = screenWidth < 600 ? screenWidth * 0.8 : 320.0;
+    final spacing = screenHeight < 700 ? 12.0 : 20.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF080D2B),
@@ -126,193 +138,222 @@ class _SplashScreenState extends State<SplashScreen>
           FadeTransition(
             opacity: _fadeAnimation,
             child: SafeArea(
-              child: Column(
-                children: [
-                  const Spacer(flex: 2), // NUEVO: empuja el contenido hacia el centro
-
-                  // Robot con anillo, glow, pulso y rebote
-                  AnimatedBuilder(
-                    animation: _bounceAnimation,
-                    builder: (context, child) {
-                      return Transform.translate(
-                        offset: Offset(0, _bounceAnimation.value),
-                        child: child,
-                      );
-                    },
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge(
-                        [_glowAnimation, _pulseAnimation, _ringAnimation],
-                      ),
-                      builder: (context, child) {
-                        return SizedBox(
-                          width: robotSize,
-                          height: robotSize,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              // Anillo de energía rotando
-                              Transform.rotate(
-                                angle: _ringAnimation.value,
-                                child: CustomPaint(
-                                  size: Size(robotSize * 0.95, robotSize * 0.95),
-                                  painter: _EnergyRingPainter(_glowAnimation.value),
-                                ),
-                              ),
-                              // Glow + robot con pulso
-                              Transform.scale(
-                                scale: _pulseAnimation.value,
-                                child: Container(
-                                  width: robotSize * 0.85,
-                                  height: robotSize * 0.85,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(0xFF00D4FF)
-                                            .withOpacity(0.25 * _glowAnimation.value),
-                                        blurRadius: 100,
-                                        spreadRadius: 40,
-                                      ),
-                                      BoxShadow(
-                                        color: const Color(0xFF0066FF)
-                                            .withOpacity(0.18 * _glowAnimation.value),
-                                        blurRadius: 150,
-                                        spreadRadius: 60,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Image.asset(
-                                    'logo/robot_IA.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return const _RobotFallback();
-                                    },
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: screenWidth > 600 ? 520 : screenWidth * 0.92,
                   ),
-
-                  const SizedBox(height: 8),
-
-                  // Nombre Lumi con efecto neon pulsante
-                  AnimatedBuilder(
-                    animation: _glowAnimation,
-                    builder: (context, child) {
-                      return Text(
-                        'LUMI',
-                        style: TextStyle(
-                          fontSize: 64,
-                          fontWeight: FontWeight.w300,
-                          color: Colors.white,
-                          letterSpacing: 4,
-                          shadows: [
-                            Shadow(
-                              color: const Color(0xFF00D4FF)
-                                  .withOpacity(_glowAnimation.value),
-                              blurRadius: 20,
-                            ),
-                            Shadow(
-                              color: const Color(0xFF00D4FF)
-                                  .withOpacity(_glowAnimation.value * 0.6),
-                              blurRadius: 40,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  const Text(
-                    'BIENVENIDO AL FUTURO',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFFB0C4DE),
-                      letterSpacing: 3,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-
-                  const SizedBox(height: 4),
-
-                  const Text(
-                    'LA PROCASTINACIÓN TERMINA AQUÍ',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFFB0C4DE),
-                      letterSpacing: 3,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-
-                  const Spacer(flex: 1), // NUEVO: espacio antes de la barra
-
-                  // Barra de loading con glow
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 80),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
-                          'LOADING...',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF00D4FF),
-                            letterSpacing: 3,
+                        AnimatedBuilder(
+                          animation: _bounceAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _bounceAnimation.value),
+                              child: child,
+                            );
+                          },
+                          child: AnimatedBuilder(
+                            animation: Listenable.merge([
+                              _glowAnimation,
+                              _pulseAnimation,
+                              _ringAnimation,
+                            ]),
+                            builder: (context, child) {
+                              return SizedBox(
+                                width: robotSize,
+                                height: robotSize,
+                                child: Stack(
+                                  alignment: Alignment.center,
+                                  children: [
+                                    Transform.rotate(
+                                      angle: _ringAnimation.value,
+                                      child: CustomPaint(
+                                        size: Size(
+                                          robotSize * 0.95,
+                                          robotSize * 0.95,
+                                        ),
+                                        painter: _EnergyRingPainter(
+                                          _glowAnimation.value,
+                                        ),
+                                      ),
+                                    ),
+                                    Transform.scale(
+                                      scale: _pulseAnimation.value,
+                                      child: Container(
+                                        width: robotSize * 0.85,
+                                        height: robotSize * 0.85,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: const Color(0xFF00D4FF)
+                                                  .withOpacity(
+                                                    0.25 * _glowAnimation.value,
+                                                  ),
+                                              blurRadius: 100,
+                                              spreadRadius: 40,
+                                            ),
+                                            BoxShadow(
+                                              color: const Color(0xFF0066FF)
+                                                  .withOpacity(
+                                                    0.18 * _glowAnimation.value,
+                                                  ),
+                                              blurRadius: 150,
+                                              spreadRadius: 60,
+                                            ),
+                                          ],
+                                        ),
+                                        child: Image.asset(
+                                          'logo/robot_IA.png',
+                                          fit: BoxFit.contain,
+                                          errorBuilder:
+                                              (context, error, stackTrace) {
+                                                return const _RobotFallback();
+                                              },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
                           ),
                         ),
-                        const SizedBox(height: 10),
+
+                        SizedBox(height: spacing),
+
                         AnimatedBuilder(
-                          animation: _loadingAnimation,
+                          animation: _glowAnimation,
                           builder: (context, child) {
-                            return Stack(
-                              children: [
-                                Container(
-                                  height: 4,
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF1A2550),
-                                    borderRadius: BorderRadius.circular(2),
+                            return Text(
+                              'LUMI',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: titleSize,
+                                fontWeight: FontWeight.w300,
+                                color: Colors.white,
+                                letterSpacing: screenWidth < 400 ? 3 : 4,
+                                shadows: [
+                                  Shadow(
+                                    color: const Color(
+                                      0xFF00D4FF,
+                                    ).withOpacity(_glowAnimation.value),
+                                    blurRadius: 20,
                                   ),
+                                  Shadow(
+                                    color: const Color(
+                                      0xFF00D4FF,
+                                    ).withOpacity(_glowAnimation.value * 0.6),
+                                    blurRadius: 40,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+
+                        SizedBox(height: screenHeight < 700 ? 10 : 16),
+
+                        Text(
+                          'BIENVENIDO AL FUTURO',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: subtitleSize,
+                            color: const Color(0xFFB0C4DE),
+                            letterSpacing: 3,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        Text(
+                          'LA PROCASTINACIÓN TERMINA AQUÍ',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: subtitleSize,
+                            color: const Color(0xFFB0C4DE),
+                            letterSpacing: 3,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+
+                        SizedBox(height: screenHeight < 700 ? 24 : 36),
+
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: screenWidth < 600 ? 16 : 40,
+                          ),
+                          child: Column(
+                            children: [
+                              const Text(
+                                'LOADING...',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF00D4FF),
+                                  letterSpacing: 3,
                                 ),
-                                FractionallySizedBox(
-                                  widthFactor: _loadingAnimation.value,
-                                  child: Container(
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFF0066FF),
-                                          Color(0xFF00D4FF),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: const Color(0xFF00D4FF)
-                                              .withOpacity(0.8),
-                                          blurRadius: 8,
-                                          spreadRadius: 1,
+                              ),
+                              const SizedBox(height: 10),
+                              AnimatedBuilder(
+                                animation: _loadingAnimation,
+                                builder: (context, child) {
+                                  return SizedBox(
+                                    width: loadingBarWidth,
+                                    child: Stack(
+                                      children: [
+                                        Container(
+                                          height: 4,
+                                          width: double.infinity,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFF1A2550),
+                                            borderRadius: BorderRadius.circular(
+                                              2,
+                                            ),
+                                          ),
+                                        ),
+                                        FractionallySizedBox(
+                                          widthFactor: _loadingAnimation.value,
+                                          child: Container(
+                                            height: 4,
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(
+                                                colors: [
+                                                  Color(0xFF0066FF),
+                                                  Color(0xFF00D4FF),
+                                                ],
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(2),
+                                              boxShadow: [
+                                                BoxShadow(
+                                                  color: const Color(
+                                                    0xFF00D4FF,
+                                                  ).withOpacity(0.8),
+                                                  blurRadius: 8,
+                                                  spreadRadius: 1,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
-                                ),
-                              ],
-                            );
-                          },
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-
-                  const SizedBox(height: 40),
-                ],
+                ),
               ),
             ),
           ),
