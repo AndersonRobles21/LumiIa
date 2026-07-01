@@ -34,6 +34,48 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     cargando = List.generate(subtareas.length, (_) => false);
   }
 
+  Future<void> _confirmarTarea(int index) async {
+    final sub = subtareas[index];
+    final tareaId = sub['id'];
+
+    if (tareaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La tarea no tiene id.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      cargando[index] = true;
+    });
+
+    final ok = await ApiService.completarTarea(
+      tareaId: tareaId,
+      completada: true,
+    );
+
+    if (!mounted) return;
+
+    if (!ok) {
+      setState(() {
+        cargando[index] = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No se pudo actualizar la tarea'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      tareasCompletadas[index] = true;
+      cargando[index] = false;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -118,53 +160,16 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Checkbox(
-                                value: tareasCompletadas[index],
-                                activeColor: const Color(0xFFFF44AA),
-                                onChanged: (value) async {
-                                  if (value == null) return;
-
-                                  setState(() {
-                                    cargando[index] = true;
-                                  });
-                                  if (value == null) return;
-
-                                  final tareaId = sub['id'];
-
-                                  if (tareaId == null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("La tarea no tiene id."),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  final ok = await ApiService.completarTarea(
-                                    tareaId: tareaId,
-                                    completada: value,
-                                  );
-
-                                  if (!ok) {
-                                    setState(() {
-                                      cargando[index] = false;
-                                    });
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          "No se pudo actualizar la tarea",
-                                        ),
-                                      ),
-                                    );
-                                    return;
-                                  }
-
-                                  setState(() {
-                                    tareasCompletadas[index] = value;
-                                    cargando[index] = false;
-                                  });
-                                },
+                            : Icon(
+                                tareasCompletadas[index]
+                                    ? Icons.check_circle_outline
+                                    : Icons.radio_button_unchecked,
+                                color: tareasCompletadas[index]
+                                    ? const Color(0xFF2E1B4E)
+                                    : const Color(0xFFFF44AA),
                               ),
+
+                        const SizedBox(width: 12),
 
                         Expanded(
                           child: Text(
@@ -202,6 +207,38 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                       "Prioridad: ${sub['prioridad']}",
                       style: const TextStyle(color: Colors.white70),
                     ),
+
+                    const SizedBox(height: 10),
+
+                    if (!tareasCompletadas[index]) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF44AA),
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          onPressed: () => _confirmarTarea(index),
+                          child: const Text('Confirmar tarea completada'),
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2E1B4E),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Text(
+                          'Tarea completada',
+                          style: TextStyle(color: Colors.white70),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );
