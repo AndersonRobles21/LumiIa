@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
+import 'historial_ia_screen.dart';
 import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
 
@@ -462,7 +463,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
             const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
-            const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistorialIAScreen(userId: widget.userId),
+                  ),
+                );
+              },
+              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+            ),
             GestureDetector(
               onTap: () {
                 Navigator.push(
