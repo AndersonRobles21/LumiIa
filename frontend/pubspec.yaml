@@ -69,7 +69,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
 
   assets:
-    - logo/Lumi.png
+    - logo/
 
 
   # An image asset can refer to one or more resolution-specific "variants", see
