@@ -267,6 +267,36 @@ class ApiService {
     }
   }
 
+  static Future<List<dynamic>?> obtenerHistorial(String usuarioId) async {
+    try {
+      final response = await http.get(Uri.parse('$iaBaseUrl/historial/$usuarioId'));
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+
+      final data = jsonDecode(response.body);
+      if (data is List) return data;
+      return null;
+    } catch (e) {
+      print('Error en ApiService obtenerHistorial: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> obtenerPlan(String planId) async {
+    try {
+      final response = await http.get(Uri.parse('$iaBaseUrl/plan/$planId'));
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) return data;
+      return null;
+    } catch (e) {
+      print('Error en ApiService obtenerPlan: $e');
+      return null;
+    }
+  }
+
   /*
 ============================
 COMPLETAR TAREA
