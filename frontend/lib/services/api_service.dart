@@ -232,11 +232,14 @@ class ApiService {
     }
   }
 
-  static Future<Map<String, dynamic>?> generarPlanIA({
+ static Future<Map<String, dynamic>?> generarPlanIA({
     required String userId,
     required String titulo,
     required String descripcion,
     required String fechaEntrega,
+    required String metodoEstudio,
+    required String dificultad,
+    required String enfoqueAdicional,
   }) async {
     try {
       final response = await http.post(
@@ -247,6 +250,9 @@ class ApiService {
           'nombre': titulo,
           'descripcion': descripcion,
           'fecha_entrega': fechaEntrega,
+          'metodo_estudio': metodoEstudio,
+          'dificultad': dificultad,
+          'enfoque_adicional': enfoqueAdicional,
         }),
       );
 
@@ -266,7 +272,6 @@ class ApiService {
       return null;
     }
   }
-
   static Future<List<dynamic>?> obtenerHistorial(String usuarioId) async {
     try {
       final response = await http.get(Uri.parse('$iaBaseUrl/historial/$usuarioId'));

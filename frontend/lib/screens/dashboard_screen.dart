@@ -3,6 +3,7 @@ import '/services/api_service.dart';
 import 'historial_ia_screen.dart';
 import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
+import 'guia_detalle_screen.dart'; // Asegúrate de importar tu pantalla de detalle o edición
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -187,41 +188,69 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           final fecha = t['fecha_creacion'] != null
                                               ? _formatFecha(t['fecha_creacion'].toString())
                                               : '';
-                                          return Padding(
-                                            padding: const EdgeInsets.only(bottom: 12.0),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Row(
-                                                    children: [
-                                                      const Text(
-                                                        '• ',
-                                                        style: TextStyle(
-                                                          color: Color(0xFFFF44AA),
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: Text(
-                                                          nombre.toUpperCase(),
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.w600,
-                                                            letterSpacing: 0.5,
+                                          
+                                          // AQUÍ AGREGAMOS EL GESTURE DETECTOR PARA PODER ENTRAR A MODIFICAR/VER LA TAREA
+                                          return GestureDetector(
+                                            onTap: () async {
+                                              // Si tu API guarda el ID del plan como 'id' o 'plan_id'
+                                              final planId = t['id'] ?? t['plan_id'];
+                                              if (planId != null) {
+                                                // Opcional: Puedes cargar el plan completo o pasar los datos si ya los tienes
+                                                // Aquí abrimos la pantalla de detalle/modificación
+                                                await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => GuiaDetalleScreen(
+                                                      guiaData: t, // o puedes pasar el planId si tu pantalla lo requiere
+                                                    ),
+                                                  ),
+                                                );
+                                                _cargarPlanes(); // Recarga al volver por si hubo cambios
+                                              }
+                                            },
+                                            child: Container(
+                                              color: Colors.transparent, // Para asegurar que detecte bien el toque
+                                              padding: const EdgeInsets.only(bottom: 12.0),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        const Text(
+                                                          '• ',
+                                                          style: TextStyle(
+                                                            color: Color(0xFFFF44AA),
+                                                            fontWeight: FontWeight.bold,
                                                           ),
                                                         ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            nombre.toUpperCase(),
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: const TextStyle(
+                                                              color: Colors.white,
+                                                              fontSize: 12,
+                                                              fontWeight: FontWeight.w600,
+                                                              letterSpacing: 0.5,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        fecha,
+                                                        style: const TextStyle(color: Colors.white38, fontSize: 11),
                                                       ),
+                                                      const SizedBox(width: 6),
+                                                      const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 12),
                                                     ],
                                                   ),
-                                                ),
-                                                Text(
-                                                  fecha,
-                                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           );
                                         },
