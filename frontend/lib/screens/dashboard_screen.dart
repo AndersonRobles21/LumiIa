@@ -3,6 +3,7 @@ import '/services/api_service.dart';
 import 'historial_ia_screen.dart';
 import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
+import 'guia_detalle_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -17,6 +18,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _tareasPendientes = [];
   int _racha = 0;
   int _tareasCompletadas = 0;
+  String _nombreUsuario = '';
+  int _currentNavIndex = 0;
+
+  static const Color _pink = Color(0xFFFF44AA);
+  static const Color _cardBg = Color(0xFF1F1A3A);
 
   @override
   void initState() {
@@ -29,8 +35,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await Future.wait([
       _cargarPlanes(),
       _cargarEstadisticas(),
+      _cargarPerfil(),
     ]);
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _cargarPerfil() async {
+    final data = await ApiService.getProfile(widget.userId);
+    if (mounted && data != null) {
+      setState(() {
+        _nombreUsuario = data['nombre'] ?? '';
+      });
+    }
   }
 
   Future<void> _cargarPlanes() async {
@@ -67,9 +83,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _onNavTap(int index) {
+    if (index == _currentNavIndex) return;
+    if (index == 2) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => HistorialIAScreen(userId: widget.userId)),
+      );
+      return;
+    }
+    if (index == 3) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
+      ).then((_) => _cargarPerfil());
+      return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final diaActual = _racha;
     final diaSiguiente = _racha + 1;
 
     return Scaffold(
@@ -88,45 +122,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Stack(
             children: [
               RefreshIndicator(
-                color: const Color(0xFFFF44AA),
-                backgroundColor: const Color(0xFF1F1A3A),
+                color: _pink,
+                backgroundColor: _cardBg,
                 onRefresh: _cargarTodo,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.fromLTRB(24, 16, 24, 100),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // HEADER
+                      // ── HEADER ────────────────────────────────────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Tu plan de estudio',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (_nombreUsuario.isNotEmpty)
+                                  Text(
+                                    'Hola, $_nombreUsuario 👋',
+                                    style: const TextStyle(
+                                      color: Color(0xFFB0AEC4),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                const Text(
+                                  'Tu plan de estudio',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                            icon: const Icon(Icons.notifications_none,
+                                color: Colors.white, size: 26),
                             onPressed: () {},
                           ),
                         ],
                       ),
                       const SizedBox(height: 24),
 
-                      // TRABAJOS PENDIENTES
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white24, width: 1),
-                        ),
+                      // ── TRABAJOS PENDIENTES ───────────────────────────────
+                      _buildCard(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -147,91 +190,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     await Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => AgregarTareaScreen(userId: widget.userId),
+                                        builder: (_) => AgregarTareaScreen(
+                                            userId: widget.userId),
                                       ),
                                     );
                                     _cargarPlanes();
                                   },
-                                  child: const Icon(
-                                    Icons.add_circle_outline,
-                                    color: Color(0xFFFF44AA),
-                                    size: 22,
-                                  ),
+                                  child: const Icon(Icons.add_circle_outline,
+                                      color: _pink, size: 22),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 16),
-
-                            _isLoading
-                                ? const Center(
-                                    child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
-                                  )
-                                : _tareasPendientes.isEmpty
-                                    ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 20.0),
-                                        child: Center(
-                                          child: Text(
-                                            'No hay tareas agregadas.\nToca el "+" para crear una.',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(color: Colors.white30, fontSize: 12),
+                            if (_isLoading)
+                              const Center(
+                                child: CircularProgressIndicator(color: _pink),
+                              )
+                            else if (_tareasPendientes.isEmpty)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 20.0),
+                                child: Center(
+                                  child: Text(
+                                    'No hay tareas agregadas.\nToca el "+" para crear una.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        color: Colors.white30, fontSize: 12),
+                                  ),
+                                ),
+                              )
+                            else
+                              ListView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: _tareasPendientes.length,
+                                itemBuilder: (context, index) {
+                                  final t = _tareasPendientes[index];
+                                  final nombre =
+                                      (t['nombre'] ?? '').toString();
+                                  final fecha = t['fecha_creacion'] != null
+                                      ? _formatFecha(
+                                          t['fecha_creacion'].toString())
+                                      : '';
+                                  return InkWell(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => GuiaDetalleScreen(
+                                            planId: t['id']?.toString() ?? '',
+                                            userId: widget.userId,
                                           ),
                                         ),
-                                      )
-                                    : ListView.builder(
-                                        shrinkWrap: true,
-                                        physics: const NeverScrollableScrollPhysics(),
-                                        itemCount: _tareasPendientes.length,
-                                        itemBuilder: (context, index) {
-                                          final t = _tareasPendientes[index];
-                                          final nombre = (t['nombre'] ?? '').toString();
-                                          final fecha = t['fecha_creacion'] != null
-                                              ? _formatFecha(t['fecha_creacion'].toString())
-                                              : '';
-                                          return Padding(
-                                            padding: const EdgeInsets.only(bottom: 12.0),
+                                      );
+                                    },
+                                    child: Padding(
+                                      padding:
+                                          const EdgeInsets.only(bottom: 12.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
                                             child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                               children: [
-                                                Expanded(
-                                                  child: Row(
-                                                    children: [
-                                                      const Text(
-                                                        '• ',
-                                                        style: TextStyle(
-                                                          color: Color(0xFFFF44AA),
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: Text(
-                                                          nombre.toUpperCase(),
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.w600,
-                                                            letterSpacing: 0.5,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ],
+                                                const Text(
+                                                  '• ',
+                                                  style: TextStyle(
+                                                    color: _pink,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                Text(
-                                                  fecha,
-                                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                                Expanded(
+                                                  child: Text(
+                                                    nombre.toUpperCase(),
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 12,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      letterSpacing: 0.5,
+                                                    ),
+                                                  ),
                                                 ),
                                               ],
                                             ),
-                                          );
-                                        },
+                                          ),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                fecha,
+                                                style: const TextStyle(
+                                                    color: Colors.white38,
+                                                    fontSize: 11),
+                                              ),
+                                              const SizedBox(width: 4),
+                                              const Icon(
+                                                Icons.chevron_right,
+                                                color: Colors.white24,
+                                                size: 16,
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
+                                    ),
+                                  );
+                                },
+                              ),
                           ],
                         ),
                       ),
                       const SizedBox(height: 28),
 
-                      // LA RACHA DE HOY
+                      // ── RACHA DE HOY ──────────────────────────────────────
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -246,12 +319,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           GestureDetector(
                             onTap: _registrarEstudioHoy,
-                            child: const Text(
-                              '+ MARCAR DÍA',
-                              style: TextStyle(
-                                color: Color(0xFFFF44AA),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: _pink.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border:
+                                    Border.all(color: _pink.withOpacity(0.4)),
+                              ),
+                              child: const Text(
+                                '+ MARCAR DÍA',
+                                style: TextStyle(
+                                  color: _pink,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -261,21 +344,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white12),
-                              ),
+                            child: _buildCard(
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        diaActual == 0 ? '¡EMPIEZA HOY!' : 'MAÑANA DÍA $diaSiguiente',
+                                        _racha == 0
+                                            ? '¡EMPIEZA HOY!'
+                                            : 'MAÑANA DÍA $diaSiguiente',
                                         style: const TextStyle(
                                           color: Colors.white38,
                                           fontSize: 10,
@@ -284,7 +365,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        diaActual == 0 ? 'DÍA 0' : 'DÍA $diaActual',
+                                        _racha == 0 ? 'DÍA 0' : 'DÍA $_racha',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 24,
@@ -294,7 +375,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
-                                        diaActual == 0
+                                        _racha == 0
                                             ? 'Toca "+ MARCAR DÍA" para iniciar'
                                             : '$_tareasCompletadas tareas completadas',
                                         style: const TextStyle(
@@ -311,7 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       shape: BoxShape.circle,
                                     ),
                                     child: Text(
-                                      diaActual == 0 ? '⭐' : '🔥',
+                                      _racha == 0 ? '⭐' : '🔥',
                                       style: const TextStyle(fontSize: 28),
                                     ),
                                   ),
@@ -326,7 +407,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.white12),
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                              color: _cardBg.withOpacity(0.4),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
@@ -334,8 +415,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 alignment: Alignment.bottomCenter,
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 600),
-                                  height: 80 * (_racha > 0 ? (_racha % 7) / 7 : 0),
-                                  color: const Color(0xFFFF44AA).withOpacity(0.7),
+                                  height: 80 *
+                                      (_racha > 0 ? (_racha % 7) / 7 : 0),
+                                  color: _pink.withOpacity(0.7),
                                 ),
                               ),
                             ),
@@ -344,9 +426,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 28),
 
-                      // IA ESTADÍSTICAS
+                      // ── IA ESTADÍSTICAS ───────────────────────────────────
                       const Text(
-                        'IA Estadisticas',
+                        'IA Estadísticas',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -358,19 +440,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         children: [
                           Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white12),
-                              ),
+                            child: _buildCard(
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'TU PROGRESO EN TUS',
@@ -393,7 +471,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         const SizedBox(height: 6),
                                         Text(
                                           '$_tareasCompletadas tareas completadas • racha de $_racha días',
-                                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                          style: const TextStyle(
+                                              color: Colors.white38,
+                                              fontSize: 11),
                                         ),
                                       ],
                                     ),
@@ -405,7 +485,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       color: const Color(0xFF2E1B4E),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
-                                    child: const Icon(Icons.timer_outlined, color: Colors.orangeAccent, size: 26),
+                                    child: const Icon(Icons.timer_outlined,
+                                        color: Colors.orangeAccent, size: 26),
                                   ),
                                 ],
                               ),
@@ -416,21 +497,132 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             width: 20,
                             height: 110,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.white12),
+                              color: _cardBg.withOpacity(0.4),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(10),
+                              child: Align(
+                                alignment: Alignment.bottomCenter,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 600),
+                                  height: _tareasCompletadas > 0
+                                      ? 110 *
+                                          (_tareasCompletadas /
+                                              (_tareasCompletadas + 1))
+                                      : 0,
+                                  color: Colors.orangeAccent.withOpacity(0.6),
+                                ),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 80),
+                      const SizedBox(height: 20),
+
+                      // ── ACCESO RÁPIDO ─────────────────────────────────────
+                      const Text(
+                        'Acceso rápido',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _buildQuickAccess(
+                              icon: Icons.add_task,
+                              label: 'Nueva tarea',
+                              color: _pink,
+                              onTap: () async {
+                                await Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AgregarTareaScreen(
+                                        userId: widget.userId),
+                                  ),
+                                );
+                                _cargarPlanes();
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: _buildQuickAccess(
+                              icon: Icons.psychology_outlined,
+                              label: 'Historial IA',
+                              color: Colors.purpleAccent,
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      HistorialIAScreen(userId: widget.userId),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
               ),
+
+              // ── BOTTOM NAVBAR ─────────────────────────────────────────
               _buildBottomNavbar(),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCard({required Widget child}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _cardBg.withOpacity(0.4),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12, width: 1),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _buildQuickAccess({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 18),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -446,46 +638,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBottomNavbar() {
+    const navItems = [
+      _NavItem(icon: Icons.home_rounded, label: 'Inicio'),
+      _NavItem(icon: Icons.calendar_month_outlined, label: 'Calendario'),
+      _NavItem(icon: Icons.psychology_outlined, label: 'IA'),
+      _NavItem(icon: Icons.person_outline, label: 'Perfil'),
+    ];
+
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
-        height: 60,
+        height: 68,
         margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
           color: const Color(0xFF1B1437),
           borderRadius: BorderRadius.circular(30),
           boxShadow: const [
-            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+            BoxShadow(
+                color: Colors.black54, blurRadius: 12, offset: Offset(0, 4)),
           ],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
-            const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HistorialIAScreen(userId: widget.userId),
-                  ),
-                );
-              },
-              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
-                );
-              },
-              child: const Icon(Icons.person_outline, color: Colors.white38, size: 24),
-            ),
-          ],
+          children: List.generate(navItems.length, (index) {
+            final active = index == _currentNavIndex;
+            return GestureDetector(
+              onTap: () => _onNavTap(index),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: active ? _pink.withOpacity(0.15) : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      navItems[index].icon,
+                      color: active ? _pink : Colors.white38,
+                      size: 22,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      navItems[index].label,
+                      style: TextStyle(
+                        color: active ? _pink : Colors.white38,
+                        fontSize: 9,
+                        fontWeight:
+                            active ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
         ),
       ),
     );
   }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  const _NavItem({required this.icon, required this.label});
 }

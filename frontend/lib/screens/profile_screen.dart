@@ -25,8 +25,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _fotoPerfilUrl;
   File? _fotoPerfilLocal;
 
-  final List<String> _dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  // Incluye sábado y domingo
+  final List<String> _dias = [
+    'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'
+  ];
   List<List<String>> _scheduleData = [[], [], [], [], [], [], []];
+
+  static const Color _pink = Color(0xFFFF44AA);
+  static const Color _cardBg = Color(0xFF1F1A3A);
+  static const Color _textGrey = Color(0xFFB0AEC4);
 
   @override
   void initState() {
@@ -53,22 +60,63 @@ class _ProfileScreenState extends State<ProfileScreen> {
       _apellidoController.text = data['apellido'] ?? '';
 
       final perfilEstudio = data['perfil_estudio'] ?? {};
-      _horasController.text = (perfilEstudio['horas_disponibles'] ?? 0).toString();
+      _horasController.text =
+          (perfilEstudio['horas_disponibles'] ?? 0).toString();
       _objetivoController.text = perfilEstudio['objetivo'] ?? '';
       _nivelProcrastinacion = perfilEstudio['nivel_procrastinacion'] ?? 1;
       _fotoPerfilUrl = perfilEstudio['foto_perfil'];
 
       final horarios = data['horarios'] as List? ?? [];
-      _scheduleData = [[], [], [], [], [], [], []];
+      _scheduleData = List.generate(_dias.length, (_) => []);
       for (final h in horarios) {
         final diaIndex = _dias.indexOf(h['dia']);
         if (diaIndex != -1) {
-          _scheduleData[diaIndex].add('${h['hora_inicio']} - ${h['hora_fin']}');
+          // Convertir a AM/PM al cargar desde backend (formato HH:mm)
+          final inicio = _to12h(h['hora_inicio']?.toString() ?? '');
+          final fin = _to12h(h['hora_fin']?.toString() ?? '');
+          _scheduleData[diaIndex].add('$inicio - $fin');
         }
       }
     }
 
     setState(() => _isLoading = false);
+  }
+
+  /// Convierte "14:30" → "2:30 PM" (o deja pasar si ya tiene AM/PM)
+  String _to12h(String timeStr) {
+    if (timeStr.toLowerCase().contains('am') ||
+        timeStr.toLowerCase().contains('pm')) {
+      return timeStr;
+    }
+    try {
+      final parts = timeStr.split(':');
+      int hour = int.parse(parts[0]);
+      final int minute = int.parse(parts[1]);
+      final String period = hour >= 12 ? 'PM' : 'AM';
+      if (hour == 0) hour = 12;
+      if (hour > 12) hour -= 12;
+      final String minuteStr = minute.toString().padLeft(2, '0');
+      return '$hour:$minuteStr $period';
+    } catch (_) {
+      return timeStr;
+    }
+  }
+
+  /// Convierte "2:30 PM" → "14:30" para enviar al backend
+  String _to24h(String timeStr) {
+    try {
+      final upper = timeStr.toUpperCase().trim();
+      final isPM = upper.contains('PM');
+      final clean = upper.replaceAll('AM', '').replaceAll('PM', '').trim();
+      final parts = clean.split(':');
+      int hour = int.parse(parts[0]);
+      final int minute = int.parse(parts[1]);
+      if (isPM && hour != 12) hour += 12;
+      if (!isPM && hour == 12) hour = 0;
+      return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return timeStr;
+    }
   }
 
   Future<void> _seleccionarFoto() async {
@@ -89,8 +137,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         if (partes.length == 2) {
           horarioPayload.add({
             'dia': _dias[i],
-            'hora_inicio': partes[0].trim(),
-            'hora_fin': partes[1].trim(),
+            'hora_inicio': _to24h(partes[0].trim()),
+            'hora_fin': _to24h(partes[1].trim()),
           });
         }
       }
@@ -109,20 +157,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     setState(() => _isSaving = false);
 
-    if (resultado != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perfil guardado correctamente')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error al guardar el perfil')),
-      );
-    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(resultado != null
+            ? 'Perfil guardado correctamente'
+            : 'Error al guardar el perfil'),
+        backgroundColor:
+            resultado != null ? const Color(0xFF2E1B4E) : Colors.redAccent,
+      ),
+    );
   }
 
-  // ---------------------------------------------------------------
-  // MODAL DE HORARIOS POR DÍA
-  // ---------------------------------------------------------------
+  // ── MODAL DE HORARIOS ─────────────────────────────────────────────────────
   void _abrirModalHorario(int dayIndex) {
     showDialog(
       context: context,
@@ -131,17 +178,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color(0xFF1A1040),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16)),
               title: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     _dias[dayIndex],
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.add_circle, color: Color(0xFFFF44AA), size: 28),
-                    onPressed: () => _abrirSelectorReloj(dayIndex, null, setDialogState),
+                    icon: const Icon(Icons.add_circle, color: _pink, size: 28),
+                    onPressed: () =>
+                        _abrirSelectorReloj(dayIndex, null, setDialogState),
                   ),
                 ],
               ),
@@ -151,8 +201,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? const Padding(
                         padding: EdgeInsets.symmetric(vertical: 20.0),
                         child: Text(
-                          'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
-                          style: TextStyle(color: Colors.white54, fontSize: 13),
+                          'No hay horarios.\nToca "+" para agregar.',
+                          style:
+                              TextStyle(color: Colors.white54, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       )
@@ -168,23 +219,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             child: ListTile(
                               dense: true,
-                              leading: const Icon(Icons.access_time_filled, color: Color(0xFFFF44AA), size: 18),
+                              leading: const Icon(Icons.access_time_filled,
+                                  color: _pink, size: 18),
                               title: Text(
                                 _scheduleData[dayIndex][index],
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14),
                               ),
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Botoncito para editar las horas de este bloque específico con tu reloj nativo
                                   IconButton(
-                                    icon: const Icon(Icons.edit, color: Colors.cyanAccent, size: 18),
-                                    onPressed: () => _abrirSelectorReloj(dayIndex, index, setDialogState),
+                                    icon: const Icon(Icons.edit,
+                                        color: Colors.cyanAccent, size: 18),
+                                    onPressed: () => _abrirSelectorReloj(
+                                        dayIndex, index, setDialogState),
                                   ),
-                                  // Botoncito para eliminar este bloque específico con letrero de confirmación
                                   IconButton(
-                                    icon: const Icon(Icons.delete, color: Colors.redAccent, size: 18),
-                                    onPressed: () => _confirmarEliminarBloque(dayIndex, index, setDialogState),
+                                    icon: const Icon(Icons.delete,
+                                        color: Colors.redAccent, size: 18),
+                                    onPressed: () => _confirmarEliminarBloque(
+                                        dayIndex, index, setDialogState),
                                   ),
                                 ],
                               ),
@@ -199,7 +256,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Navigator.pop(context);
                     setState(() {});
                   },
-                  child: const Text('CERRAR', style: TextStyle(color: Colors.white54)),
+                  child: const Text('CERRAR',
+                      style: TextStyle(color: Colors.white54)),
                 ),
               ],
             );
@@ -209,31 +267,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  void _abrirSelectorReloj(int dayIndex, int? index, StateSetter setDialogState) async {
+  void _abrirSelectorReloj(
+      int dayIndex, int? index, StateSetter setDialogState) async {
+    // showTimePicker ya usa formato AM/PM en sistemas configurados en 12h.
+    // alwaysUse24HourFormat = false fuerza AM/PM sin importar la config del sistema.
     final inicio = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
-      builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: Color(0xFFFF44AA), surface: Color(0xFF1A1040)),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+                primary: _pink, surface: Color(0xFF1A1040)),
+          ),
+          child: child!,
         ),
-        child: child!,
       ),
     );
-    if (inicio == null) return;
+    if (inicio == null || !mounted) return;
 
     final fin = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
-      builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(primary: Color(0xFFFF44AA), surface: Color(0xFF1A1040)),
+      initialTime: TimeOfDay(
+        hour: (inicio.hour + 1) % 24,
+        minute: inicio.minute,
+      ),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+        child: Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+                primary: _pink, surface: Color(0xFF1A1040)),
+          ),
+          child: child!,
         ),
-        child: child!,
       ),
     );
     if (fin == null) return;
 
+    // format() usa el locale del dispositivo pero con alwaysUse24HourFormat:false
+    // devuelve "h:mm AM/PM"
     final bloque = '${inicio.format(context)} - ${fin.format(context)}';
 
     setDialogState(() {
@@ -245,25 +319,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
-  void _confirmarEliminarBloque(int dayIndex, int index, StateSetter setDialogState) {
+  void _confirmarEliminarBloque(
+      int dayIndex, int index, StateSetter setDialogState) {
     showDialog(
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           backgroundColor: const Color(0xFF1A1040),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           title: const Text(
             '¿Eliminar bloque?',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold),
           ),
           content: const Text(
-            'Este horario se borrará por completo de la lista actual.',
+            'Este horario se borrará de la lista.',
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('CANCELAR', style: TextStyle(color: Colors.white54)),
+              child: const Text('CANCELAR',
+                  style: TextStyle(color: Colors.white54)),
             ),
             TextButton(
               onPressed: () {
@@ -272,10 +352,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   _scheduleData[dayIndex].removeAt(index);
                 });
               },
-              child: const Text(
-                'ELIMINAR',
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
-              ),
+              child: const Text('ELIMINAR',
+                  style: TextStyle(
+                      color: Colors.redAccent, fontWeight: FontWeight.bold)),
             ),
           ],
         );
@@ -283,132 +362,357 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ── ETIQUETA DE NIVEL ─────────────────────────────────────────────────────
+  String _labelProcrastinacion(int nivel) {
+    switch (nivel) {
+      case 1:
+        return 'Muy bajo';
+      case 2:
+        return 'Bajo';
+      case 3:
+        return 'Moderado';
+      case 4:
+        return 'Alto';
+      case 5:
+        return 'Muy alto';
+      default:
+        return nivel.toString();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFF0B0813),
-        body: Center(child: CircularProgressIndicator(color: Color(0xFFFF44AA))),
+        body: Center(child: CircularProgressIndicator(color: _pink)),
       );
     }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0B0813),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Mi Perfil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        iconTheme: const IconThemeData(color: Colors.white),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Configuración',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ConfiguracionScreen()),
-              );
-            },
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF14002A), Color(0xFF0B0813)],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: GestureDetector(
-                onTap: _seleccionarFoto,
-                child: CircleAvatar(
-                  radius: 50,
-                  backgroundColor: const Color(0xFF2A1F5A),
-                  backgroundImage: _fotoPerfilLocal != null
-                      ? FileImage(_fotoPerfilLocal!)
-                      : (_fotoPerfilUrl != null ? NetworkImage(_fotoPerfilUrl!) : null) as ImageProvider?,
-                  child: (_fotoPerfilLocal == null && _fotoPerfilUrl == null)
-                      ? const Icon(Icons.camera_alt, color: Colors.white54, size: 30)
-                      : null,
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              // ── APP BAR ─────────────────────────────────────────────────
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new,
+                          color: Colors.white),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Expanded(
+                      child: Text(
+                        'Mi Perfil',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.settings_outlined,
+                          color: Colors.white),
+                      tooltip: 'Configuración',
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ConfiguracionScreen()),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 24),
 
-            _buildLabel('Nombre'),
-            _buildTextField(_nombreController),
-            const SizedBox(height: 16),
+              // ── CONTENIDO ───────────────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Foto de perfil
+                      Center(
+                        child: GestureDetector(
+                          onTap: _seleccionarFoto,
+                          child: Stack(
+                            children: [
+                              CircleAvatar(
+                                radius: 52,
+                                backgroundColor: const Color(0xFF2A1F5A),
+                                backgroundImage: _fotoPerfilLocal != null
+                                    ? FileImage(_fotoPerfilLocal!)
+                                    : (_fotoPerfilUrl != null
+                                        ? NetworkImage(_fotoPerfilUrl!)
+                                        : null) as ImageProvider?,
+                                child: (_fotoPerfilLocal == null &&
+                                        _fotoPerfilUrl == null)
+                                    ? const Icon(Icons.person,
+                                        color: Colors.white54, size: 40)
+                                    : null,
+                              ),
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: const BoxDecoration(
+                                    color: _pink,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.camera_alt,
+                                      color: Colors.white, size: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-            _buildLabel('Apellido'),
-            _buildTextField(_apellidoController),
-            const SizedBox(height: 16),
+                      // Nombre completo debajo del avatar
+                      if (_nombreController.text.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Center(
+                            child: Text(
+                              '${_nombreController.text} ${_apellidoController.text}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
 
-            _buildLabel('Horas disponibles al día'),
-            _buildTextField(_horasController, keyboardType: TextInputType.number),
-            const SizedBox(height: 16),
+                      const SizedBox(height: 28),
 
-            _buildLabel('Objetivo'),
-            _buildTextField(_objetivoController, maxLines: 3),
-            const SizedBox(height: 16),
+                      // ── DATOS PERSONALES ─────────────────────────────────
+                      _buildSectionLabel('Datos personales'),
+                      const SizedBox(height: 10),
+                      _buildLabel('Nombre'),
+                      _buildTextField(_nombreController),
+                      const SizedBox(height: 14),
+                      _buildLabel('Apellido'),
+                      _buildTextField(_apellidoController),
+                      const SizedBox(height: 14),
+                      _buildLabel('Email'),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 14),
+                        decoration: BoxDecoration(
+                          color: _cardBg.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Text(
+                          _profileData?['correo'] ?? '—',
+                          style: const TextStyle(
+                              color: _textGrey, fontSize: 14),
+                        ),
+                      ),
 
-            _buildLabel('Nivel de procrastinación (1-5)'),
-            Slider(
-              value: _nivelProcrastinacion.toDouble(),
-              min: 1,
-              max: 5,
-              divisions: 4,
-              activeColor: const Color(0xFFFF44AA),
-              label: _nivelProcrastinacion.toString(),
-              onChanged: (v) => setState(() => _nivelProcrastinacion = v.round()),
-            ),
-            const SizedBox(height: 24),
+                      const SizedBox(height: 24),
 
-            const Text('Horario semanal', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
+                      // ── PERFIL DE ESTUDIO ────────────────────────────────
+                      _buildSectionLabel('Perfil de estudio'),
+                      const SizedBox(height: 10),
+                      _buildLabel('Horas disponibles al día'),
+                      _buildTextField(_horasController,
+                          keyboardType: TextInputType.number),
+                      const SizedBox(height: 14),
+                      _buildLabel('Objetivo'),
+                      _buildTextField(_objetivoController, maxLines: 3),
+                      const SizedBox(height: 14),
+                      _buildLabel(
+                          'Nivel de procrastinación: ${_labelProcrastinacion(_nivelProcrastinacion)}'),
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          activeTrackColor: _pink,
+                          inactiveTrackColor: _cardBg,
+                          thumbColor: _pink,
+                          overlayColor: _pink.withOpacity(0.2),
+                          valueIndicatorColor: _pink,
+                          valueIndicatorTextStyle:
+                              const TextStyle(color: Colors.white),
+                        ),
+                        child: Slider(
+                          value: _nivelProcrastinacion.toDouble(),
+                          min: 1,
+                          max: 5,
+                          divisions: 4,
+                          label: _labelProcrastinacion(_nivelProcrastinacion),
+                          onChanged: (v) =>
+                              setState(() => _nivelProcrastinacion = v.round()),
+                        ),
+                      ),
 
-            ...List.generate(_dias.length, (i) {
-              return Card(
-                color: const Color(0xFF1F1A3A),
-                margin: const EdgeInsets.only(bottom: 8),
-                child: ListTile(
-                  title: Text(_dias[i], style: const TextStyle(color: Colors.white)),
-                  subtitle: Text(
-                    _scheduleData[i].isEmpty ? 'Sin horarios' : _scheduleData[i].join(', '),
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
+                      const SizedBox(height: 24),
+
+                      // ── HORARIO SEMANAL ───────────────────────────────────
+                      _buildSectionLabel('Horario semanal'),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Toca un día para agregar o editar tus bloques de estudio.',
+                        style: TextStyle(color: _textGrey, fontSize: 11),
+                      ),
+                      const SizedBox(height: 12),
+
+                      ...List.generate(_dias.length, (i) {
+                        final esFinDeSemana = i >= 5;
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          decoration: BoxDecoration(
+                            color: esFinDeSemana
+                                ? _pink.withOpacity(0.06)
+                                : _cardBg.withOpacity(0.5),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: esFinDeSemana
+                                  ? _pink.withOpacity(0.25)
+                                  : Colors.white12,
+                            ),
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              radius: 16,
+                              backgroundColor: esFinDeSemana
+                                  ? _pink.withOpacity(0.2)
+                                  : _cardBg,
+                              child: Text(
+                                _dias[i].substring(0, 2),
+                                style: TextStyle(
+                                  color:
+                                      esFinDeSemana ? _pink : Colors.white70,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              _dias[i],
+                              style: TextStyle(
+                                color: esFinDeSemana ? _pink : Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            subtitle: Text(
+                              _scheduleData[i].isEmpty
+                                  ? 'Sin horarios'
+                                  : _scheduleData[i].join(' | '),
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            trailing: Icon(
+                              _scheduleData[i].isEmpty
+                                  ? Icons.add_circle_outline
+                                  : Icons.edit_outlined,
+                              color: esFinDeSemana ? _pink : Colors.white38,
+                              size: 20,
+                            ),
+                            onTap: () => _abrirModalHorario(i),
+                          ),
+                        );
+                      }),
+
+                      const SizedBox(height: 32),
+
+                      // ── BOTÓN GUARDAR ─────────────────────────────────────
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _guardarPerfil,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _pink,
+                            disabledBackgroundColor: _pink.withOpacity(0.4),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(26)),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                      color: Colors.white, strokeWidth: 2),
+                                )
+                              : const Text(
+                                  'GUARDAR PERFIL',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   ),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.white38),
-                  onTap: () => _abrirModalHorario(i),
                 ),
-              );
-            }),
-            const SizedBox(height: 32),
-
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSaving ? null : _guardarPerfil,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF44AA),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
-                ),
-                child: _isSaving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text('GUARDAR PERFIL', style: TextStyle(fontWeight: FontWeight.bold)),
               ),
-            ),
-            const SizedBox(height: 20),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) => Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-      );
+  // ─── WIDGETS HELPERS ─────────────────────────────────────────────────────
 
-  Widget _buildTextField(TextEditingController controller, {int maxLines = 1, TextInputType? keyboardType}) {
+  Widget _buildSectionLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Text(
+        text.toUpperCase(),
+        style: const TextStyle(
+          color: _textGrey,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 1.0,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLabel(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        text,
+        style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 13,
+            fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
     return TextField(
       controller: controller,
       maxLines: maxLines,
@@ -416,9 +720,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         filled: true,
-        fillColor: const Color(0xFF1F1A3A),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+        fillColor: _cardBg.withOpacity(0.6),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: _pink, width: 1.5),
+        ),
       ),
     );
   }
