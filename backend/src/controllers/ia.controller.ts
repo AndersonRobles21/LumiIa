@@ -31,16 +31,15 @@ export async function generarPlan(req: Request, res: Response) {
 
         const usuarioQuery = await client.query(
             `
-      SELECT
-        u.nombre,
-        p.objetivo,
-        p.horas_disponibles,
-        p.nivel_procrastinacion
-      FROM usuarios u
-      LEFT JOIN perfiles_estudio p
-        ON p.usuario_id = u.id
-      WHERE u.id = $1
-      `,
+SELECT
+    u.nombre,
+    p.objetivo,
+    p.nivel_procrastinacion
+FROM usuarios u
+LEFT JOIN perfiles_estudio p
+    ON p.usuario_id = u.id
+WHERE u.id = $1
+`,
             [usuario_id]
         );
 
@@ -52,22 +51,133 @@ export async function generarPlan(req: Request, res: Response) {
 
         const usuario = usuarioQuery.rows[0];
 
+        const horariosQuery = await client.query(
+    `
+SELECT
+    dia,
+    hora_inicio,
+    hora_fin
+FROM horarios
+WHERE usuario_id = $1
+ORDER BY
+CASE dia
+    WHEN 'Lunes' THEN 1
+    WHEN 'Martes' THEN 2
+    WHEN 'Miércoles' THEN 3
+    WHEN 'Miercoles' THEN 3
+    WHEN 'Jueves' THEN 4
+    WHEN 'Viernes' THEN 5
+    WHEN 'Sábado' THEN 6
+    WHEN 'Sabado' THEN 6
+    WHEN 'Domingo' THEN 7
+END,
+hora_inicio
+`,
+    [usuario_id]
+);
+
+console.log("HORARIOS RAW:");
+console.log(horariosQuery.rows);
+
+let horasDisponibles = 0;
+
+const horarioTexto = horariosQuery.rows
+    .map((h: any) => {
+        const inicio = Number(h.hora_inicio.split(":")[0]);
+        const fin = Number(h.hora_fin.split(":")[0]);
+
+        horasDisponibles += fin - inicio;
+
+        return `${h.dia}: ${h.hora_inicio} - ${h.hora_fin}`;
+    })
+    .join("\n");
+
+if (horasDisponibles <= 0) {
+    horasDisponibles = 2;
+}
+
+const hoy = new Date();
+const entrega = new Date(fecha_entrega);
+
+const diasRestantes = Math.max(
+    1,
+    Math.ceil(
+        (entrega.getTime() - hoy.getTime()) /
+        (1000 * 60 * 60 * 24)
+    )
+);
+
+const diasSemana: Record<string, number> = {
+    domingo: 0,
+    lunes: 1,
+    martes: 2,
+    miércoles: 3,
+    miercoles: 3,
+    jueves: 4,
+    viernes: 5,
+    sábado: 6,
+    sabado: 6,
+};
+
+let minutosDisponibles = 0;
+
+const fecha = new Date(hoy);
+fecha.setHours(0, 0, 0, 0);
+
+entrega.setHours(23, 59, 59, 999);
+
+while (fecha <= entrega) {
+
+    const diaActual = fecha.getDay();
+
+    for (const horario of horariosQuery.rows) {
+
+        const diaHorario = diasSemana[horario.dia.toLowerCase()];
+
+        if (diaHorario === diaActual) {
+
+            const inicio = Number(horario.hora_inicio.split(":")[0]);
+            const fin = Number(horario.hora_fin.split(":")[0]);
+
+            minutosDisponibles += (fin - inicio) * 60;
+        }
+    }
+
+    fecha.setDate(fecha.getDate() + 1);
+}
+
+console.log("========== DATOS DEL PERFIL ==========");
+console.log(usuario);
+console.log("Horas calculadas:", horasDisponibles);
+console.log("Horario:");
+console.log(horarioTexto);
+console.log("Días restantes:", diasRestantes);
+console.log("Minutos disponibles:", minutosDisponibles);
+console.log("Fecha entrega:", fecha_entrega);
+console.log("Objetivo:", usuario.objetivo);
+console.log("Nivel procrastinación:", usuario.nivel_procrastinacion);
+console.log("======================================");
+
         // Llamamos a la IA pasando también los parámetros de personalización
         const planIA = await generarPlanIA({
-            titulo: nombre,
-            descripcion: descripcion ?? "",
-            fechaEntrega: fecha_entrega,
-            metodoEstudio: metodo_estudio,
-            dificultad: dificultad,
-            enfoqueAdicional: enfoque_adicional,
+    titulo: nombre,
+    descripcion,
+    fechaEntrega: fecha_entrega,
+    metodoEstudio: metodo_estudio,
+    dificultad,
+    enfoqueAdicional: enfoque_adicional,
 
-            nombreUsuario: usuario.nombre,
-            objetivo: usuario.objetivo ?? "",
-            horasDisponibles: usuario.horas_disponibles ?? 2,
-            nivelProcrastinacion: usuario.nivel_procrastinacion ?? 3,
+    nombreUsuario: usuario.nombre,
+    objetivo: usuario.objetivo ?? "",
+    horasDisponibles: horasDisponibles > 0 ? horasDisponibles : 2,
+    nivelProcrastinacion: usuario.nivel_procrastinacion ?? 3,
 
-            mensajeUsuario,
-        });
+    diasRestantes,
+
+    minutosDisponibles,
+
+    mensajeUsuario,
+});
 
         await client.query("BEGIN");
 
@@ -168,7 +278,9 @@ export async function generarPlan(req: Request, res: Response) {
             plan: planIA,
             plan_id: planId,
         });
+
     } catch (error: any) {
+
         try {
             await client.query("ROLLBACK");
         } catch { }
@@ -179,6 +291,7 @@ export async function generarPlan(req: Request, res: Response) {
             ok: false,
             mensaje: error.message,
         });
+
     } finally {
         client.release();
     }
