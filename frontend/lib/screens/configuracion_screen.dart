@@ -14,7 +14,7 @@ class ConfiguracionScreen extends StatefulWidget {
 }
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
-  // --- Estado local de las preferencias (luego puedes persistirlas) ---
+  //  Estado local de las preferencias (luego puedes persistirlas) ---
   bool _notificacionesPush = true;
   bool _recordatoriosDiarios = true;
   bool _autenticacionBiometrica = false;

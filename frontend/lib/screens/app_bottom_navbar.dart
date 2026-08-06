@@ -7,7 +7,6 @@ import 'profile_screen.dart';
 class AppBottomNavbar extends StatelessWidget {
   final String userId;
 
-  /// 0 = Inicio (Dashboard), 1 = Calendario, 2 = IA/Historial, 3 = Perfil
   final int currentIndex;
 
   const AppBottomNavbar({
@@ -17,21 +16,19 @@ class AppBottomNavbar extends StatelessWidget {
   });
 
   void _goTo(BuildContext context, int index) {
-    // Si ya estás en esa pantalla, no hacemos nada (evita apilar pantallas iguales).
+
     if (index == currentIndex) return;
 
     switch (index) {
       case 0:
-        // Vuelve al Dashboard limpiando el stack de navegación,
-        // para no acumular pantallas repetidas.
+
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => DashboardScreen(userId: userId)),
           (route) => false,
         );
         break;
       case 1:
-        // Aún no existe una pantalla de Calendario en el proyecto.
-        // Dejamos el botón funcional (con feedback) en vez de un ícono muerto.
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(AppLanguage.instance.t('nav_calendar_soon')),

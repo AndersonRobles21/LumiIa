@@ -23,8 +23,6 @@ class _LoginScreenState extends State<LoginScreen>
   bool _isLoading = false;
   String? _errorMessage;
 
-  // --- Estado del login biométrico ---
-  // true mientras se muestra el overlay de "verificando huella".
   bool _verificandoBiometria = false;
 
   @override
@@ -42,22 +40,7 @@ class _LoginScreenState extends State<LoginScreen>
     super.dispose();
   }
 
-  /// Intenta iniciar sesión con biometría.
-  ///
-  /// - Si no está activada en Configuración, o no hay sesión de Supabase
-  ///   guardada (nunca ha iniciado sesión antes en este dispositivo), no
-  ///   hace nada y se queda en el formulario normal.
-  /// - Si el usuario cancela, falla la huella, o el dispositivo no tiene
-  ///   biometría configurada, también se queda en el formulario normal
-  ///   (fallback automático a contraseña).
-  /// - Si la huella es correcta, entra directo al Dashboard sin pedir
-  ///   contraseña, usando la sesión de Supabase que ya estaba guardada.
-  /// [manual] es true cuando lo dispara el botón "Usar huella" que la
-  /// persona presiona a propósito. En ese caso, si no se puede intentar
-  /// la biometría le avisamos por qué (antes se quedaba sin hacer nada
-  /// y parecía que el botón estaba roto). Cuando se llama automáticamente
-  /// desde initState, no mostramos nada si no aplica: es solo una
-  /// comodidad silenciosa al abrir la app.
+
   Future<void> _tryBiometricLogin({bool manual = false}) async {
     final sesionExistente = Supabase.instance.client.auth.currentSession;
 
@@ -88,8 +71,7 @@ class _LoginScreenState extends State<LoginScreen>
     if (!mounted) return;
 
     if (!exito) {
-      // Falló, canceló, o no hay biometría disponible: se queda en el
-      // formulario de correo/contraseña que ya está detrás del overlay.
+      // Falló o cancelo la huella, se pasa es a la contraseña
       setState(() => _verificandoBiometria = false);
       return;
     }
@@ -128,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen>
     setState(() => _isLoading = true);
 
     try {
-      // PASO 1: Autenticación real con Supabase Auth
+      //  Autenticación real con Supabase Auth
       final AuthResponse response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -303,9 +285,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                         ),
 
-                        // Botón para reintentar la huella manualmente, por si
-                        // la cancelaron sin querer al abrir la app. Solo se
-                        // muestra si la persona tiene la biometría activada.
+// aac es para q si el usuario tiene biometría activada en Configuración, se muestra el botón de verificación en el login
                         if (BiometricService.isEnabled) ...[
                           const SizedBox(height: 14),
                           Center(
@@ -377,9 +357,7 @@ class _LoginScreenState extends State<LoginScreen>
                 ),
               ),
 
-              // --- Overlay de "verificando huella" ---
-              // Se muestra encima del formulario (que sigue montado detrás)
-              // mientras se espera el resultado del prompt nativo de biometría.
+
               if (_verificandoBiometria) _buildBiometricOverlay(),
             ],
           ),

@@ -2,20 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Idiomas soportados por la app.
 enum AppLang { es, en }
 
-/// Servicio global y muy simple de idioma.
-///
-/// No usa paquetes de internacionalización (intl/l10n) para no tocar
-/// main.dart ni el pubspec. Es un ChangeNotifier con un mapa de textos:
-/// cada pantalla se suscribe con addListener() y se reconstruye cuando
-/// cambia el idioma.
-///
-/// NOTA: el idioma se guarda solo en memoria (dura mientras la app está
-/// abierta). Si quieren que se recuerde al cerrar y volver a abrir la app,
-/// se puede guardar con `shared_preferences` (avísenme si quieren que lo
-/// agregue, es un cambio pequeño).
 class AppLanguage extends ChangeNotifier {
   AppLanguage._internal();
   static final AppLanguage instance = AppLanguage._internal();
@@ -45,8 +33,7 @@ class AppLanguage extends ChangeNotifier {
 
   void toggle() => setLanguage(isEnglish ? AppLang.es : AppLang.en);
 
-  /// Devuelve el texto traducido para [key]. Si falta la traducción,
-  /// regresa la clave para que sea fácil detectar qué falta por traducir.
+  /// Devuelve el texto traducido para un key q si falta la traducción, regresa la clave para que sea fácil detectar qué falta por traducir.
   String t(String key) {
     final entry = _strings[key];
     if (entry == null) return key;
@@ -54,7 +41,7 @@ class AppLanguage extends ChangeNotifier {
   }
 
   static final Map<String, Map<AppLang, String>> _strings = {
-    // ---------- Configuración ----------
+    //  Configuración 
     'config_title': {AppLang.es: 'Configuración', AppLang.en: 'Settings'},
     'login_title': {AppLang.es: 'Iniciar Sesión', AppLang.en: 'Sign in'},
     'login_password': {AppLang.es: 'Contraseña', AppLang.en: 'Password'},
@@ -177,7 +164,7 @@ class AppLanguage extends ChangeNotifier {
     'close': {AppLang.es: 'Cerrar', AppLang.en: 'Close'},
     'understood': {AppLang.es: 'Entendido', AppLang.en: 'Got it'},
 
-    // ---------- Historial IA ----------
+    //  Historial IA 
     'history_title': {AppLang.es: 'Historial IA', AppLang.en: 'AI History'},
     'history_intro_1': {
       AppLang.es: 'Aquí verás tus planes de IA generados previamente.',
@@ -200,7 +187,7 @@ class AppLanguage extends ChangeNotifier {
       AppLang.en: 'Study plan',
     },
 
-    // ---------- Barra de navegación ----------
+    //  Barra de navegación 
     'nav_calendar_soon': {
       AppLang.es: '📅 Calendario: disponible próximamente.',
       AppLang.en: '📅 Calendar: coming soon.',
@@ -208,19 +195,7 @@ class AppLanguage extends ChangeNotifier {
   };
 }
 
-/// Mixin para que cualquier pantalla (StatefulWidget) se reconstruya
-/// automáticamente cuando cambia el idioma, sin tener que repetir el
-/// boilerplate de addListener/removeListener/setState en cada una.
-///
-/// Uso:
-///   class _MiPantallaState extends State<MiPantalla>
-///       with AppLanguageListenerMixin<MiPantalla> {
-///     ...
-///     Text(tr('Hola', 'Hello'))
-///   }
-///
-/// También expone [tr] como atajo para textos que no están (o no vale la
-/// pena poner) en el diccionario compartido de [AppLanguage].
+
 mixin AppLanguageListenerMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
@@ -238,7 +213,7 @@ mixin AppLanguageListenerMixin<T extends StatefulWidget> on State<T> {
     if (mounted) setState(() {});
   }
 
-  /// Devuelve [es] o [en] según el idioma seleccionado actualmente.
+  /// Este es el q devuelve [es] o [en] según el idioma seleccionado
   String tr(String es, String en) =>
       AppLanguage.instance.isEnglish ? en : es;
 }
