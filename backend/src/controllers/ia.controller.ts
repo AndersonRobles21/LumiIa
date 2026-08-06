@@ -7,12 +7,18 @@ export async function generarPlan(req: Request, res: Response) {
     const client = await pool.connect();
 
     try {
-
         const usuario_id = req.body.usuario_id;
         const nombre = req.body.nombre;
         const descripcion = req.body.descripcion ?? "";
         const fecha_entrega = req.body.fecha_entrega;
+        
+        // Nuevos campos recibidos desde Flutter
+        const metodo_estudio = req.body.metodo_estudio ?? "Pomodoro";
+        const dificultad = req.body.dificultad ?? "Media";
+        const enfoque_adicional = req.body.enfoque_adicional ?? "";
+        
         const mensajeUsuario = req.body.mensajeUsuario ?? "";
+
         console.log("========== BODY RECIBIDO ==========");
         console.log(req.body);
         console.log("===================================");
@@ -46,10 +52,14 @@ export async function generarPlan(req: Request, res: Response) {
 
         const usuario = usuarioQuery.rows[0];
 
+        // Llamamos a la IA pasando también los parámetros de personalización
         const planIA = await generarPlanIA({
             titulo: nombre,
             descripcion: descripcion ?? "",
             fechaEntrega: fecha_entrega,
+            metodoEstudio: metodo_estudio,
+            dificultad: dificultad,
+            enfoqueAdicional: enfoque_adicional,
 
             nombreUsuario: usuario.nombre,
             objetivo: usuario.objetivo ?? "",
@@ -93,7 +103,7 @@ export async function generarPlan(req: Request, res: Response) {
                 planId,
                 "Google",
                 GEMINI_MODEL,
-                planIA.metodo_estudio,
+                planIA.metodo_estudio || metodo_estudio,
                 planIA.justificacion,
                 planIA.tiempo_estimado_total,
                 JSON.stringify(planIA.consejos),
@@ -106,36 +116,36 @@ export async function generarPlan(req: Request, res: Response) {
             throw new Error("La IA no devolvió subtareas.");
         }
 
-        for (const sub of planIA.subtareas) {
+        for (const s of planIA.subtareas) {
+            const sub: any = s; // <-- Evita el error de TypeScript al asignar propiedades dinámicas
 
-    const actividad = await client.query(
-        `
+            const actividad = await client.query(
+                `
         INSERT INTO actividades
         (plan_id, titulo, descripcion, fecha, estado)
         VALUES ($1,$2,$3,$4,'PENDIENTE')
         RETURNING id
         `,
-        [planId, sub.titulo, sub.descripcion, fecha_entrega]
-    );
+                [planId, sub.titulo, sub.descripcion, fecha_entrega]
+            );
 
-    const tarea = await client.query(
-        `
+            const tarea = await client.query(
+                `
         INSERT INTO tareas
         (actividad_id, titulo, descripcion, completada)
         VALUES ($1,$2,$3,false)
         RETURNING id, completada
         `,
-        [
-            actividad.rows[0].id,
-            sub.titulo,
-            `Duración: ${sub.duracion_minutos} min | Prioridad: ${sub.prioridad}`,
-        ]
-    );
+                [
+                    actividad.rows[0].id,
+                    sub.titulo,
+                    `Duración: ${sub.duracion_minutos} min | Prioridad: ${sub.prioridad}`,
+                ]
+            );
 
-    
-    sub.id = tarea.rows[0].id;
-    sub.completada = tarea.rows[0].completada;
-}
+            sub.id = tarea.rows[0].id;
+            sub.completada = tarea.rows[0].completada;
+        }
 
         await client.query(
             `
@@ -146,7 +156,7 @@ export async function generarPlan(req: Request, res: Response) {
             [
                 usuario_id,
                 planId,
-                JSON.stringify({ nombre, descripcion, fecha_entrega, mensajeUsuario }),
+                JSON.stringify({ nombre, descripcion, fecha_entrega, metodo_estudio, dificultad, enfoque_adicional, mensajeUsuario }),
                 JSON.stringify(planIA),
             ]
         );

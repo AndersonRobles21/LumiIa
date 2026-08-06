@@ -62,6 +62,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _glowController.repeat(reverse: true);
 
+    // NUEVO: pulso sutil de escala, distinto del bounce
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
@@ -73,6 +74,7 @@ class _SplashScreenState extends State<SplashScreen>
 
     _pulseController.repeat(reverse: true);
 
+    // NUEVO: anillo de energía girando lento detrás del robot
     _ringController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 8000),
