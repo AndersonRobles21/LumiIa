@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:frontend/screens/app_language.dart';
 import '../services/api_service.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
@@ -10,7 +11,8 @@ class GuiaDetalleScreen extends StatefulWidget {
   State<GuiaDetalleScreen> createState() => _GuiaDetalleScreenState();
 }
 
-class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
+class _GuiaDetalleScreenState extends State<GuiaDetalleScreen>
+    with AppLanguageListenerMixin<GuiaDetalleScreen> {
   late List<dynamic> subtareas;
   late List<dynamic> consejos;
   late List<dynamic> recursos;
@@ -40,8 +42,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
     if (tareaId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La tarea no tiene id.'),
+        SnackBar(
+          content: Text(tr('La tarea no tiene id.', 'The task has no id.')),
         ),
       );
       return;
@@ -63,8 +65,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         cargando[index] = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo actualizar la tarea'),
+        SnackBar(
+          content: Text(tr('No se pudo actualizar la tarea', 'Could not update the task')),
         ),
       );
       return;
@@ -102,7 +104,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.guiaData['metodo_estudio'] ?? 'Método de estudio',
+                    widget.guiaData['metodo_estudio'] ?? tr('Método de estudio', 'Study method'),
                     style: const TextStyle(
                       color: Colors.cyanAccent,
                       fontSize: 18,
@@ -120,7 +122,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                   ),
                   const SizedBox(height: 15),
                   Text(
-                    "Tiempo estimado: ${widget.guiaData['tiempo_estimado_total'] ?? 0} minutos",
+                    "${tr('Tiempo estimado', 'Estimated time')}: ${widget.guiaData['tiempo_estimado_total'] ?? 0} ${tr('minutos', 'minutes')}",
                     style: const TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
@@ -194,7 +196,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                     const SizedBox(height: 10),
 
                     Text(
-                      "Duración: ${sub['duracion_minutos']} min",
+                      "${tr('Duración', 'Duration')}: ${sub['duracion_minutos']} ${tr('min', 'min')}",
                       style: const TextStyle(
                         color: Color(0xFFFF44AA),
                         fontWeight: FontWeight.bold,
@@ -204,7 +206,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                     const SizedBox(height: 5),
 
                     Text(
-                      "Prioridad: ${sub['prioridad']}",
+                      "${tr('Prioridad', 'Priority')}: ${sub['prioridad']}",
                       style: const TextStyle(color: Colors.white70),
                     ),
 
@@ -222,7 +224,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                             ),
                           ),
                           onPressed: () => _confirmarTarea(index),
-                          child: const Text('Confirmar tarea completada'),
+                          child: Text(tr('Confirmar tarea completada', 'Confirm task completed')),
                         ),
                       ),
                     ] else ...[
@@ -233,9 +235,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                           color: const Color(0xFF2E1B4E),
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Text(
-                          'Tarea completada',
-                          style: TextStyle(color: Colors.white70),
+                        child: Text(
+                          tr('Tarea completada', 'Task completed'),
+                          style: const TextStyle(color: Colors.white70),
                         ),
                       ),
                     ],

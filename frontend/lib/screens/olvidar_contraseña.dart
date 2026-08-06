@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import 'app_language.dart';
 
 class OlvidarContrasena extends StatefulWidget {
   const OlvidarContrasena({super.key});
@@ -8,7 +9,8 @@ class OlvidarContrasena extends StatefulWidget {
   State<OlvidarContrasena> createState() => _OlvidarContrasenaState();
 }
 
-class _OlvidarContrasenaState extends State<OlvidarContrasena> {
+class _OlvidarContrasenaState extends State<OlvidarContrasena>
+    with AppLanguageListenerMixin<OlvidarContrasena> {
   final _emailController = TextEditingController();
   final _codeController = TextEditingController();
   final _newPasswordController = TextEditingController();
@@ -64,12 +66,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     setState(() => _errorMessage = null);
 
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Ingresa tu email.');
+      setState(() => _errorMessage = tr('Ingresa tu email.', 'Enter your email.'));
       return;
     }
 
     if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un email válido.');
+      setState(() => _errorMessage = tr('Ingresa un email válido.', 'Enter a valid email.'));
       return;
     }
 
@@ -89,12 +91,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     setState(() => _errorMessage = null);
 
     if (code.isEmpty) {
-      setState(() => _errorMessage = 'Ingresa el código recibido.');
+      setState(() => _errorMessage = tr('Ingresa el código recibido.', 'Enter the code you received.'));
       return;
     }
 
     if (code != _verificationCode) {
-      setState(() => _errorMessage = 'Código incorrecto.');
+      setState(() => _errorMessage = tr('Código incorrecto.', 'Incorrect code.'));
       return;
     }
 
@@ -106,7 +108,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     final LocalAuthentication localAuth = LocalAuthentication();
     try {
       final isAuthenticated = await localAuth.authenticate(
-        localizedReason: 'Usa tu huella dactilar para recuperar contraseña',
+        localizedReason: tr(
+          'Usa tu huella dactilar para recuperar contraseña',
+          'Use your fingerprint to recover your password',
+        ),
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );
@@ -114,10 +119,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
       if (isAuthenticated) {
         setState(() => _currentStep = 3);
       } else {
-        setState(() => _errorMessage = 'Autenticación biométrica rechazada.');
+        setState(() => _errorMessage = tr('Autenticación biométrica rechazada.', 'Biometric authentication was rejected.'));
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Error en autenticación: $e');
+      setState(() => _errorMessage = '${tr('Error en autenticación', 'Authentication error')}: $e');
     }
   }
 
@@ -128,19 +133,22 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     setState(() => _errorMessage = null);
 
     if (newPass.isEmpty || confirmPass.isEmpty) {
-      setState(() => _errorMessage = 'Completa todos los campos.');
+      setState(() => _errorMessage = tr('Completa todos los campos.', 'Fill in all fields.'));
       return;
     }
 
     if (newPass.length < 6) {
       setState(
-        () => _errorMessage = 'La contraseña debe tener al menos 6 caracteres.',
+        () => _errorMessage = tr(
+          'La contraseña debe tener al menos 6 caracteres.',
+          'The password must be at least 6 characters long.',
+        ),
       );
       return;
     }
 
     if (newPass != confirmPass) {
-      setState(() => _errorMessage = 'Las contraseñas no coinciden.');
+      setState(() => _errorMessage = tr('Las contraseñas no coinciden.', 'Passwords do not match.'));
       return;
     }
 
@@ -203,10 +211,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Text(
-              'Elige un Método',
-              style: TextStyle(
+              tr('Elige un Método', 'Choose a Method'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -215,10 +223,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Elige cómo quieres recuperar el acceso: con código o con huella dactilar.',
-              style: TextStyle(
+              tr(
+                'Elige cómo quieres recuperar el acceso: con código o con huella dactilar.',
+                'Choose how you want to recover access: with a code or with your fingerprint.',
+              ),
+              style: const TextStyle(
                 color: Color(0xFFB0AEC4),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -229,18 +240,20 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 40),
           _buildMethodCard(
             icon: Icons.security,
-            title: 'Código de Email',
-            description:
-                'Recibe un código en tu email y verifica tu identidad.',
+            title: tr('Código de Email', 'Email Code'),
+            description: tr(
+              'Recibe un código en tu email y verifica tu identidad.',
+              'Receive a code in your email and verify your identity.',
+            ),
             onTap: () => setState(() => _currentStep = 1),
           ),
           const SizedBox(height: 16),
           _buildMethodCard(
             icon: Icons.fingerprint,
-            title: 'Huella Dactilar',
+            title: tr('Huella Dactilar', 'Fingerprint'),
             description: _biometricAvailable
-                ? 'Usa tu huella para recuperar la contraseña.'
-                : 'Huella no disponible en este dispositivo.',
+                ? tr('Usa tu huella para recuperar la contraseña.', 'Use your fingerprint to recover your password.')
+                : tr('Huella no disponible en este dispositivo.', 'Fingerprint not available on this device.'),
             enabled: _biometricAvailable,
             onTap: _biometricAvailable ? _authenticateWithBiometric : null,
           ),
@@ -250,7 +263,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
          const SizedBox(height: 40),
           _buildPrimaryButton(
-            label: 'Volver al Inicio de Sesión',
+            label: tr('Volver al Inicio de Sesión', 'Back to Sign In'),
             onPressed: () =>
                 Navigator.of(context).popUntil((route) => route.isFirst),
             ),
@@ -277,10 +290,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 24),
-          const Center(
+          Center(
             child: Text(
-              'Recuperar Contraseña',
-              style: TextStyle(
+              tr('Recuperar Contraseña', 'Recover Password'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 32,
                 fontWeight: FontWeight.w700,
@@ -289,10 +302,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Ingresa tu email para recibir un código de recuperación.',
-              style: TextStyle(
+              tr(
+                'Ingresa tu email para recibir un código de recuperación.',
+                'Enter your email to receive a recovery code.',
+              ),
+              style: const TextStyle(
                 color: Color(0xFFB0AEC4),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -301,9 +317,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'Email',
-            style: TextStyle(
+          Text(
+            tr('Email', 'Email'),
+            style: const TextStyle(
               color: Color(0xFFE2E0EE),
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -312,7 +328,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 8),
           _buildTextField(
             controller: _emailController,
-            hint: 'ingresa tu email@',
+            hint: tr('ingresa tu email@', 'enter your email@'),
             keyboardType: TextInputType.emailAddress,
           ),
           if (_errorMessage != null) ...[
@@ -321,7 +337,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 40),
           _buildPrimaryButton(
-            label: 'Enviar Código',
+            label: tr('Enviar Código', 'Send Code'),
             onPressed: _isLoading ? null : _sendEmailCode,
             isLoading: _isLoading,
           ),
@@ -329,9 +345,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           Center(
             child: TextButton(
               onPressed: () => setState(() => _currentStep = 0),
-              child: const Text(
-                'Volver',
-                style: TextStyle(
+              child: Text(
+                tr('Volver', 'Back'),
+                style: const TextStyle(
                   color: Color(0xFFB0AEC4),
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -354,10 +370,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Text(
-              'Verifica tu Código',
-              style: TextStyle(
+              tr('Verifica tu Código', 'Verify your Code'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -366,10 +382,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Ingresa el código que recibiste en tu email.',
-              style: TextStyle(
+              tr(
+                'Ingresa el código que recibiste en tu email.',
+                'Enter the code you received in your email.',
+              ),
+              style: const TextStyle(
                 color: Color(0xFFB0AEC4),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -378,9 +397,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'Código',
-            style: TextStyle(
+          Text(
+            tr('Código', 'Code'),
+            style: const TextStyle(
               color: Color(0xFFE2E0EE),
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -389,7 +408,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 8),
           _buildTextField(
             controller: _codeController,
-            hint: 'Ej: 123456',
+            hint: tr('Ej: 123456', 'e.g. 123456'),
             keyboardType: TextInputType.number,
           ),
           if (_errorMessage != null) ...[
@@ -398,7 +417,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 40),
           _buildPrimaryButton(
-            label: 'Verificar Código',
+            label: tr('Verificar Código', 'Verify Code'),
             onPressed: _isLoading ? null : _verifyCode,
             isLoading: _isLoading,
           ),
@@ -406,9 +425,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           Center(
             child: TextButton(
               onPressed: () => setState(() => _currentStep = 1),
-              child: const Text(
-                'Volver',
-                style: TextStyle(
+              child: Text(
+                tr('Volver', 'Back'),
+                style: const TextStyle(
                   color: Color(0xFFB0AEC4),
                   fontSize: 14,
                   fontWeight: FontWeight.w400,
@@ -440,10 +459,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 20),
-          const Center(
+          Center(
             child: Text(
-              'Nueva Contraseña',
-              style: TextStyle(
+              tr('Nueva Contraseña', 'New Password'),
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
@@ -452,10 +471,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 12),
-          const Center(
+          Center(
             child: Text(
-              'Crea una contraseña segura y diferente.',
-              style: TextStyle(
+              tr('Crea una contraseña segura y diferente.', 'Create a secure, different password.'),
+              style: const TextStyle(
                 color: Color(0xFFB0AEC4),
                 fontSize: 14,
                 fontWeight: FontWeight.w400,
@@ -464,9 +483,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            'Nueva Contraseña',
-            style: TextStyle(
+          Text(
+            tr('Nueva Contraseña', 'New Password'),
+            style: const TextStyle(
               color: Color(0xFFE2E0EE),
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -475,7 +494,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 8),
           _buildTextField(
             controller: _newPasswordController,
-            hint: 'Mínimo 6 caracteres',
+            hint: tr('Mínimo 6 caracteres', 'Minimum 6 characters'),
             obscureText: _obscureNew,
             suffixIcon: IconButton(
               icon: Icon(
@@ -487,9 +506,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
-            'Confirmar Contraseña',
-            style: TextStyle(
+          Text(
+            tr('Confirmar Contraseña', 'Confirm Password'),
+            style: const TextStyle(
               color: Color(0xFFE2E0EE),
               fontSize: 14,
               fontWeight: FontWeight.w500,
@@ -498,7 +517,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 8),
           _buildTextField(
             controller: _confirmPasswordController,
-            hint: 'Repite tu nueva contraseña',
+            hint: tr('Repite tu nueva contraseña', 'Repeat your new password'),
             obscureText: _obscureConfirm,
             suffixIcon: IconButton(
               icon: Icon(
@@ -516,7 +535,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 40),
           _buildPrimaryButton(
-            label: 'Cambiar Contraseña',
+            label: tr('Cambiar Contraseña', 'Change Password'),
             onPressed: _isLoading ? null : _resetPassword,
             isLoading: _isLoading,
           ),
@@ -548,9 +567,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 32),
-          const Text(
-            '¡Contraseña Cambiada!',
-            style: TextStyle(
+          Text(
+            tr('¡Contraseña Cambiada!', 'Password Changed!'),
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 32,
               fontWeight: FontWeight.w700,
@@ -559,9 +578,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 12),
-          const Text(
-            'Tu contraseña ha sido actualizada exitosamente.',
-            style: TextStyle(
+          Text(
+            tr(
+              'Tu contraseña ha sido actualizada exitosamente.',
+              'Your password has been successfully updated.',
+            ),
+            style: const TextStyle(
               color: Color(0xFFB0AEC4),
               fontSize: 14,
               fontWeight: FontWeight.w400,
@@ -570,7 +592,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ),
           const SizedBox(height: 40),
           _buildPrimaryButton(
-            label: 'Volver al Inicio de Sesión',
+            label: tr('Volver al Inicio de Sesión', 'Back to Sign In'),
             onPressed: () =>
                 Navigator.of(context).popUntil((route) => route.isFirst),
           ),

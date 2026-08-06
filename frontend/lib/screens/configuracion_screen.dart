@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login_screen.dart'; // Para volver a LoginScreen al cerrar sesión
+import 'app_language.dart';
+import 'biometric_service.dart';
+import 'login_screen.dart'; 
 import 'info_screen.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
@@ -16,7 +18,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   bool _notificacionesPush = true;
   bool _recordatoriosDiarios = true;
   bool _autenticacionBiometrica = false;
+  bool _verificandoBiometria = false;
   bool _cerrandoSesion = false;
+  bool _isEnglish = false;
 
   // Colores reutilizados del resto de la app (mismo look que login/perfil)
   static const Color bgDark = Color(0xFF0B0813);
@@ -26,7 +30,106 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   static const Color dangerColor = Color(0xFFE23E57);
 
   @override
+  void initState() {
+    super.initState();
+    AppLanguage.instance.addListener(_onLanguageChanged);
+    _initializeBiometrics();
+    _isEnglish = AppLanguage.instance.isEnglish;
+  }
+
+  Future<void> _initializeBiometrics() async {
+    await BiometricService.initialize();
+    if (!mounted) return;
+    setState(() => _autenticacionBiometrica = BiometricService.isEnabled);
+  }
+
+  @override
+  void dispose() {
+    AppLanguage.instance.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) {
+      setState(() => _isEnglish = AppLanguage.instance.isEnglish);
+    }
+  }
+
+  String _text(String spanish, String english) =>
+      _isEnglish ? english : spanish;
+
+  // --- Activar/desactivar biometría con verificación real del dispositivo ---
+  Future<void> _onBiometricChanged(bool value) async {
+    final lang = AppLanguage.instance;
+
+    if (!value) {
+      // Apagar siempre se permite sin pedir huella.
+      setState(() => _autenticacionBiometrica = false);
+      await BiometricService.setEnabled(false);
+      return;
+    }
+
+    setState(() => _verificandoBiometria = true);
+
+    final soportado = await BiometricService.isDeviceSupported();
+    if (!soportado) {
+      if (!mounted) return;
+      setState(() => _verificandoBiometria = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'Este dispositivo no tiene biometría configurada o no se pudo abrir el prompt.',
+              'This device has no biometrics set up or the prompt could not be opened.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Pedimos una huella de confirmación antes de activarla, para
+    // asegurarnos de que el usuario realmente puede usarla luego en login.
+    final exito = await BiometricService.authenticate(
+      reason: _text(
+        'Confirma tu huella para activar el inicio con biometría',
+        'Confirm your fingerprint to enable biometric login',
+      ),
+    );
+
+    if (!mounted) return;
+    if (!exito) {
+      setState(() {
+        _verificandoBiometria = false;
+        _autenticacionBiometrica = false;
+      });
+      await BiometricService.setEnabled(false);
+    } else {
+      setState(() {
+        _verificandoBiometria = false;
+        _autenticacionBiometrica = true;
+      });
+      await BiometricService.setEnabled(true);
+    }
+
+    if (exito) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'Biometría activada correctamente.',
+              'Biometric login turned on.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lang = AppLanguage.instance;
+
     return Scaffold(
       backgroundColor: bgDark,
       body: Container(
@@ -45,7 +148,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               constraints: const BoxConstraints(maxWidth: 430),
               child: Column(
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(context, lang),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
@@ -55,44 +158,68 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSectionTitle('Notificaciones'),
+                          _buildSectionTitle(
+                            _text('Notificaciones', 'Notifications'),
+                          ),
                           _buildSwitchTile(
                             icon: Icons.notifications_active_outlined,
-                            title: 'Notificaciones push',
-                            subtitle: 'Avisos de actividades y tareas pendientes',
+                            title: _text(
+                              'Notificaciones push',
+                              'Push notifications',
+                            ),
+                            subtitle: _text(
+                              'Avisos de actividades y tareas pendientes',
+                              'Alerts for activities and pending tasks',
+                            ),
                             value: _notificacionesPush,
                             onChanged: (v) =>
                                 setState(() => _notificacionesPush = v),
                           ),
                           _buildSwitchTile(
                             icon: Icons.alarm_outlined,
-                            title: 'Recordatorios diarios',
-                            subtitle: 'Recibe un recordatorio de tu horario de estudio',
+                            title: _text(
+                              'Recordatorios diarios',
+                              'Daily reminders',
+                            ),
+                            subtitle: _text(
+                              'Recibe un recordatorio de tu horario de estudio',
+                              'Get a reminder of your study schedule',
+                            ),
                             value: _recordatoriosDiarios,
                             onChanged: (v) =>
                                 setState(() => _recordatoriosDiarios = v),
                           ),
 
                           const SizedBox(height: 12),
-                          _buildSectionTitle('Seguridad'),
+                          _buildSectionTitle(_text('Seguridad', 'Security')),
                           _buildSwitchTile(
                             icon: Icons.fingerprint,
-                            title: 'Inicio con biometría',
-                            subtitle: 'Usa huella o Face ID para entrar a Lumi',
+                            title: _text(
+                              'Inicio con biometría',
+                              'Biometric login',
+                            ),
+                            subtitle: _text(
+                              'Usa huella o Face ID para entrar a Lumi',
+                              'Use fingerprint or Face ID to sign in to Lumi',
+                            ),
                             value: _autenticacionBiometrica,
-                            onChanged: (v) =>
-                                setState(() => _autenticacionBiometrica = v),
+                            loading: _verificandoBiometria,
+                            onChanged: _onBiometricChanged,
                           ),
                           _buildNavTile(
                             icon: Icons.lock_reset_outlined,
-                            title: 'Cambiar contraseña',
-                            onTap: () {
-                              // TODO: navegar a la pantalla de cambio de contraseña
-                            },
+                            title: _text(
+                              'Cambiar contraseña',
+                              'Change password',
+                            ),
+                            onTap: () => _cambiarContrasena(context, lang),
                           ),
                           _buildNavTile(
                             icon: Icons.privacy_tip_outlined,
-                            title: 'Privacidad y datos',
+                            title: _text(
+                              'Privacidad y datos',
+                              'Privacy & data',
+                            ),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -104,28 +231,40 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           ),
 
                           const SizedBox(height: 12),
-                          _buildSectionTitle('Preferencias'),
+                          _buildSectionTitle(
+                            _text('Preferencias', 'Preferences'),
+                          ),
                           _buildNavTile(
                             icon: Icons.language_outlined,
-                            title: 'Idioma',
-                            trailingText: 'Español',
-                            onTap: () {
-                              // TODO: selector de idioma
-                            },
+                            title: _text('Idioma', 'Language'),
+                            trailingText: _isEnglish ? 'English' : 'Español',
+                            onTap: () => _mostrarSelectorIdioma(context, lang),
                           ),
                           _buildNavTile(
                             icon: Icons.school_outlined,
-                            title: 'Métodos de estudio preferidos',
-                            onTap: () {
-                              // TODO: editar métodos vinculados a metodos_estudio
-                            },
+                            title: _text(
+                              'Métodos de estudio preferidos',
+                              'Preferred study methods',
+                            ),
+                            onTap: () => _mostrarProximamente(
+                              context,
+                              lang,
+                              _text(
+                                'Métodos de estudio preferidos',
+                                'Preferred study methods',
+                              ),
+                              _text(
+                                'Podrás elegir y guardar tus métodos de estudio favoritos (Pomodoro, mapas mentales, práctica activa, etc.) directamente desde aquí en una próxima actualización.',
+                                'You\'ll be able to choose and save your favorite study methods (Pomodoro, mind maps, active recall, etc.) right from here in an upcoming update.',
+                              ),
+                            ),
                           ),
 
                           const SizedBox(height: 12),
-                          _buildSectionTitle('Soporte'),
+                          _buildSectionTitle(_text('Soporte', 'Support')),
                           _buildNavTile(
                             icon: Icons.help_outline,
-                            title: 'Centro de ayuda',
+                            title: _text('Centro de ayuda', 'Help center'),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -137,7 +276,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           ),
                           _buildNavTile(
                             icon: Icons.info_outline,
-                            title: 'Acerca de Lumi',
+                            title: _text('Acerca de Lumi', 'About Lumi'),
                             onTap: () {
                               Navigator.push(
                                 context,
@@ -149,7 +288,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           ),
 
                           const SizedBox(height: 28),
-                          _buildLogoutButton(context),
+                          _buildLogoutButton(context, lang),
                           const SizedBox(height: 24),
                         ],
                       ),
@@ -165,7 +304,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   // --- Header con flecha de volver ---
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, AppLanguage lang) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
       child: Row(
@@ -176,7 +315,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           ),
           Expanded(
             child: Text(
-              'Configuración',
+              _text('Configuración', 'Settings'),
               textAlign: TextAlign.center,
               style: GoogleFonts.orbitron(
                 color: Colors.white,
@@ -211,6 +350,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     required String title,
     String? subtitle,
     required bool value,
+    bool loading = false,
     required ValueChanged<bool> onChanged,
   }) {
     return Container(
@@ -223,7 +363,16 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       ),
       child: SwitchListTile(
         contentPadding: EdgeInsets.zero,
-        secondary: Icon(icon, color: accentPink.withOpacity(0.9)),
+        secondary: loading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: accentPink,
+                ),
+              )
+            : Icon(icon, color: accentPink.withOpacity(0.9)),
         title: Text(
           title,
           style: GoogleFonts.orbitron(
@@ -240,7 +389,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             : null,
         value: value,
         activeColor: accentPink,
-        onChanged: onChanged,
+        onChanged: loading ? null : onChanged,
       ),
     );
   }
@@ -288,12 +437,14 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   // --- Botón Cerrar sesión ---
-  Widget _buildLogoutButton(BuildContext context) {
+  Widget _buildLogoutButton(BuildContext context, AppLanguage lang) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed: _cerrandoSesion ? null : () => _confirmarCerrarSesion(context),
+        onPressed: _cerrandoSesion
+            ? null
+            : () => _confirmarCerrarSesion(context, lang),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: dangerColor, width: 1.3),
           shape: RoundedRectangleBorder(
@@ -311,7 +462,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               )
             : const Icon(Icons.logout, color: dangerColor),
         label: Text(
-          'Cerrar sesión',
+          _text('Cerrar sesión', 'Log out'),
           style: GoogleFonts.orbitron(
             color: dangerColor,
             fontSize: 14,
@@ -322,32 +473,38 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  Future<void> _confirmarCerrarSesion(BuildContext context) async {
+  Future<void> _confirmarCerrarSesion(
+    BuildContext context,
+    AppLanguage lang,
+  ) async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
-          '¿Cerrar sesión?',
+          _text('¿Cerrar sesión?', 'Log out?'),
           style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
         ),
         content: Text(
-          'Tendrás que volver a iniciar sesión para acceder a tu cuenta.',
+          _text(
+            'Tendrás que volver a iniciar sesión para acceder a tu cuenta.',
+            'You\'ll need to sign in again to access your account.',
+          ),
           style: GoogleFonts.orbitron(color: textGrey, fontSize: 12.5),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
-              'Cancelar',
+              _text('Cancelar', 'Cancel'),
               style: GoogleFonts.orbitron(color: textGrey),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
-              'Cerrar sesión',
+              _text('Cerrar sesión', 'Log out'),
               style: GoogleFonts.orbitron(
                 color: dangerColor,
                 fontWeight: FontWeight.bold,
@@ -363,21 +520,203 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     }
   }
 
+  // --- Cambiar contraseña: envía un correo real de restablecimiento
+  // usando el usuario que ya inició sesión en Supabase. ---
+  Future<void> _cambiarContrasena(
+    BuildContext context,
+    AppLanguage lang,
+  ) async {
+    final String? email = Supabase.instance.client.auth.currentUser?.email;
+
+    if (email == null || email.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'No se encontró un correo asociado a tu cuenta.',
+              'No email associated with your account was found.',
+            ),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          _text('Cambiar contraseña', 'Change password'),
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+        ),
+        content: Text(
+          _text(
+            'Te enviaremos un correo a $email con un enlace para restablecer tu contraseña. ¿Deseas continuar?',
+            'We\'ll send an email to $email with a link to reset your password. Continue?',
+          ),
+          style: GoogleFonts.orbitron(color: textGrey, fontSize: 12.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              _text('Cancelar', 'Cancel'),
+              style: GoogleFonts.orbitron(color: textGrey),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              _text('Enviar correo', 'Send email'),
+              style: GoogleFonts.orbitron(
+                color: accentPink,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    try {
+      await Supabase.instance.client.auth.resetPasswordForEmail(email);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'Te enviamos un correo a $email para cambiar tu contraseña.',
+              'We sent an email to $email to reset your password.',
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'No se pudo enviar el correo. Intenta de nuevo más tarde.',
+              'Could not send the email. Please try again later.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // --- Selector de idioma: Español / English, ambos activos ---
+  void _mostrarSelectorIdioma(BuildContext context, AppLanguage lang) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          _text('Idioma', 'Language'),
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            RadioListTile<AppLang>(
+              value: AppLang.es,
+              groupValue: _isEnglish ? AppLang.en : AppLang.es,
+              activeColor: accentPink,
+              title: Text(
+                'Español',
+                style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+              ),
+              onChanged: (_) async {
+                await AppLanguage.instance.setLanguage(AppLang.es);
+                if (!mounted) return;
+                setState(() => _isEnglish = false);
+                Navigator.pop(ctx);
+              },
+            ),
+            RadioListTile<AppLang>(
+              value: AppLang.en,
+              groupValue: _isEnglish ? AppLang.en : AppLang.es,
+              activeColor: accentPink,
+              title: Text(
+                'English',
+                style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+              ),
+              onChanged: (_) async {
+                await AppLanguage.instance.setLanguage(AppLang.en);
+                if (!mounted) return;
+                setState(() => _isEnglish = true);
+                Navigator.pop(ctx);
+              },
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              _text('Cerrar', 'Close'),
+              style: GoogleFonts.orbitron(color: textGrey),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Placeholder honesto para funciones aún no conectadas al backend ---
+  void _mostrarProximamente(
+    BuildContext context,
+    AppLanguage lang,
+    String titulo,
+    String mensaje,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Text(
+          titulo,
+          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+        ),
+        content: Text(
+          mensaje,
+          style: GoogleFonts.orbitron(color: textGrey, fontSize: 12.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(
+              _text('Entendido', 'Got it'),
+              style: GoogleFonts.orbitron(
+                color: accentPink,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _cerrarSesion(BuildContext context) async {
     setState(() => _cerrandoSesion = true);
 
     try {
       await Supabase.instance.client.auth.signOut();
     } catch (e) {
-      // Si algo falla igual sacamos al usuario al login
-      // para no dejarlo atrapado en la app.
       debugPrint('Error cerrando sesión: $e');
     }
 
     if (!mounted) return;
 
-    // Limpia todo el stack de navegación (dashboard, perfil, etc.)
-    // y deja únicamente el LoginScreen.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
