@@ -1,51 +1,56 @@
-import { Router, Request, Response } from "express";
-import { pool } from "../config/db";
-import { completarTarea } from "../controllers/tareas.controller";
+import { Router } from "express";
+import {
+  actualizarTarea,
+  completarTarea,
+  crearTarea,
+  eliminarTarea,
+  obtenerTareaPorId,
+  obtenerTareasPorUsuario,
+} from "../controllers/tareas.controller";
 
 const router = Router();
 
 /*
 ============================================================
-GET PLANES DE ESTUDIO (TAREAS PENDIENTES) DE UN USUARIO
+CREAR TAREA
+POST /api/tareas
+POST /api/tareas/:userId
+============================================================
+*/
+router.post("/", crearTarea);
+router.post("/:userId", crearTarea);
+
+/*
+============================================================
+GET TAREAS DE UN USUARIO
 GET /api/tareas/:userId
 ============================================================
 */
-router.get("/:userId", async (req: Request, res: Response): Promise<any> => {
-  try {
+router.get("/:userId", obtenerTareasPorUsuario);
 
-    const { userId } = req.params;
+/*
+============================================================
+GET TAREA POR ID
+GET /api/tareas/detalle/:tareaId
+============================================================
+*/
+router.get("/detalle/:tareaId", obtenerTareaPorId);
 
-    const resultado = await pool.query(
-      `
-      SELECT
-        id,
-        nombre,
-        descripcion,
-        estado,
-        fecha_creacion
-      FROM planes_estudio
-      WHERE usuario_id = $1
-        AND estado = 'ACTIVO'
-      ORDER BY fecha_creacion DESC
-      `,
-      [userId]
-    );
+/*
+============================================================
+ACTUALIZAR TAREA
+PUT /api/tareas/:tareaId
+============================================================
+*/
+router.put("/:tareaId", actualizarTarea);
 
-    return res.status(200).json({
-      tareas: resultado.rows,
-    });
-
-  } catch (error: any) {
-
-    console.error("❌ Error en GET /api/tareas/:userId:", error);
-
-    return res.status(500).json({
-      mensaje: "Error interno al obtener los planes de estudio.",
-      detalle: error.message,
-    });
-
-  }
-});
+/*
+============================================================
+ELIMINAR TAREA
+DELETE /api/tareas/:tareaId
+============================================================
+*/
+router.delete("/:tareaId", eliminarTarea);
 
 /*
 ============================================================

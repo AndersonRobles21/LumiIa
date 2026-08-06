@@ -11,6 +11,7 @@ import horarios from "./rutas/horarios";
 import tareas from "./rutas/tareas.routes";
 import iaRoutes from "./rutas/ia.routes";
 import historialRoutes from "./rutas/historial.routes";
+import adminRoutes from "./rutas/adminRoutes";
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use("/api/horarios", horarios);
 app.use("/api/tareas", tareas);
 app.use("/api/ia", iaRoutes);
 app.use("/api/ia/historial", historialRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.get("/", async (req, res) => {
   const resultado = await pool.query("SELECT NOW()");

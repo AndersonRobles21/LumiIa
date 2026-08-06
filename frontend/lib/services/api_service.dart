@@ -1,11 +1,19 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'dart:io';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api/auth';
-  static const String tareasBaseUrl = 'http://localhost:3000/api/tareas';
-  static const String iaBaseUrl = 'http://localhost:3000/api/ia';
+  static String get _backendHost {
+    if (kIsWeb) return 'http://localhost:3000';
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+    return 'http://localhost:3000';
+  }
+
+  static String get baseUrl => '$_backendHost/api/auth';
+  static String get adminBaseUrl => '$_backendHost/api/admin';
+  static String get tareasBaseUrl => '$_backendHost/api/tareas';
+  static String get iaBaseUrl => '$_backendHost/api/ia';
 
   /*
   ============================
@@ -190,6 +198,73 @@ class ApiService {
     } catch (e) {
       print('Error en ApiService getEstadisticas: $e');
       return null;
+    }
+  }
+
+  /*
+  ============================
+  ADMIN: check
+  ============================
+  */
+  static Future<bool> adminCheck(String userId) async {
+    try {
+      final response = await http.get(Uri.parse('$adminBaseUrl/check'), headers: {'x-user-id': userId});
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminOverview(String userId) async {
+    try {
+      final response = await http.get(Uri.parse('$adminBaseUrl/overview'), headers: {'x-user-id': userId});
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminListUsers(String userId, {String? search, int page = 1, int limit = 25}) async {
+    try {
+      final uri = Uri.parse('$adminBaseUrl/users').replace(queryParameters: {
+        if (search != null && search.isNotEmpty) 'search': search,
+        'page': page.toString(),
+        'limit': limit.toString(),
+      });
+      final response = await http.get(uri, headers: {'x-user-id': userId});
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminGetUser(String userId, String targetId) async {
+    try {
+      final response = await http.get(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId});
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Future<bool> adminUpdateUser(String userId, String targetId, Map<String, dynamic> payload) async {
+    try {
+      final response = await http.put(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId, 'Content-Type': 'application/json'}, body: jsonEncode(payload));
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<bool> adminDeleteUser(String userId, String targetId) async {
+    try {
+      final response = await http.delete(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId});
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
     }
   }
 
