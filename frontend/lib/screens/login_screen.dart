@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,24 +5,8 @@ import 'package:frontend/screens/olvidar_contraseña.dart';
 import 'register_screen.dart';
 import '/screens/dashboard_screen.dart';
 import '../services/api_service.dart';
-
-void main() {
-  runApp(const IniciarSesion());
-}
-
-class IniciarSesion extends StatelessWidget {
-  const IniciarSesion({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Iniciar Sesión',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true),
-      home: const LoginScreen(),
-    );
-  }
-}
+import 'biometric_service.dart';
+import 'app_language.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -32,18 +15,98 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with AppLanguageListenerMixin<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
 
+  // --- Estado del login biométrico ---
+  // true mientras se muestra el overlay de "verificando huella".
+  bool _verificandoBiometria = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Apenas se abre la pantalla, intentamos entrar con huella si el
+    // usuario la activó en Configuración y ya tiene sesión de Supabase.
+    _tryBiometricLogin();
+  }
+
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  /// Intenta iniciar sesión con biometría.
+  ///
+  /// - Si no está activada en Configuración, o no hay sesión de Supabase
+  ///   guardada (nunca ha iniciado sesión antes en este dispositivo), no
+  ///   hace nada y se queda en el formulario normal.
+  /// - Si el usuario cancela, falla la huella, o el dispositivo no tiene
+  ///   biometría configurada, también se queda en el formulario normal
+  ///   (fallback automático a contraseña).
+  /// - Si la huella es correcta, entra directo al Dashboard sin pedir
+  ///   contraseña, usando la sesión de Supabase que ya estaba guardada.
+  /// [manual] es true cuando lo dispara el botón "Usar huella" que la
+  /// persona presiona a propósito. En ese caso, si no se puede intentar
+  /// la biometría le avisamos por qué (antes se quedaba sin hacer nada
+  /// y parecía que el botón estaba roto). Cuando se llama automáticamente
+  /// desde initState, no mostramos nada si no aplica: es solo una
+  /// comodidad silenciosa al abrir la app.
+  Future<void> _tryBiometricLogin({bool manual = false}) async {
+    final sesionExistente = Supabase.instance.client.auth.currentSession;
+
+    if (!BiometricService.isEnabled || sesionExistente == null) {
+      if (manual && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              tr(
+                'No hay una sesión guardada en este dispositivo. Inicia sesión con tu contraseña una vez y luego la huella quedará activa.',
+                'There\'s no saved session on this device. Sign in with your password once and then fingerprint login will be active.',
+              ),
+            ),
+            backgroundColor: const Color(0xFF3A1B2A),
+          ),
+        );
+      }
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() => _verificandoBiometria = true);
+
+    final exito = await BiometricService.authenticate(
+      reason: tr('Confirma tu huella para entrar a Lumi', 'Confirm your fingerprint to sign in to Lumi'),
+    );
+
+    if (!mounted) return;
+
+    if (!exito) {
+      // Falló, canceló, o no hay biometría disponible: se queda en el
+      // formulario de correo/contraseña que ya está detrás del overlay.
+      setState(() => _verificandoBiometria = false);
+      return;
+    }
+
+    final String userId = sesionExistente.user.id;
+    try {
+      await ApiService.login(userId: userId);
+    } catch (_) {
+      // El backend Node es opcional para navegar; Supabase Auth manda.
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => DashboardScreen(userId: userId)),
+    );
   }
 
   void _login() async {
@@ -53,12 +116,12 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _errorMessage = null);
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Por favor, llena todos los campos.');
+      setState(() => _errorMessage = tr('Por favor, llena todos los campos.', 'Please fill in all fields.'));
       return;
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un email válido.');
+      setState(() => _errorMessage = tr('Ingresa un email válido.', 'Enter a valid email.'));
       return;
     }
 
@@ -73,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       final user = response.user;
       if (user == null) {
-        throw Exception('No se pudo recuperar la sesión del usuario.');
+        throw Exception(tr('No se pudo recuperar la sesión del usuario.', 'Could not retrieve the user session.'));
       }
 
       // PASO 2: El userId viene directamente de Supabase Auth (UUID real)
@@ -90,7 +153,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('¡Bienvenido a Lumi!', style: GoogleFonts.orbitron()),
+          content: Text(tr('¡Bienvenido a Lumi!', 'Welcome to Lumi!'), style: GoogleFonts.orbitron()),
           backgroundColor: const Color(0xFF102CE4),
         ),
       );
@@ -127,166 +190,240 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Image.asset(
-                        'logo/Lumi.png',
-                        width: 350,
-                        height: 180,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        'Iniciar Sesión',
-                        style: GoogleFonts.orbitron(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-
-                    Text(
-                      'Email',
-                      style: GoogleFonts.orbitron(
-                        color: const Color(0xFFE2E0EE),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      controller: _emailController,
-                      hint: 'Ingresa tu email@',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 20),
-
-                    Text(
-                      'Contraseña',
-                      style: GoogleFonts.orbitron(
-                        color: const Color(0xFFE2E0EE),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      controller: _passwordController,
-                      hint: 'Ingresa tu contraseña',
-                      obscureText: _obscurePassword,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: const Color(0xFF102CE4).withOpacity(0.7),
-                          size: 20,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 14),
-                      _buildErrorContainer(_errorMessage!),
-                    ],
-
-                    const SizedBox(height: 32),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text(
-                                  'Iniciar Sesión',
-                                  style: GoogleFonts.orbitron(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
-                          );
-                        },
-                        style: TextButton.styleFrom(foregroundColor: const Color(0xFFB0AEC4)),
-                        child: Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: GoogleFonts.orbitron(
-                            fontSize: 13,
-                            decoration: TextDecoration.underline,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 430),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          '¿No tienes una cuenta? ',
-                          style: GoogleFonts.orbitron(color: Colors.grey, fontSize: 12),
+                        const SizedBox(height: 10),
+                        Center(
+                          child: Image.asset(
+                            'logo/Lumi.png',
+                            width: 350,
+                            height: 180,
+                            fit: BoxFit.contain,
+                          ),
                         ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                            );
-                          },
+                        Center(
                           child: Text(
-                            'Regístrate',
+                            tr('Iniciar Sesión', 'Sign in'),
                             style: GoogleFonts.orbitron(
-                              color: const Color(0xFF102CE4),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+                        const SizedBox(height: 32),
+
+                        Text(
+                          tr('Email', 'Email'),
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xFFE2E0EE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          controller: _emailController,
+                          hint: tr('Ingresa tu email@', 'Enter your email@'),
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        const SizedBox(height: 20),
+
+                        Text(
+                          tr('Contraseña', 'Password'),
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xFFE2E0EE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          controller: _passwordController,
+                          hint: tr('Ingresa tu contraseña', 'Enter your password'),
+                          obscureText: _obscurePassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: const Color(0xFF102CE4).withOpacity(0.7),
+                              size: 20,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 14),
+                          _buildErrorContainer(_errorMessage!),
+                        ],
+
+                        const SizedBox(height: 32),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 54,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              child: _isLoading
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : Text(
+                                      tr('Iniciar Sesión', 'Sign in'),
+                                      style: GoogleFonts.orbitron(
+                                        color: Colors.white,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+
+                        // Botón para reintentar la huella manualmente, por si
+                        // la cancelaron sin querer al abrir la app. Solo se
+                        // muestra si la persona tiene la biometría activada.
+                        if (BiometricService.isEnabled) ...[
+                          const SizedBox(height: 14),
+                          Center(
+                            child: TextButton.icon(
+                              onPressed: _verificandoBiometria
+                                  ? null
+                                  : () => _tryBiometricLogin(manual: true),
+                              icon: const Icon(Icons.fingerprint, color: Color(0xFFB0AEC4)),
+                              label: Text(
+                                tr('Usar huella', 'Use fingerprint'),
+                                style: GoogleFonts.orbitron(
+                                  color: const Color(0xFFB0AEC4),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        const SizedBox(height: 10),
+
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
+                              );
+                            },
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB0AEC4)),
+                            child: Text(
+                              tr('¿Olvidaste tu contraseña?', 'Forgot your password?'),
+                              style: GoogleFonts.orbitron(
+                                fontSize: 13,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              tr('¿No tienes una cuenta? ', 'Don\'t have an account? '),
+                              style: GoogleFonts.orbitron(color: Colors.grey, fontSize: 12),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                );
+                              },
+                              child: Text(
+                                tr('Regístrate', 'Sign up'),
+                                style: GoogleFonts.orbitron(
+                                  color: const Color(0xFF102CE4),
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+
+              // --- Overlay de "verificando huella" ---
+              // Se muestra encima del formulario (que sigue montado detrás)
+              // mientras se espera el resultado del prompt nativo de biometría.
+              if (_verificandoBiometria) _buildBiometricOverlay(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBiometricOverlay() {
+    return Positioned.fill(
+      child: Container(
+        color: const Color(0xFF0B0813).withOpacity(0.92),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 90,
+                height: 90,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF1F1A3A),
+                  border: Border.all(color: const Color(0xFFFF44AA), width: 1.5),
+                ),
+                child: const Icon(Icons.fingerprint, color: Color(0xFFFF44AA), size: 46),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                tr('Verificando huella...', 'Verifying fingerprint...'),
+                style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15),
+              ),
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => setState(() => _verificandoBiometria = false),
+                child: Text(
+                  tr('Usar contraseña en su lugar', 'Use password instead'),
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFFB0AEC4),
+                    fontSize: 13,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
