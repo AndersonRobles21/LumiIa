@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'login_screen.dart';
+import 'login_screen.dart'; // Para volver a LoginScreen al cerrar sesión
 import 'info_screen.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
@@ -12,11 +12,13 @@ class ConfiguracionScreen extends StatefulWidget {
 }
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
+  // --- Estado local de las preferencias (luego puedes persistirlas) ---
   bool _notificacionesPush = true;
   bool _recordatoriosDiarios = true;
   bool _autenticacionBiometrica = false;
   bool _cerrandoSesion = false;
 
+  // Colores reutilizados del resto de la app (mismo look que login/perfil)
   static const Color bgDark = Color(0xFF0B0813);
   static const Color cardColor = Color(0xFF1F1A3A);
   static const Color accentPink = Color(0xFFFF44AA);
@@ -47,11 +49,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                   Expanded(
                     child: SingleChildScrollView(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 24, vertical: 8),
+                        horizontal: 24,
+                        vertical: 8,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // ── NOTIFICACIONES ──────────────────────────────
                           _buildSectionTitle('Notificaciones'),
                           _buildSwitchTile(
                             icon: Icons.notifications_active_outlined,
@@ -64,16 +67,13 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           _buildSwitchTile(
                             icon: Icons.alarm_outlined,
                             title: 'Recordatorios diarios',
-                            subtitle:
-                                'Recibe un recordatorio de tu horario de estudio',
+                            subtitle: 'Recibe un recordatorio de tu horario de estudio',
                             value: _recordatoriosDiarios,
                             onChanged: (v) =>
                                 setState(() => _recordatoriosDiarios = v),
                           ),
 
                           const SizedBox(height: 12),
-
-                          // ── SEGURIDAD ────────────────────────────────────
                           _buildSectionTitle('Seguridad'),
                           _buildSwitchTile(
                             icon: Icons.fingerprint,
@@ -87,7 +87,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                             icon: Icons.lock_reset_outlined,
                             title: 'Cambiar contraseña',
                             onTap: () {
-                              // TODO: pantalla de cambio de contraseña
+                              // TODO: navegar a la pantalla de cambio de contraseña
                             },
                           ),
                           _buildNavTile(
@@ -97,14 +97,13 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => InfoScreen.privacidad()),
+                                  builder: (_) => InfoScreen.privacidad(),
+                                ),
                               );
                             },
                           ),
 
                           const SizedBox(height: 12),
-
-                          // ── PREFERENCIAS ─────────────────────────────────
                           _buildSectionTitle('Preferencias'),
                           _buildNavTile(
                             icon: Icons.language_outlined,
@@ -123,8 +122,6 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           ),
 
                           const SizedBox(height: 12),
-
-                          // ── SOPORTE ──────────────────────────────────────
                           _buildSectionTitle('Soporte'),
                           _buildNavTile(
                             icon: Icons.help_outline,
@@ -133,7 +130,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => InfoScreen.ayuda()),
+                                  builder: (_) => InfoScreen.ayuda(),
+                                ),
                               );
                             },
                           ),
@@ -144,7 +142,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                    builder: (_) => InfoScreen.acercaDe()),
+                                  builder: (_) => InfoScreen.acercaDe(),
+                                ),
                               );
                             },
                           ),
@@ -165,7 +164,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  // ── HEADER ────────────────────────────────────────────────────────────────
+  // --- Header con flecha de volver ---
   Widget _buildHeader(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
@@ -186,7 +185,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 48),
+          const SizedBox(width: 48), // balancea el icono de la izquierda
         ],
       ),
     );
@@ -236,8 +235,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style:
-                    GoogleFonts.orbitron(color: textGrey, fontSize: 10.5),
+                style: GoogleFonts.orbitron(color: textGrey, fontSize: 10.5),
               )
             : null,
         value: value,
@@ -289,25 +287,27 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
-  // ── BOTÓN CERRAR SESIÓN ───────────────────────────────────────────────────
+  // --- Botón Cerrar sesión ---
   Widget _buildLogoutButton(BuildContext context) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed:
-            _cerrandoSesion ? null : () => _confirmarCerrarSesion(context),
+        onPressed: _cerrandoSesion ? null : () => _confirmarCerrarSesion(context),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: dangerColor, width: 1.3),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
         icon: _cerrandoSesion
             ? const SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
-                    color: dangerColor, strokeWidth: 2),
+                  color: dangerColor,
+                  strokeWidth: 2,
+                ),
               )
             : const Icon(Icons.logout, color: dangerColor),
         label: Text(
@@ -327,8 +327,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: cardColor,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(
           '¿Cerrar sesión?',
           style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
@@ -340,15 +339,19 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancelar',
-                style: GoogleFonts.orbitron(color: textGrey)),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.orbitron(color: textGrey),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Cerrar sesión',
               style: GoogleFonts.orbitron(
-                  color: dangerColor, fontWeight: FontWeight.bold),
+                color: dangerColor,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ],
@@ -366,11 +369,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     try {
       await Supabase.instance.client.auth.signOut();
     } catch (e) {
+      // Si algo falla igual sacamos al usuario al login
+      // para no dejarlo atrapado en la app.
       debugPrint('Error cerrando sesión: $e');
     }
 
     if (!mounted) return;
 
+    // Limpia todo el stack de navegación (dashboard, perfil, etc.)
+    // y deja únicamente el LoginScreen.
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
