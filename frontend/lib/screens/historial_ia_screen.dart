@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
+import 'app_bottom_navbar.dart';
+import 'app_language.dart';
 import 'guia_detalle_screen.dart';
 
 class HistorialIAScreen extends StatefulWidget {
@@ -18,7 +20,19 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
   @override
   void initState() {
     super.initState();
+ // Esto es para el idioma 
+    AppLanguage.instance.addListener(_onLanguageChanged);
     _cargarHistorial();
+  }
+
+  @override
+  void dispose() {
+    AppLanguage.instance.removeListener(_onLanguageChanged);
+    super.dispose();
+  }
+
+  void _onLanguageChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _cargarHistorial() async {
@@ -45,9 +59,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
 
     if (plan == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo cargar el plan seleccionado.'),
-        ),
+        SnackBar(content: Text(AppLanguage.instance.t('history_plan_error'))),
       );
       return;
     }
@@ -71,133 +83,144 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final lang = AppLanguage.instance;
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0813),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Historial IA'),
+        title: Text(lang.t('history_title')),
         centerTitle: true,
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFFFF44AA),
-        onRefresh: _cargarHistorial,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24, width: 1),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Aquí verás tus planes de IA generados previamente.',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
+
+      body: SafeArea(
+        child: Stack(
+        children: [
+          RefreshIndicator(
+            color: const Color(0xFFFF44AA),
+            onRefresh: _cargarHistorial,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white24, width: 1),
                     ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Selecciona uno para revisarlo en detalle.',
-                      style: TextStyle(
-                        color: Colors.white30,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              if (_isLoading)
-                const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
-                )
-              else if (_historial.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: Text(
-                      'No hay planes de IA guardados aún.',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
-                      textAlign: TextAlign.center,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          lang.t('history_intro_1'),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          lang.t('history_intro_2'),
+                          style: const TextStyle(
+                            color: Colors.white30,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                )
-              else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _historial.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final plan = _historial[index];
-                    final fecha = plan['fecha_creacion'] != null
-                        ? _formatFecha(plan['fecha_creacion'].toString())
-                        : '';
-                    return GestureDetector(
-                      onTap: () {
-                        final planId = plan['id']?.toString();
-                        if (planId != null) {
-                          _abrirPlan(planId);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F1A3A),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white12),
+                  const SizedBox(height: 20),
+                  if (_isLoading)
+                    const Center(
+                      child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
+                    )
+                  else if (_historial.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
+                        child: Text(
+                          lang.t('history_empty'),
+                          style: const TextStyle(color: Colors.white38, fontSize: 14),
+                          textAlign: TextAlign.center,
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              plan['nombre'] ?? 'Plan de estudio',
-                              style: const TextStyle(
-                                color: Colors.cyanAccent,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _historial.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final plan = _historial[index];
+                        final fecha = plan['fecha_creacion'] != null
+                            ? _formatFecha(plan['fecha_creacion'].toString())
+                            : '';
+                        return GestureDetector(
+                          onTap: () {
+                            final planId = plan['id']?.toString();
+                            if (planId != null) {
+                              _abrirPlan(planId);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(18),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1F1A3A),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white12),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              plan['descripcion'] ?? '',
-                              style: const TextStyle(color: Colors.white70, fontSize: 13),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  plan['metodo_estudio'] ?? '',
-                                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                  plan['nombre'] ??
+                                      lang.t('history_default_plan_name'),
+                                  style: const TextStyle(
+                                    color: Colors.cyanAccent,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
+                                const SizedBox(height: 6),
                                 Text(
-                                  fecha,
-                                  style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                  plan['descripcion'] ?? '',
+                                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      plan['metodo_estudio'] ?? '',
+                                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                    ),
+                                    Text(
+                                      fecha,
+                                      style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-            ],
+                          ),
+                        );
+                      },
+                    ),
+                ],
+              ),
+            ),
           ),
+          AppBottomNavbar(userId: widget.userId, currentIndex: 2),
+        ],
         ),
       ),
     );

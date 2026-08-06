@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'package:frontend/services/api_service.dart'; 
+import 'app_language.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -10,7 +11,8 @@ class RegisterScreen extends StatefulWidget {
   State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _RegisterScreenState extends State<RegisterScreen> {
+class _RegisterScreenState extends State<RegisterScreen>
+    with AppLanguageListenerMixin<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
   
   // --- CONTROLADORES DE TEXTO ---
@@ -48,7 +50,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
         final user = response.user;
         if (user == null) {
-          throw Exception('No se pudo crear el usuario en el servicio de autenticación.');
+          throw Exception(tr(
+            'No se pudo crear el usuario en el servicio de autenticación.',
+            'Could not create the user in the authentication service.',
+          ));
         }
 
         // PASO 2: Estructura exacta con las columnas de tu tabla pública
@@ -69,20 +74,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('¡Cuenta registrada exitosamente en LUMI!', style: GoogleFonts.orbitron()),
+              content: Text(
+                tr('¡Cuenta registrada exitosamente en LUMI!', 'Account successfully registered in LUMI!'),
+                style: GoogleFonts.orbitron(),
+              ),
               backgroundColor: const Color(0xFF102CE4),
             ),
           );
           Navigator.pop(context); // Regresa al Login limpiamente
         } else {
-          throw Exception('Autenticación creada, pero el servidor Node.js rechazó el perfil.');
+          throw Exception(tr(
+            'Autenticación creada, pero el servidor Node.js rechazó el perfil.',
+            'Authentication created, but the Node.js server rejected the profile.',
+          ));
         }
       } catch (e) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}', 
+            content: Text('${tr('Error', 'Error')}: ${e.toString().replaceAll('Exception: ', '')}', 
               style: GoogleFonts.orbitron(fontSize: 12)
             ),
             backgroundColor: Colors.redAccent,
@@ -123,7 +134,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 10),
                       Center(
                         child: Text(
-                          'Registra tu cuenta',
+                          tr('Registra tu cuenta', 'Create your account'),
                           style: GoogleFonts.orbitron(
                             color: Colors.white,
                             fontSize: 26,
@@ -140,13 +151,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildInputLabel('Nombre'),
+                                _buildInputLabel(tr('Nombre', 'First name')),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _nombreController,
                                   style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                                  decoration: _buildInputDecoration('Tu nombre'),
-                                  validator: (value) => value == null || value.trim().isEmpty ? 'Nombre obligatorio' : null,
+                                  decoration: _buildInputDecoration(tr('Tu nombre', 'Your first name')),
+                                  validator: (value) => value == null || value.trim().isEmpty
+                                      ? tr('Nombre obligatorio', 'First name required')
+                                      : null,
                                 ),
                               ],
                             ),
@@ -156,12 +169,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildInputLabel('Apellido'),
+                                _buildInputLabel(tr('Apellido', 'Last name')),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _apellidoController,
                                   style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                                  decoration: _buildInputDecoration('Tu apellido'),
+                                  decoration: _buildInputDecoration(tr('Tu apellido', 'Your last name')),
                                 ),
                               ],
                             ),
@@ -171,25 +184,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 18),
 
                       // --- EMAIL ---
-                      _buildInputLabel('Email'),
+                      _buildInputLabel(tr('Email', 'Email')),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _emailController,
                         keyboardType: TextInputType.emailAddress,
                         style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa tu email@'),
-                        validator: (value) => value == null || value.trim().isEmpty ? 'Correo obligatorio' : null,
+                        decoration: _buildInputDecoration(tr('Ingresa tu email@', 'Enter your email@')),
+                        validator: (value) => value == null || value.trim().isEmpty
+                            ? tr('Correo obligatorio', 'Email required')
+                            : null,
                       ),
                       const SizedBox(height: 18),
 
                       // --- CONTRASEÑA ---
-                      _buildInputLabel('Contraseña'),
+                      _buildInputLabel(tr('Contraseña', 'Password')),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa una contraseña').copyWith(
+                        decoration: _buildInputDecoration(tr('Ingresa una contraseña', 'Enter a password')).copyWith(
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.lock_outline : Icons.lock_open,
@@ -199,18 +214,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                           ),
                         ),
-                        validator: (value) => value == null || value.isEmpty ? 'Contraseña obligatoria' : null,
+                        validator: (value) => value == null || value.isEmpty
+                            ? tr('Contraseña obligatoria', 'Password required')
+                            : null,
                       ),
                       const SizedBox(height: 18),
 
                       // --- CONFIRMAR CONTRASEÑA ---
-                      _buildInputLabel('Confirma tu contraseña'),
+                      _buildInputLabel(tr('Confirma tu contraseña', 'Confirm your password')),
                       const SizedBox(height: 8),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
                         style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Repite la contraseña').copyWith(
+                        decoration: _buildInputDecoration(tr('Repite la contraseña', 'Repeat the password')).copyWith(
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscureConfirmPassword ? Icons.lock_outline : Icons.lock_open,
@@ -221,7 +238,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         ),
                         validator: (value) {
-                          if (value != _passwordController.text) return 'Las contraseñas no coinciden';
+                          if (value != _passwordController.text) {
+                            return tr('Las contraseñas no coinciden', 'Passwords do not match');
+                          }
                           return null;
                         },
                       ),
@@ -252,7 +271,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                                   )
                                 : Text(
-                                    'Crear cuenta',
+                                    tr('Crear cuenta', 'Create account'),
                                     style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                                   ),
                           ),
