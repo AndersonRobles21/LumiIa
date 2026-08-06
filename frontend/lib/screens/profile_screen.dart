@@ -6,8 +6,6 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'configuracion_screen.dart';
-import 'app_bottom_navbar.dart';
-import 'app_language.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -17,8 +15,7 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with AppLanguageListenerMixin<ProfileScreen> {
+class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _apellidoController = TextEditingController();
   final _objetivoController = TextEditingController();
@@ -26,17 +23,9 @@ class _ProfileScreenState extends State<ProfileScreen>
   int _nivelProcrastinacion = 1;
   bool _isLoading = true;
   String get _userId => widget.userId;
+  final List<String> _days = ['lun', 'mar', 'mie', 'jue', 'vie'];
 
-  // Claves intactas para indexar _scheduleData y mapear con el backend
-  final List<String> _days = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
-
-  // Etiqueta traducida de cada día para mostrar en la UI.
-  String _dayLabel(int index) {
-    const es = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
-    const en = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return AppLanguage.instance.isEnglish ? en[index] : es[index];
-  }
-
+  // Estructura de matriz que almacena múltiples rangos por día
   late List<List<String>> _scheduleData;
 
   File? _imageFile;
@@ -46,7 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _scheduleData = List.generate(_days.length, (_) => []);
+    _scheduleData = List.generate(5, (_) => []);
     _cargarDatosDeBaseDeDatos();
   }
 
@@ -56,33 +45,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     _apellidoController.dispose();
     _objetivoController.dispose();
     super.dispose();
-  }
-
-  String _formatHoraAmPm(int hour, int minute) {
-    final period = hour >= 12 ? 'PM' : 'AM';
-    int hour12 = hour % 12;
-    if (hour12 == 0) hour12 = 12;
-    final minuteStr = minute.toString().padLeft(2, '0');
-    return '$hour12:$minuteStr $period';
-  }
-
-  String _horaA24h(String horaAmPm) {
-    final minutosTotales = _convertTimeToMinutes(horaAmPm, context);
-    final hour = minutosTotales ~/ 60;
-    final minute = minutosTotales % 60;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
-  }
-
-  String _horaServerA12h(String horaServer) {
-    if (horaServer.trim().isEmpty) return '';
-    try {
-      final partes = horaServer.trim().split(':');
-      final int hour = int.parse(partes[0]);
-      final int minute = int.parse(partes[1]);
-      return _formatHoraAmPm(hour, minute);
-    } catch (_) {
-      return '';
-    }
   }
 
   int _convertTimeToMinutes(String timeStr, BuildContext context) {
@@ -122,6 +84,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return false;
   }
 
+  // --- MODAL DE CONTROL CENTRALIZADO POR DÍA (CON BOTÓN "+" PARA AGREGAR MÚLTIPLES HORARIOS) ---
   Future<void> _configurarTiemposMultiples(int dayIndex) async {
     await showDialog(
       context: context,
@@ -137,7 +100,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    '${tr('HORARIOS', 'SCHEDULE')}: ${_dayLabel(dayIndex)}',
+                    'HORARIOS: ${_days[dayIndex].toUpperCase()}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 15,
@@ -145,6 +108,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       letterSpacing: 1,
                     ),
                   ),
+                  // ¡AQUÍ ESTÁ EL BOTÓN DE AGREGAR MÁS HORARIOS AL MISMO DÍA!
                   IconButton(
                     icon: const Icon(
                       Icons.add_circle,
@@ -159,14 +123,11 @@ class _ProfileScreenState extends State<ProfileScreen>
               content: SizedBox(
                 width: double.maxFinite,
                 child: _scheduleData[dayIndex].isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20.0),
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 20.0),
                         child: Text(
-                          tr(
-                            'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
-                            'No time blocks added yet.\nTap "+" above to add some.',
-                          ),
-                          style: const TextStyle(color: Colors.white54, fontSize: 13),
+                          'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
+                          style: TextStyle(color: Colors.white54, fontSize: 13),
                           textAlign: TextAlign.center,
                         ),
                       )
@@ -195,9 +156,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                   fontSize: 14,
                                 ),
                               ),
+                              // AQUÍ ESTÁ LA CORRECCIÓN: Un solo trailing con los dos botones
                               trailing: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
+                                  // Botón Editar
                                   IconButton(
                                     icon: const Icon(
                                       Icons.edit,
@@ -210,6 +173,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       setDialogState,
                                     ),
                                   ),
+                                  // Botón Eliminar
                                   IconButton(
                                     icon: const Icon(
                                       Icons.delete,
@@ -228,20 +192,17 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               borderRadius:
                                                   BorderRadius.circular(12),
                                             ),
-                                            title: Text(
-                                              tr('¿Eliminar bloque?', 'Delete block?'),
-                                              style: const TextStyle(
+                                            title: const Text(
+                                              '¿Eliminar bloque?',
+                                              style: TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 16,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                            content: Text(
-                                              tr(
-                                                'Este horario se borrará por completo de la lista actual.',
-                                                'This time block will be completely removed from the current list.',
-                                              ),
-                                              style: const TextStyle(
+                                            content: const Text(
+                                              'Este horario se borrará por completo de la lista actual.',
+                                              style: TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 14,
                                               ),
@@ -251,9 +212,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 onPressed: () => Navigator.pop(
                                                   dialogContext,
                                                 ),
-                                                child: Text(
-                                                  tr('CANCELAR', 'CANCEL'),
-                                                  style: const TextStyle(
+                                                child: const Text(
+                                                  'CANCELAR',
+                                                  style: TextStyle(
                                                     color: Colors.white54,
                                                   ),
                                                 ),
@@ -266,9 +227,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                         .removeAt(index);
                                                   });
                                                 },
-                                                child: Text(
-                                                  tr('ELIMINAR', 'DELETE'),
-                                                  style: const TextStyle(
+                                                child: const Text(
+                                                  'ELIMINAR',
+                                                  style: TextStyle(
                                                     color: Colors.redAccent,
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -287,6 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         },
                       ),
               ),
+
               actions: [
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -300,12 +262,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                   ),
                   onPressed: () {
-                    setState(() {});
+                    setState(
+                      () {},
+                    ); // Sincroniza los múltiples bloques con la interfaz externa
                     Navigator.pop(context);
                   },
-                  child: Text(
-                    tr('LISTO', 'DONE'),
-                    style: const TextStyle(
+                  child: const Text(
+                    'LISTO',
+                    style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                     ),
@@ -319,6 +283,66 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  // Cuadro de confirmación real con letrero para eliminar el horario
+  void _confirmarEliminarBloque(
+    int dayIndex,
+    int index,
+    StateSetter setDialogState,
+  ) {
+    showDialog(
+      context: context,
+      builder: (BuildContext confirmContext) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF0D0D2B),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: Colors.redAccent.withOpacity(0.5)),
+          ),
+          title: const Text(
+            '¿Estás seguro?',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: const Text(
+            '¿Realmente quieres eliminar este horario asignado?',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(confirmContext),
+              child: const Text(
+                'Cancelar',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+              ),
+              onPressed: () {
+                Navigator.pop(confirmContext);
+                setDialogState(() {
+                  _scheduleData[dayIndex].removeAt(index);
+                });
+              },
+              child: const Text(
+                'Eliminar',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Tu reloj nativo original reutilizado para Adición y Edición limpia
   Future<void> _abrirSelectorReloj(
     int dayIndex,
     int? editarIndex,
@@ -340,9 +364,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final TimeOfDay? pickedInicio = await showTimePicker(
       context: context,
       initialTime: horaInicio,
-      helpText: editarIndex == null
-          ? tr('HORA INICIO', 'START TIME')
-          : tr('EDITAR INICIO', 'EDIT START TIME'),
+      helpText: editarIndex == null ? 'HORA INICIO' : 'EDITAR INICIO',
       builder: (context, child) => _timePickerTheme(child),
     );
     if (pickedInicio == null) return;
@@ -366,9 +388,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final TimeOfDay? pickedFin = await showTimePicker(
       context: context,
       initialTime: horaFin,
-      helpText: editarIndex == null
-          ? tr('HORA FIN', 'END TIME')
-          : tr('EDITAR FIN', 'EDIT END TIME'),
+      helpText: editarIndex == null ? 'HORA FIN' : 'EDITAR FIN',
       builder: (context, child) => _timePickerTheme(child),
     );
     if (pickedFin == null) return;
@@ -377,9 +397,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     final int nuevoFinMin = (pickedFin.hour * 60) + pickedFin.minute;
 
     if (nuevoInicioMin >= nuevoFinMin) {
-      _showSnackBar(tr('La hora de fin debe ser mayor a la de inicio.', 'End time must be after start time.'));
+      _showSnackBar('La hora de fin debe ser mayor a la de inicio.');
       return;
     }
+    // ¡La validación de choques impide que metas horas cruzadas el mismo día!
     if (_verificarChoqueHorario(
       dayIndex,
       nuevoInicioMin,
@@ -387,45 +408,38 @@ class _ProfileScreenState extends State<ProfileScreen>
       excluirIndex: editarIndex,
     )) {
       _showSnackBar(
-        tr(
-          'Ya tienes un horario que se cruza o coincide en este mismo día.',
-          'You already have an overlapping time block on this day.',
-        ),
+        'Ya tienes un horario que se cruza o coincide en este mismo día.',
       );
       return;
     }
 
     final String nuevoRango =
-        '${_formatHoraAmPm(pickedInicio.hour, pickedInicio.minute)} - '
-        '${_formatHoraAmPm(pickedFin.hour, pickedFin.minute)}';
+        '${pickedInicio.format(context)} - ${pickedFin.format(context)}';
     setDialogState(() {
       if (editarIndex == null) {
-        _scheduleData[dayIndex].add(nuevoRango);
+        _scheduleData[dayIndex].add(
+          nuevoRango,
+        ); // Suma un bloque adicional sin borrar los anteriores
       } else {
-        _scheduleData[dayIndex][editarIndex] = nuevoRango;
+        _scheduleData[dayIndex][editarIndex] = nuevoRango; // Guarda la edición
       }
     });
   }
 
-  Widget _timePickerTheme(Widget? child) {
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-      child: Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFF44AA),
-            onPrimary: Colors.white,
-            surface: Color(0xFF1A1040),
-            onSurface: Colors.white,
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFCC00CC),
-            ),
-          ),
+  Theme _timePickerTheme(Widget? child) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFFFF44AA),
+          onPrimary: Colors.white,
+          surface: Color(0xFF1A1040),
+          onSurface: Colors.white,
         ),
-        child: child!,
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(foregroundColor: const Color(0xFFCC00CC)),
+        ),
       ),
+      child: child!,
     );
   }
 
@@ -449,7 +463,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         });
       }
     } catch (e) {
-      _showSnackBar(tr('No se pudo acceder a la galería.', 'Could not access gallery.'));
+      _showSnackBar('No se pudo acceder a la galería.');
     }
   }
 
@@ -457,10 +471,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     setState(() => _isLoading = true);
     final data = await ApiService.getProfile(_userId);
     if (data != null) {
-      final scheduleFromServer = List<List<String>>.generate(
-        _days.length,
-        (_) => [],
-      );
+      final scheduleFromServer = List<List<String>>.generate(5, (_) => []);
 
       if (data['perfil_estudio'] != null) {
         _base64Image = data['perfil_estudio']['foto_perfil'];
@@ -480,16 +491,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             if (horaInicio.length > 5) horaInicio = horaInicio.substring(0, 5);
             if (horaFin.length > 5) horaFin = horaFin.substring(0, 5);
 
-            final String horaInicio12h = _horaServerA12h(horaInicio);
-            final String horaFin12h = _horaServerA12h(horaFin);
-
             final int dayIndex = _days.indexOf(
               dia.toLowerCase().trim().substring(0, 3),
             );
-            if (dayIndex != -1 &&
-                horaInicio12h.isNotEmpty &&
-                horaFin12h.isNotEmpty) {
-              scheduleFromServer[dayIndex].add('$horaInicio12h - $horaFin12h');
+            if (dayIndex != -1 && horaInicio.isNotEmpty && horaFin.isNotEmpty) {
+              scheduleFromServer[dayIndex].add('$horaInicio - $horaFin');
             }
           }
         }
@@ -505,32 +511,25 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   void _handleSend() async {
     if (_nameController.text.trim().isEmpty) {
-      _showSnackBar(tr('Por favor, ingresa tu nombre.', 'Please enter your name.'));
+      _showSnackBar('Por favor, ingresa tu nombre.');
       return;
     }
     setState(() => _isLoading = true);
     final horarioParaBackend = <Map<String, String>>[];
-    const nombresDias = [
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-      'domingo',
-    ];
     for (int i = 0; i < _scheduleData.length; i++) {
-      final String diaCompleto = i < nombresDias.length
-          ? nombresDias[i]
-          : 'lunes';
+      String diaCompleto = "lunes";
+      if (i == 1) diaCompleto = "martes";
+      if (i == 2) diaCompleto = "miercoles";
+      if (i == 3) diaCompleto = "jueves";
+      if (i == 4) diaCompleto = "viernes";
 
       for (final rango in _scheduleData[i]) {
         final partes = rango.split(' - ');
         if (partes.length == 2) {
           horarioParaBackend.add({
-            'dia': diaCompleto, // Se mantiene intacto en español para Backend/DB
-            'hora_inicio': _horaA24h(partes[0].trim()),
-            'hora_fin': _horaA24h(partes[1].trim()),
+            'dia': diaCompleto,
+            'hora_inicio': partes[0].trim(),
+            'hora_fin': partes[1].trim(),
           });
         }
       }
@@ -547,9 +546,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     setState(() => _isLoading = false);
     if (resultado != null) {
-      _showSnackBar(tr('¡Perfil y hábitos guardados correctamente!', 'Profile and habits saved successfully!'));
+      _showSnackBar('¡Perfil y hábitos guardados correctamente!');
     } else {
-      _showSnackBar(tr('Error al intentar guardar cambios.', 'Error trying to save changes.'));
+      _showSnackBar('Error al intentar guardar cambios.');
     }
   }
 
@@ -575,195 +574,198 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
         ),
         child: SafeArea(
-          child: Stack(
-            children: [
-              _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFCC00CC),
+          child: _isLoading
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFFCC00CC)),
+                )
+              : Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20.0,
+                        vertical: 16.0,
                       ),
-                    )
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20.0,
-                            vertical: 16.0,
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Text(
-                                tr('MI PERFIL', 'MY PROFILE'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.arrow_back_ios_new,
+                                color: Colors.white70,
+                                size: 20,
                               ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.settings,
-                                    color: Colors.white70,
-                                    size: 20,
-                                  ),
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ConfiguracionScreen(),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                              onPressed: () => Navigator.pop(context),
+                            ),
                           ),
-                        ),
-                        Expanded(
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 430),
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(
-                                  left: 28.0,
-                                  right: 28.0,
-                                  bottom: 90.0,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 8),
-                                    Center(child: _buildAvatar()),
-                                    const SizedBox(height: 24),
-
-                                    Text(
-                                      tr('Nombre', 'First Name'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _nameController,
-                                      tr('Ingresa tu nombre', 'Enter your first name'),
-                                    ),
-                                    const SizedBox(height: 14),
-
-                                    Text(
-                                      tr('Apellido', 'Last Name'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _apellidoController,
-                                      tr('Ingresa tu apellido', 'Enter your last name'),
-                                    ),
-                                    const SizedBox(height: 14),
-
-                                    Text(
-                                      tr('Objetivo de Estudio', 'Study Goal'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _objetivoController,
-                                      tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer"),
-                                    ),
-                                    const SizedBox(height: 16),
-
-                                    Text(
-                                      '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Slider(
-                                      value: _nivelProcrastinacion.toDouble(),
-                                      min: 1,
-                                      max: 10,
-                                      divisions: 9,
-                                      activeColor: const Color(0xFFFF44AA),
-                                      inactiveColor: const Color(0xFF1F1B2E),
-                                      onChanged: (value) => setState(
-                                        () => _nivelProcrastinacion = value.toInt(),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-
-                                    Text(
-                                      tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-
-                                    _buildGridSchedule(),
-
-                                    const SizedBox(height: 36),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 52,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              Color(0xFFCC00CC),
-                                              Color(0xFFFF44AA),
-                                            ],
-                                          ),
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                        child: ElevatedButton(
-                                          onPressed: _handleSend,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent,
-                                            shadowColor: Colors.transparent,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(30),
-                                            ),
-                                          ),
-                                          child: Text(
-                                            tr('Guardar Perfil', 'Save Profile'),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 32),
-                                  ],
+                          const Text(
+                            'Mi PERFIL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                            ),
+                          ),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: IconButton(
+                              icon: const Icon(
+                                Icons.settings,
+                                color: Colors.white70,
+                                size: 20,
+                              ),
+                              onPressed: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const ConfiguracionScreen(),
                                 ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-              AppBottomNavbar(userId: _userId, currentIndex: 3),
-            ],
-          ),
+                    Expanded(
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 430),
+                          child: SingleChildScrollView(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 28.0,
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 8),
+                                Center(child: _buildAvatar()),
+                                const SizedBox(height: 24),
+
+                                const Text(
+                                  'Nombre',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                _buildInputField(
+                                  _nameController,
+                                  'Ingresa tu nombre',
+                                ),
+                                const SizedBox(height: 14),
+
+                                const Text(
+                                  'Apellido',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                _buildInputField(
+                                  _apellidoController,
+                                  'Ingresa tu apellido',
+                                ),
+                                const SizedBox(height: 14),
+
+                                const Text(
+                                  'Objetivo de Estudio',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                _buildInputField(
+                                  _objetivoController,
+                                  "Ej: Certificarme como programadora",
+                                ),
+                                const SizedBox(height: 16),
+
+                                Text(
+                                  'Nivel de Procrastinación: $_nivelProcrastinacion',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Slider(
+                                  value: _nivelProcrastinacion.toDouble(),
+                                  min: 1,
+                                  max: 10,
+                                  divisions: 9,
+                                  activeColor: const Color(0xFFFF44AA),
+                                  inactiveColor: const Color(0xFF1F1B2E),
+                                  onChanged: (value) => setState(
+                                    () => _nivelProcrastinacion = value.toInt(),
+                                  ),
+                                ),
+                                const SizedBox(height: 16),
+
+                                const Text(
+                                  'HORARIO DISPONIBLE',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+
+                                _buildGridSchedule(), // Tu hermosa cuadrícula de horarios intacta
+
+                                const SizedBox(height: 36),
+                                SizedBox(
+                                  width: double.infinity,
+                                  height: 52,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFFCC00CC),
+                                          Color(0xFFFF44AA),
+                                        ],
+                                      ),
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: ElevatedButton(
+                                      onPressed: _handleSend,
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.transparent,
+                                        shadowColor: Colors.transparent,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            30,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text(
+                                        'Guardar Perfil',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 17,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -859,16 +861,17 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
+  // --- RENDEREADO DE LA CUADRÍCULA EXTERNA TOTALMENTE COMPACTA CON MÚLTIPLES RANGOS VISUALES ---
   Widget _buildGridSchedule() {
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _days.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.85,
+        crossAxisCount: 5,
+        childAspectRatio:
+            0.7, // Ajustado a 0.7 para que la tarjeta se estire y soporte ver varios bloques
         crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
       ),
       itemBuilder: (context, index) {
         final tieneHoras = _scheduleData[index].isNotEmpty;
@@ -892,7 +895,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               children: [
                 const SizedBox(height: 8),
                 Text(
-                  _dayLabel(index), // Muestra LUN/MON según el idioma activo
+                  _days[index].toUpperCase(),
                   style: TextStyle(
                     color: tieneHoras
                         ? const Color(0xFFFF66FF)
@@ -902,6 +905,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ),
                 const SizedBox(height: 4),
+                // Renderizado exterior en cascada de todos los bloques asignados al día
                 if (tieneHoras)
                   Expanded(
                     child: ListView.builder(

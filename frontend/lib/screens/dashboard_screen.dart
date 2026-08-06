@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
+import 'historial_ia_screen.dart';
+import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
-import 'app_language.dart';
-import 'app_bottom_navbar.dart';
+import 'guia_detalle_screen.dart'; // Asegúrate de importar tu pantalla de detalle o edición
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -12,8 +13,7 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen>
-    with AppLanguageListenerMixin<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = false;
   List<dynamic> _tareasPendientes = [];
   int _racha = 0;
@@ -59,9 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen>
       await _cargarEstadisticas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(tr('🔥 ¡Racha actualizada!', '🔥 Streak updated!')),
-            backgroundColor: const Color(0xFF2E1B4E),
+          const SnackBar(
+            content: Text('🔥 ¡Racha actualizada!'),
+            backgroundColor: Color(0xFF2E1B4E),
           ),
         );
       }
@@ -102,9 +102,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            tr('Tu plan de estudio', 'Your study plan'),
-                            style: const TextStyle(
+                          const Text(
+                            'Tu plan de estudio',
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -135,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  '${tr('Trabajos pendientes', 'Pending assignments')} (${_tareasPendientes.length})',
+                                  'Trabajos pendientes (${_tareasPendientes.length})',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -168,16 +168,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
                                   )
                                 : _tareasPendientes.isEmpty
-                                    ? Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: 20.0),
+                                    ? const Padding(
+                                        padding: EdgeInsets.symmetric(vertical: 20.0),
                                         child: Center(
                                           child: Text(
-                                            tr(
-                                              'No hay tareas agregadas.\nToca el "+" para crear una.',
-                                              'No tasks added yet.\nTap "+" to create one.',
-                                            ),
+                                            'No hay tareas agregadas.\nToca el "+" para crear una.',
                                             textAlign: TextAlign.center,
-                                            style: const TextStyle(color: Colors.white30, fontSize: 12),
+                                            style: TextStyle(color: Colors.white30, fontSize: 12),
                                           ),
                                         ),
                                       )
@@ -191,41 +188,69 @@ class _DashboardScreenState extends State<DashboardScreen>
                                           final fecha = t['fecha_creacion'] != null
                                               ? _formatFecha(t['fecha_creacion'].toString())
                                               : '';
-                                          return Padding(
-                                            padding: const EdgeInsets.only(bottom: 12.0),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                              children: [
-                                                Expanded(
-                                                  child: Row(
-                                                    children: [
-                                                      const Text(
-                                                        '• ',
-                                                        style: TextStyle(
-                                                          color: Color(0xFFFF44AA),
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                      Expanded(
-                                                        child: Text(
-                                                          nombre.toUpperCase(),
-                                                          overflow: TextOverflow.ellipsis,
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
-                                                            fontSize: 12,
-                                                            fontWeight: FontWeight.w600,
-                                                            letterSpacing: 0.5,
+                                          
+                                          // AQUÍ AGREGAMOS EL GESTURE DETECTOR PARA PODER ENTRAR A MODIFICAR/VER LA TAREA
+                                          return GestureDetector(
+                                            onTap: () async {
+                                              // Si tu API guarda el ID del plan como 'id' o 'plan_id'
+                                              final planId = t['id'] ?? t['plan_id'];
+                                              if (planId != null) {
+                                                // Opcional: Puedes cargar el plan completo o pasar los datos si ya los tienes
+                                                // Aquí abrimos la pantalla de detalle/modificación
+                                                await Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) => GuiaDetalleScreen(
+                                                      guiaData: t, // o puedes pasar el planId si tu pantalla lo requiere
+                                                    ),
+                                                  ),
+                                                );
+                                                _cargarPlanes(); // Recarga al volver por si hubo cambios
+                                              }
+                                            },
+                                            child: Container(
+                                              color: Colors.transparent, // Para asegurar que detecte bien el toque
+                                              padding: const EdgeInsets.only(bottom: 12.0),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        const Text(
+                                                          '• ',
+                                                          style: TextStyle(
+                                                            color: Color(0xFFFF44AA),
+                                                            fontWeight: FontWeight.bold,
                                                           ),
                                                         ),
+                                                        Expanded(
+                                                          child: Text(
+                                                            nombre.toUpperCase(),
+                                                            overflow: TextOverflow.ellipsis,
+                                                            style: const TextStyle(
+                                                              color: Colors.white,
+                                                              fontSize: 12,
+                                                              fontWeight: FontWeight.w600,
+                                                              letterSpacing: 0.5,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        fecha,
+                                                        style: const TextStyle(color: Colors.white38, fontSize: 11),
                                                       ),
+                                                      const SizedBox(width: 6),
+                                                      const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 12),
                                                     ],
                                                   ),
-                                                ),
-                                                Text(
-                                                  fecha,
-                                                  style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                                ),
-                                              ],
+                                                ],
+                                              ),
                                             ),
                                           );
                                         },
@@ -239,9 +264,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            tr('LA RACHA DE HOY', 'TODAY\'S STREAK'),
-                            style: const TextStyle(
+                          const Text(
+                            'LA RACHA DE HOY',
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -250,9 +275,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                           ),
                           GestureDetector(
                             onTap: _registrarEstudioHoy,
-                            child: Text(
-                              tr('+ MARCAR DÍA', '+ MARK DAY'),
-                              style: const TextStyle(
+                            child: const Text(
+                              '+ MARCAR DÍA',
+                              style: TextStyle(
                                 color: Color(0xFFFF44AA),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -279,9 +304,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        diaActual == 0
-                                            ? tr('¡EMPIEZA HOY!', 'START TODAY!')
-                                            : '${tr('MAÑANA DÍA', 'TOMORROW DAY')} $diaSiguiente',
+                                        diaActual == 0 ? '¡EMPIEZA HOY!' : 'MAÑANA DÍA $diaSiguiente',
                                         style: const TextStyle(
                                           color: Colors.white38,
                                           fontSize: 10,
@@ -290,9 +313,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        diaActual == 0
-                                            ? tr('DÍA 0', 'DAY 0')
-                                            : '${tr('DÍA', 'DAY')} $diaActual',
+                                        diaActual == 0 ? 'DÍA 0' : 'DÍA $diaActual',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 24,
@@ -303,11 +324,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                       const SizedBox(height: 2),
                                       Text(
                                         diaActual == 0
-                                            ? tr(
-                                                'Toca "+ MARCAR DÍA" para iniciar',
-                                                'Tap "+ MARK DAY" to start',
-                                              )
-                                            : '$_tareasCompletadas ${tr('tareas completadas', 'tasks completed')}',
+                                            ? 'Toca "+ MARCAR DÍA" para iniciar'
+                                            : '$_tareasCompletadas tareas completadas',
                                         style: const TextStyle(
                                           color: Colors.white30,
                                           fontSize: 10,
@@ -356,9 +374,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                       const SizedBox(height: 28),
 
                       // IA ESTADÍSTICAS
-                      Text(
-                        tr('IA Estadísticas', 'AI Statistics'),
-                        style: const TextStyle(
+                      const Text(
+                        'IA Estadisticas',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -383,18 +401,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text(
-                                          tr('TU PROGRESO EN TUS', 'YOUR PROGRESS IN YOUR'),
-                                          style: const TextStyle(
+                                        const Text(
+                                          'TU PROGRESO EN TUS',
+                                          style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 0.5,
                                           ),
                                         ),
-                                        Text(
-                                          tr('TAREAS', 'TASKS'),
-                                          style: const TextStyle(
+                                        const Text(
+                                          'TAREAS',
+                                          style: TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
@@ -403,7 +421,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          '$_tareasCompletadas ${tr('tareas completadas', 'tasks completed')} • ${tr('racha de', 'streak of')} $_racha ${tr('días', 'days')}',
+                                          '$_tareasCompletadas tareas completadas • racha de $_racha días',
                                           style: const TextStyle(color: Colors.white38, fontSize: 11),
                                         ),
                                       ],
@@ -439,7 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
               ),
-              AppBottomNavbar(userId: widget.userId, currentIndex: 0),
+              _buildBottomNavbar(),
             ],
           ),
         ),
@@ -456,4 +474,47 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
   }
 
+  Widget _buildBottomNavbar() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: 60,
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B1437),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
+            const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => HistorialIAScreen(userId: widget.userId),
+                  ),
+                );
+              },
+              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
+                );
+              },
+              child: const Icon(Icons.person_outline, color: Colors.white38, size: 24),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
