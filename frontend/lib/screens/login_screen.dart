@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/olvidar_contraseña.dart';
 import 'register_screen.dart';
 import '/screens/dashboard_screen.dart';
+import 'admin_panel_screen.dart';
 import '../services/api_service.dart';
 
 void main() {
@@ -79,10 +80,17 @@ class _LoginScreenState extends State<LoginScreen> {
       // PASO 2: El userId viene directamente de Supabase Auth (UUID real)
       // Intentamos sincronizar con el backend Node, pero no bloqueamos el login si falla
       final String userId = user.id;
+      bool isAdmin = false;
       try {
         await ApiService.login(userId: userId);
       } catch (_) {
         // El backend es opcional para navegar; Supabase Auth es la fuente de verdad
+      }
+
+      try {
+        isAdmin = await ApiService.adminCheck(userId);
+      } catch (_) {
+        isAdmin = false;
       }
 
       if (!mounted) return;
@@ -95,13 +103,21 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      // Navegación al Dashboard con el UUID real de Supabase
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DashboardScreen(userId: userId),
-        ),
-      );
+      if (isAdmin) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AdminPanelScreen(userId: userId),
+          ),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DashboardScreen(userId: userId),
+          ),
+        );
+      }
 
     } catch (e) {
       if (!mounted) return;
