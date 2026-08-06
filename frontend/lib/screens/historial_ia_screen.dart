@@ -20,8 +20,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
   @override
   void initState() {
     super.initState();
-    // Nos suscribimos a cambios de idioma para que la pantalla se
-    // reconstruya en cuanto alguien cambie ES/EN desde Configuración.
+ // Esto es para el idioma 
     AppLanguage.instance.addListener(_onLanguageChanged);
     _cargarHistorial();
   }
@@ -93,10 +92,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
         title: Text(lang.t('history_title')),
         centerTitle: true,
       ),
-      // Stack para poder flotar la barra de navegación inferior encima
-      // del contenido, igual que en Dashboard y Perfil. Va dentro de un
-      // SafeArea para que la barra quede a la misma altura visual que en
-      // esas pantallas (si no, se pega hasta el borde físico de abajo).
+
       body: SafeArea(
         child: Stack(
         children: [
@@ -223,7 +219,6 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
               ),
             ),
           ),
-          // Barra inferior: currentIndex 2 = ícono de IA/Historial resaltado.
           AppBottomNavbar(userId: widget.userId, currentIndex: 2),
         ],
         ),

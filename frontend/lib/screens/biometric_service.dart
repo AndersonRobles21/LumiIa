@@ -1,18 +1,7 @@
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Servicio de autenticación biométrica (huella / Face ID).
-///
-/// Requiere en pubspec.yaml:
-///   local_auth: ^3.0.1   (ya lo tienes)
-///
-/// Y configuración nativa:
-///  - Android: en android/app/src/main/AndroidManifest.xml agregar
-///      <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
-///    y que MainActivity.kt extienda FlutterFragmentActivity (no FlutterActivity).
-///  - iOS: en ios/Runner/Info.plist agregar
-///      <key>NSFaceIDUsageDescription</key>
-///      <string>Usamos Face ID para iniciar sesión más rápido en Lumi</string>
+
 class BiometricService {
   BiometricService._();
 
@@ -33,8 +22,7 @@ class BiometricService {
     await prefs.setBool('biometric_enabled', value);
   }
 
-  /// Revisa si el dispositivo puede usar biometría: tiene el hardware Y
-  /// el usuario ya tiene huella/Face ID configurados en su celular.
+  /// aca se verifica q el usuario ya tiene huella/Face ID en su cel
   static Future<bool> isDeviceSupported() async {
     try {
       final bool canCheck = await _auth.canCheckBiometrics;
@@ -44,16 +32,14 @@ class BiometricService {
       );
       return canCheck && supported && hasEnrolled;
     } catch (_) {
-      // Cualquier fallo de plataforma (sensor no disponible, permiso
-      // negado, etc.) lo tratamos simplemente como "no soportado".
+      // si el sensor o algo del sipositivo falla se manda como no reportado
       return false;
     }
   }
 
-  /// Lanza el prompt nativo de huella/Face ID.
-  /// true  -> el usuario se autenticó correctamente.
-  /// false -> falló, canceló, o el dispositivo no soporta biometría.
-  /// En todos los casos "false" la pantalla de login debe caer a contraseña.
+  /// muestra el prom del autentificador, entonces true es si el usuario se autenticó corectamnete
+  /// false pss si falló, canceló, o el dispositivo no soporta biometría.
+  /// y si tiene fallo false esta para q la pantalla de login pida la contraseña.
   static Future<bool> authenticate({
     String reason = 'Confirma tu identidad para entrar a Lumi',
   }) async {
@@ -66,9 +52,8 @@ class BiometricService {
 
       return await _auth.authenticate(localizedReason: reason);
     } catch (_) {
-      // Cubre tanto LocalAuthException (local_auth 3.x) como cualquier
-      // otro error de plataforma. Nunca dejamos que esto tumbe la app:
-      // si algo sale mal, simplemente no se autenticó.
+      // Cubre tanto LocalAuthException local_auth 3.x como cualquierotro error de plataforma
+      // esto evita q se caiga la app y si pasa hace como q el usuario no se autentificó corectamente
       return false;
     }
   }
