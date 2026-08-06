@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
-import 'historial_ia_screen.dart';
-import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
+import 'app_language.dart';
+import 'app_bottom_navbar.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -12,7 +12,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with AppLanguageListenerMixin<DashboardScreen> {
   bool _isLoading = false;
   List<dynamic> _tareasPendientes = [];
   int _racha = 0;
@@ -58,9 +59,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await _cargarEstadisticas();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('🔥 ¡Racha actualizada!'),
-            backgroundColor: Color(0xFF2E1B4E),
+          SnackBar(
+            content: Text(tr('🔥 ¡Racha actualizada!', '🔥 Streak updated!')),
+            backgroundColor: const Color(0xFF2E1B4E),
           ),
         );
       }
@@ -101,9 +102,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Tu plan de estudio',
-                            style: TextStyle(
+                          Text(
+                            tr('Tu plan de estudio', 'Your study plan'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 24,
                               fontWeight: FontWeight.bold,
@@ -134,7 +135,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Trabajos pendientes (${_tareasPendientes.length})',
+                                  '${tr('Trabajos pendientes', 'Pending assignments')} (${_tareasPendientes.length})',
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,
@@ -167,13 +168,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
                                   )
                                 : _tareasPendientes.isEmpty
-                                    ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 20.0),
+                                    ? Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 20.0),
                                         child: Center(
                                           child: Text(
-                                            'No hay tareas agregadas.\nToca el "+" para crear una.',
+                                            tr(
+                                              'No hay tareas agregadas.\nToca el "+" para crear una.',
+                                              'No tasks added yet.\nTap "+" to create one.',
+                                            ),
                                             textAlign: TextAlign.center,
-                                            style: TextStyle(color: Colors.white30, fontSize: 12),
+                                            style: const TextStyle(color: Colors.white30, fontSize: 12),
                                           ),
                                         ),
                                       )
@@ -235,9 +239,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'LA RACHA DE HOY',
-                            style: TextStyle(
+                          Text(
+                            tr('LA RACHA DE HOY', 'TODAY\'S STREAK'),
+                            style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -246,9 +250,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           GestureDetector(
                             onTap: _registrarEstudioHoy,
-                            child: const Text(
-                              '+ MARCAR DÍA',
-                              style: TextStyle(
+                            child: Text(
+                              tr('+ MARCAR DÍA', '+ MARK DAY'),
+                              style: const TextStyle(
                                 color: Color(0xFFFF44AA),
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
@@ -275,7 +279,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        diaActual == 0 ? '¡EMPIEZA HOY!' : 'MAÑANA DÍA $diaSiguiente',
+                                        diaActual == 0
+                                            ? tr('¡EMPIEZA HOY!', 'START TODAY!')
+                                            : '${tr('MAÑANA DÍA', 'TOMORROW DAY')} $diaSiguiente',
                                         style: const TextStyle(
                                           color: Colors.white38,
                                           fontSize: 10,
@@ -284,7 +290,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        diaActual == 0 ? 'DÍA 0' : 'DÍA $diaActual',
+                                        diaActual == 0
+                                            ? tr('DÍA 0', 'DAY 0')
+                                            : '${tr('DÍA', 'DAY')} $diaActual',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 24,
@@ -295,8 +303,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         diaActual == 0
-                                            ? 'Toca "+ MARCAR DÍA" para iniciar'
-                                            : '$_tareasCompletadas tareas completadas',
+                                            ? tr(
+                                                'Toca "+ MARCAR DÍA" para iniciar',
+                                                'Tap "+ MARK DAY" to start',
+                                              )
+                                            : '$_tareasCompletadas ${tr('tareas completadas', 'tasks completed')}',
                                         style: const TextStyle(
                                           color: Colors.white30,
                                           fontSize: 10,
@@ -345,9 +356,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       const SizedBox(height: 28),
 
                       // IA ESTADÍSTICAS
-                      const Text(
-                        'IA Estadisticas',
-                        style: TextStyle(
+                      Text(
+                        tr('IA Estadísticas', 'AI Statistics'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -372,18 +383,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
-                                          'TU PROGRESO EN TUS',
-                                          style: TextStyle(
+                                        Text(
+                                          tr('TU PROGRESO EN TUS', 'YOUR PROGRESS IN YOUR'),
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 0.5,
                                           ),
                                         ),
-                                        const Text(
-                                          'TAREAS',
-                                          style: TextStyle(
+                                        Text(
+                                          tr('TAREAS', 'TASKS'),
+                                          style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.bold,
@@ -392,7 +403,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                         const SizedBox(height: 6),
                                         Text(
-                                          '$_tareasCompletadas tareas completadas • racha de $_racha días',
+                                          '$_tareasCompletadas ${tr('tareas completadas', 'tasks completed')} • ${tr('racha de', 'streak of')} $_racha ${tr('días', 'days')}',
                                           style: const TextStyle(color: Colors.white38, fontSize: 11),
                                         ),
                                       ],
@@ -428,7 +439,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              _buildBottomNavbar(),
+              AppBottomNavbar(userId: widget.userId, currentIndex: 0),
             ],
           ),
         ),
@@ -445,47 +456,4 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  Widget _buildBottomNavbar() {
-    return Align(
-      alignment: Alignment.bottomCenter,
-      child: Container(
-        height: 60,
-        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1B1437),
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: const [
-            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
-            const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => HistorialIAScreen(userId: widget.userId),
-                  ),
-                );
-              },
-              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
-            ),
-            GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
-                );
-              },
-              child: const Icon(Icons.person_outline, color: Colors.white38, size: 24),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
