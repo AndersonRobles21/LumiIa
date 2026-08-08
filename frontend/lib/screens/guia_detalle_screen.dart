@@ -20,6 +20,21 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   List<bool> tareasCompletadas = [];
   List<bool> cargando = [];
 
+  String formatearTiempo(int minutos) {
+    final horas = minutos ~/ 60;
+    final minutosRestantes = minutos % 60;
+
+    if (horas == 0) {
+      return "$minutosRestantes min";
+    }
+
+    if (minutosRestantes == 0) {
+      return "$horas h";
+    }
+
+    return "$horas h $minutosRestantes min";
+  }
+
   @override
   void initState() {
     super.initState();
@@ -215,7 +230,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                       color: const Color(0xFF16003A),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: Column(
+                      child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -315,13 +330,13 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                               color: Color(0xFFFF44AA),
                               fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          const SizedBox(height: 5),
+                          ),                          const SizedBox(height: 5),
                           Text(
                             "Prioridad: ${sub['prioridad'] ?? 'MEDIA'}",
                             style: const TextStyle(color: Colors.white70),
                           ),
                           const SizedBox(height: 15),
+
                           if (!isCompletada) ...[
                             SizedBox(
                               width: double.infinity,
@@ -334,21 +349,32 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                   ),
                                 ),
                                 onPressed: () => _confirmarTarea(index),
-                                child: const Text('Confirmar tarea completada', style: TextStyle(fontWeight: FontWeight.bold)),
+                                child: const Text(
+                                  'Confirmar tarea completada',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ),
                             ),
                           ] else ...[
                             Container(
                               width: double.infinity,
-                              padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 10,
+                                horizontal: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF2E1B4E),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Text(
                                 'Tarea completada',
-                                style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold),
                                 textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ],
