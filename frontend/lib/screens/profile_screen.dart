@@ -534,11 +534,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
     }
+
+    int horasTotales = 0;
+int diasConHorario = 0;
+
+for (final dia in _scheduleData) {
+  if (dia.isNotEmpty) {
+    diasConHorario++;
+
+    for (final rango in dia) {
+      final partes = rango.split(' - ');
+
+      final inicio = _convertTimeToMinutes(partes[0], context);
+      final fin = _convertTimeToMinutes(partes[1], context);
+
+      horasTotales += ((fin - inicio) / 60).round();
+    }
+  }
+}
+
+final horasPromedio = diasConHorario == 0
+    ? 0
+    : (horasTotales / diasConHorario).round();
     final resultado = await ApiService.updateProfile(
       userId: _userId,
       nombre: _nameController.text.trim(),
       apellido: _apellidoController.text.trim(),
-      horasDisponibles: 10,
+      horasDisponibles: horasPromedio,
       objetivo: _objetivoController.text.trim(),
       nivelProcrastinacion: _nivelProcrastinacion,
       fotoPerfil: _base64Image,

@@ -5,12 +5,21 @@ import { PlanIA } from "../types/plan.types";
 export async function generarPlanIA(
   datos: PromptPlanInput
 ): Promise<PlanIA> {
+
   const prompt = construirPromptPlan(datos);
 
-  const response = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: prompt,
-  });
+  console.log("========== PROMPT ==========");
+  console.log(prompt);
+  console.log("============================");
+
+ const response = await gemini.models.generateContent({
+  model: GEMINI_MODEL,
+  contents: prompt,
+  config: {
+    temperature: 0.2,
+    responseMimeType: "application/json",
+  },
+});
 
   const texto = response.text;
 
@@ -23,10 +32,15 @@ export async function generarPlanIA(
     .replace(/```/g, "")
     .trim();
 
-  try {
+ try {
     const plan: PlanIA = JSON.parse(jsonLimpio);
+
+    console.log("========== RESPUESTA JSON DE GEMINI ==========");
+    console.log(JSON.stringify(plan, null, 2));
+    console.log("==============================================");
+
     return plan;
-  } catch (error) {
+} catch (error) {
     console.error("Respuesta completa de Gemini:");
     console.error(texto);
 
