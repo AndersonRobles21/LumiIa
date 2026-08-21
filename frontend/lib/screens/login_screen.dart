@@ -5,6 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/olvidar_contraseña.dart';
 import 'register_screen.dart';
 import '/screens/dashboard_screen.dart';
+import 'profile_screen.dart';
 import 'admin_panel_screen.dart';
 import '../services/api_service.dart';
 
@@ -111,10 +112,18 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         );
       } else {
+        final perfil = await ApiService.getProfile(userId);
+        final nombre = (perfil?['nombre'] ?? '').toString().trim();
+        final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+        final horarios = perfil?['horarios'] as List?;
+        final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => DashboardScreen(userId: userId),
+            builder: (context) => perfilListo
+                ? DashboardScreen(userId: userId)
+                : ProfileScreen(userId: userId),
           ),
         );
       }

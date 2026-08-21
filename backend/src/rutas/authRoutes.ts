@@ -206,6 +206,47 @@ router.get("/estadisticas/:userId", async (req: Request, res: Response): Promise
   }
 });
 
+router.post("/estadisticas/:userId/tareas", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId } = req.params;
+
+    const resultado = await pool.query(
+      `
+      SELECT
+        COUNT(*) AS total_tareas,
+        COUNT(*) FILTER (WHERE t.completada = true) AS tareas_completadas
+      FROM tareas t
+      JOIN actividades a ON a.id = t.actividad_id
+      JOIN planes_estudio p ON p.id = a.plan_id
+      WHERE p.usuario_id = $1
+      `,
+      [userId]
+    );
+
+    const totalTareas = Number(resultado.rows[0]?.total_tareas ?? 0);
+    const tareasCompletadas = Number(resultado.rows[0]?.tareas_completadas ?? 0);
+
+    await pool.query(
+      `
+      INSERT INTO estadisticas (usuario_id, tareas_completadas, racha, horas_estudio)
+      VALUES ($1, $2, 0, 0)
+      ON CONFLICT (usuario_id) DO UPDATE SET tareas_completadas = EXCLUDED.tareas_completadas
+      `,
+      [userId, tareasCompletadas]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      total_tareas: totalTareas,
+      tareas_completadas: tareasCompletadas,
+      tareas_pendientes: Math.max(totalTareas - tareasCompletadas, 0),
+    });
+  } catch (error: any) {
+    console.error("❌ Error en POST /estadisticas/:userId/tareas:", error);
+    return res.status(500).json({ mensaje: "Error al sincronizar estadísticas de tareas" });
+  }
+});
+
 /*
 ============================================================
 REGISTRAR RACHA HOY

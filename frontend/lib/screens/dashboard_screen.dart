@@ -3,7 +3,9 @@ import '/services/api_service.dart';
 import 'historial_ia_screen.dart';
 import 'profile_screen.dart';
 import 'agregar_tarea_screen.dart';
-import 'guia_detalle_screen.dart'; // Asegúrate de importar tu pantalla de detalle o edición
+import 'guia_detalle_screen.dart';
+import 'calendar_screen.dart';
+import 'recompensas_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -16,8 +18,10 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = false;
   List<dynamic> _tareasPendientes = [];
+  List<dynamic> _todasLasTareas = [];
   int _racha = 0;
   int _tareasCompletadas = 0;
+  int _puntos = 0;
 
   @override
   void initState() {
@@ -37,8 +41,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _cargarPlanes() async {
     final lista = await ApiService.getPlanesEstudio(widget.userId);
     if (mounted) {
+      final tareas = (lista ?? [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList();
+
+      final pendientes = tareas.where((item) {
+        final estado = (item['estado'] ?? item['completada'] ?? '').toString().toUpperCase();
+        final completada = item['completada'] == true || estado == 'COMPLETADA';
+        return !completada;
+      }).toList();
+
+      pendientes.sort((a, b) {
+        final fechaA = _fechaOrden(a);
+        final fechaB = _fechaOrden(b);
+        return fechaB.compareTo(fechaA);
+      });
+
       setState(() {
-        _tareasPendientes = lista ?? [];
+        _todasLasTareas = tareas;
+        _tareasPendientes = pendientes.take(3).toList();
+        _tareasCompletadas = tareas.where((item) {
+          final estado = (item['estado'] ?? item['completada'] ?? '').toString().toUpperCase();
+          return item['completada'] == true || estado == 'COMPLETADA';
+        }).length;
+        _puntos = _tareasCompletadas * 100;
       });
     }
   }
@@ -46,9 +73,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _cargarEstadisticas() async {
     final stats = await ApiService.getEstadisticas(widget.userId);
     if (mounted && stats != null) {
+      final completadas = (stats['tareas_completadas'] ?? 0) as int;
       setState(() {
         _racha = (stats['racha'] ?? 0) as int;
-        _tareasCompletadas = (stats['tareas_completadas'] ?? 0) as int;
+        _tareasCompletadas = completadas;
+        _puntos = completadas * 100;
       });
     }
   }
@@ -124,7 +153,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                          color: const Color(0xFF1F1A3A).withValues(alpha: 0.4),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: Colors.white24, width: 1),
                         ),
@@ -184,70 +213,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         itemCount: _tareasPendientes.length,
                                         itemBuilder: (context, index) {
                                           final t = _tareasPendientes[index];
-                                          final nombre = (t['nombre'] ?? '').toString();
-                                          final fecha = t['fecha_creacion'] != null
-                                              ? _formatFecha(t['fecha_creacion'].toString())
-                                              : '';
-                                          
-                                          // AQUÍ AGREGAMOS EL GESTURE DETECTOR PARA PODER ENTRAR A MODIFICAR/VER LA TAREA
+                                          final nombre = (t['nombre'] ?? t['titulo'] ?? 'Tarea').toString();
+
                                           return GestureDetector(
                                             onTap: () async {
-                                              // Si tu API guarda el ID del plan como 'id' o 'plan_id'
                                               final planId = t['id'] ?? t['plan_id'];
                                               if (planId != null) {
-                                                // Opcional: Puedes cargar el plan completo o pasar los datos si ya los tienes
-                                                // Aquí abrimos la pantalla de detalle/modificación
                                                 await Navigator.push(
                                                   context,
                                                   MaterialPageRoute(
                                                     builder: (_) => GuiaDetalleScreen(
-                                                      guiaData: t, // o puedes pasar el planId si tu pantalla lo requiere
+                                                      guiaData: t,
+                                                      userId: widget.userId,
                                                     ),
                                                   ),
                                                 );
-                                                _cargarPlanes(); // Recarga al volver por si hubo cambios
+                                                _cargarPlanes();
                                               }
                                             },
                                             child: Container(
-                                              color: Colors.transparent, // Para asegurar que detecte bien el toque
-                                              padding: const EdgeInsets.only(bottom: 12.0),
+                                              width: double.infinity,
+                                              margin: const EdgeInsets.only(bottom: 10.0),
+                                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF1F1A3A).withValues(alpha: 0.6),
+                                                borderRadius: BorderRadius.circular(14),
+                                                border: Border.all(color: Colors.white12),
+                                              ),
                                               child: Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                                 children: [
                                                   Expanded(
-                                                    child: Row(
-                                                      children: [
-                                                        const Text(
-                                                          '• ',
-                                                          style: TextStyle(
-                                                            color: Color(0xFFFF44AA),
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                        Expanded(
-                                                          child: Text(
-                                                            nombre.toUpperCase(),
-                                                            overflow: TextOverflow.ellipsis,
-                                                            style: const TextStyle(
-                                                              color: Colors.white,
-                                                              fontSize: 12,
-                                                              fontWeight: FontWeight.w600,
-                                                              letterSpacing: 0.5,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
+                                                    child: Text(
+                                                      nombre,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        color: Color(0xFF69E6FF),
+                                                        fontSize: 15,
+                                                        fontWeight: FontWeight.w700,
+                                                      ),
                                                     ),
                                                   ),
-                                                  Row(
-                                                    children: [
-                                                      Text(
-                                                        fecha,
-                                                        style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                                      ),
-                                                      const SizedBox(width: 6),
-                                                      const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 12),
-                                                    ],
+                                                  const Icon(
+                                                    Icons.arrow_forward_ios,
+                                                    color: Colors.white38,
+                                                    size: 12,
                                                   ),
                                                 ],
                                               ),
@@ -293,7 +304,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                                color: const Color(0xFF1F1A3A).withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.white12),
                               ),
@@ -355,7 +366,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.white12),
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
+                              color: const Color(0xFF1F1A3A).withValues(alpha: 0.4),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(10),
@@ -364,7 +375,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 child: AnimatedContainer(
                                   duration: const Duration(milliseconds: 600),
                                   height: 80 * (_racha > 0 ? (_racha % 7) / 7 : 0),
-                                  color: const Color(0xFFFF44AA).withOpacity(0.7),
+                                  color: const Color(0xFFFF44AA).withValues(alpha: 0.7),
                                 ),
                               ),
                             ),
@@ -384,73 +395,86 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(20),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1F1A3A).withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Text(
+                                  'Progreso total',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                Text(
+                                  '$_puntos pts',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFF44AA),
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                _miniMetric('Creadas', '${_todasLasTareas.length}'),
+                                _miniMetric('Completas', '$_tareasCompletadas'),
+                                _miniMetric('Faltan', '${_todasLasTareas.length - _tareasCompletadas}'),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(999),
+                              child: LinearProgressIndicator(
+                                minHeight: 10,
+                                value: _todasLasTareas.isEmpty ? 0 : (_tareasCompletadas / _todasLasTareas.length),
+                                backgroundColor: Colors.white12,
+                                color: const Color(0xFFFF44AA),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              '$_tareasCompletadas de ${_todasLasTareas.length} tareas completadas',
+                              style: const TextStyle(color: Colors.white38, fontSize: 11),
+                            ),
+                            const SizedBox(height: 16),
+                            Container(
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white12),
+                                gradient: const LinearGradient(
+                                  colors: [Color(0xFF2E1B4E), Color(0xFF1F1A3A)],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
+                                children: const [
+                                  Icon(Icons.emoji_events, color: Color(0xFFFF44AA)),
+                                  SizedBox(width: 10),
                                   Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'TU PROGRESO EN TUS',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const Text(
-                                          'TAREAS',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 0.5,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          '$_tareasCompletadas tareas completadas • racha de $_racha días',
-                                          style: const TextStyle(color: Colors.white38, fontSize: 11),
-                                        ),
-                                      ],
+                                    child: Text(
+                                      'Recompensas: cada tarea completada suma 100 puntos.',
+                                      style: TextStyle(color: Colors.white70, fontSize: 12),
                                     ),
-                                  ),
-                                  Container(
-                                    width: 50,
-                                    height: 50,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF2E1B4E),
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: const Icon(Icons.timer_outlined, color: Colors.orangeAccent, size: 26),
                                   ),
                                 ],
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            width: 20,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.white12),
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 80),
                     ],
@@ -465,13 +489,50 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  String _formatFecha(String fechaStr) {
-    try {
-      final fecha = DateTime.parse(fechaStr).toLocal();
-      return '${fecha.day}/${fecha.month}/${fecha.year}';
-    } catch (_) {
-      return '';
+  DateTime _fechaOrden(Map<String, dynamic> item) {
+    final raw = item['fecha_creacion'] ?? item['created_at'] ?? item['fecha_entrega'] ?? item['fechaEntrega'] ?? '';
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        return DateTime.parse(raw).toLocal();
+      } catch (_) {
+        return DateTime.fromMillisecondsSinceEpoch(0);
+      }
     }
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  Widget _miniMetric(String label, String value) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _buildBottomNavbar() {
@@ -491,7 +552,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             const Icon(Icons.home, color: Color(0xFFFF44AA), size: 24),
-            const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CalendarScreen(userId: widget.userId, tasks: _tareasPendientes),
+                  ),
+                );
+              },
+              child: const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
+            ),
             GestureDetector(
               onTap: () {
                 Navigator.push(
@@ -502,6 +573,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 );
               },
               child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => RecompensasScreen(userId: widget.userId),
+                  ),
+                );
+              },
+              child: const Icon(Icons.emoji_events_rounded, color: Colors.white38, size: 24),
             ),
             GestureDetector(
               onTap: () {
