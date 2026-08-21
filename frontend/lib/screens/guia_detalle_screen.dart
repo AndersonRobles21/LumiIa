@@ -3,8 +3,13 @@ import '/services/api_service.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
+  final String? userId;
 
-  const GuiaDetalleScreen({super.key, required this.guiaData});
+  const GuiaDetalleScreen({
+    super.key,
+    required this.guiaData,
+    this.userId,
+  });
 
   @override
   State<GuiaDetalleScreen> createState() => _GuiaDetalleScreenState();
@@ -43,7 +48,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   Future<void> _cargarDetallePlan() async {
     final planId = widget.guiaData['id'] ?? widget.guiaData['plan_id'];
-    
+
     if (planId != null) {
       final detalle = await ApiService.obtenerPlan(planId);
       if (detalle != null && mounted) {
@@ -52,9 +57,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           subtareas = (detalle['subtareas'] as List?) ?? [];
           consejos = (detalle['consejos'] as List?) ?? [];
           recursos = (detalle['recursos'] as List?) ?? [];
-          _actualizarListasEstado();
-          _isLoading = false;
         });
+        _sincronizarSubtareasDesdeBackend();
+        _isLoading = false;
         return;
       }
     }
@@ -65,10 +70,43 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         subtareas = (guiaActual['subtareas'] as List?) ?? [];
         consejos = (guiaActual['consejos'] as List?) ?? [];
         recursos = (guiaActual['recursos'] as List?) ?? [];
-        _actualizarListasEstado();
-        _isLoading = false;
       });
+      _sincronizarSubtareasDesdeBackend();
+      _isLoading = false;
     }
+  }
+
+  Future<void> _sincronizarSubtareasDesdeBackend() async {
+    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+    if (userId.isEmpty) {
+      _actualizarListasEstado();
+      return;
+    }
+
+    final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
+    final mapaTitulos = <String, Map<String, dynamic>>{};
+
+    for (final tarea in tareas) {
+      if (tarea is Map) {
+        final tareaMap = Map<String, dynamic>.from(tarea);
+        final nombre = (tareaMap['nombre'] ?? tareaMap['titulo'] ?? '').toString();
+        if (nombre.isNotEmpty) mapaTitulos[nombre.toLowerCase()] = tareaMap;
+      }
+    }
+
+    for (int i = 0; i < subtareas.length; i++) {
+      final sub = subtareas[i];
+      if (sub is! Map) continue;
+      final titulo = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
+      final tareaServidor = mapaTitulos[titulo.toLowerCase()];
+
+      if (tareaServidor != null) {
+        sub['id'] = tareaServidor['id'] ?? sub['id'];
+        sub['completada'] = tareaServidor['completada'] == true || (tareaServidor['estado'] ?? '').toString().toUpperCase() == 'COMPLETADA';
+      }
+    }
+
+    _actualizarListasEstado();
   }
 
   void _actualizarListasEstado() {
@@ -164,21 +202,39 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   Future<void> _confirmarTarea(int index) async {
     if (index >= subtareas.length || subtareas[index] is! Map) return;
-    
+
     final sub = subtareas[index];
     final tareaId = sub['id'];
 
     if (tareaId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('La tarea no tiene id de base de datos.')),
-      );
-      return;
+      final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+      if (userId.isNotEmpty) {
+        final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
+        for (final tarea in tareas) {
+          if (tarea is Map) {
+            final nombre = (tarea['nombre'] ?? tarea['titulo'] ?? '').toString();
+            final tituloActual = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
+            if (nombre.toLowerCase() == tituloActual.toLowerCase()) {
+              sub['id'] = tarea['id'];
+              break;
+            }
+          }
+        }
+      }
+
+      if (sub['id'] == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La tarea no tiene id de base de datos.')),
+        );
+        return;
+      }
     }
 
     setState(() => cargando[index] = true);
 
     final ok = await ApiService.completarTarea(
-      tareaId: tareaId,
+      tareaId: sub['id'].toString(),
       completada: true,
     );
 
@@ -192,7 +248,13 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       return;
     }
 
+    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+    if (userId.isNotEmpty) {
+      await ApiService.syncTaskStats(userId);
+    }
+
     setState(() {
+      sub['completada'] = true;
       tareasCompletadas[index] = true;
       cargando[index] = false;
     });
@@ -200,15 +262,18 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final tituloPrincipal = (guiaActual['nombre'] ?? guiaActual['titulo'] ?? widget.guiaData['nombre'] ?? widget.guiaData['titulo'] ?? 'Plan de estudio').toString();
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0813),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text(
-          'TU PLAN DE ESTUDIO',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: Text(
+          tituloPrincipal,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          overflow: TextOverflow.ellipsis,
         ),
-        centerTitle: true,
+        centerTitle: false,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
@@ -278,7 +343,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                         color: const Color(0xFF1F1A3A),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: const Color(0xFFFF44AA).withOpacity(0.5),
+                          color: const Color(0xFFFF44AA).withValues(alpha: 0.5),
                         ),
                       ),
                       child: Column(

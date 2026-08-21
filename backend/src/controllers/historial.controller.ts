@@ -3,8 +3,10 @@ import { obtenerHistorialIA, obtenerPlanIA } from "../services/historial.service
 
 export async function getHistorial(req: Request, res: Response) {
   try {
-    const { usuarioId } = req.params;
-    const historial = await obtenerHistorialIA(usuarioId);
+    const usuarioId = Array.isArray(req.params.usuarioId)
+      ? req.params.usuarioId[0]
+      : req.params.usuarioId;
+    const historial = await obtenerHistorialIA(usuarioId ?? "");
 
     return res.status(200).json(historial);
   } catch (error: any) {
@@ -19,8 +21,10 @@ export async function getHistorial(req: Request, res: Response) {
 
 export async function getPlan(req: Request, res: Response) {
   try {
-    const { planId } = req.params;
-    const plan = await obtenerPlanIA(planId);
+    const planId = Array.isArray(req.params.planId)
+      ? req.params.planId[0]
+      : req.params.planId;
+    const plan = await obtenerPlanIA(planId ?? "");
 
     if (!plan) {
       return res.status(404).json({

@@ -6,6 +6,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'login_screen.dart';
 import 'configuracion_screen.dart';
+import 'dashboard_screen.dart';
+import 'historial_ia_screen.dart';
+import 'calendar_screen.dart';
+import 'recompensas_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -22,6 +26,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   int _nivelProcrastinacion = 1;
   bool _isLoading = true;
+  bool _showTutorial = true;
   String get _userId => widget.userId;
   final List<String> _days = ['lun', 'mar', 'mie', 'jue', 'vie'];
 
@@ -600,195 +605,283 @@ final horasPromedio = diasConHorario == 0
               ? const Center(
                   child: CircularProgressIndicator(color: Color(0xFFCC00CC)),
                 )
-              : Column(
+              : Stack(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20.0,
-                        vertical: 16.0,
-                      ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.arrow_back_ios_new,
-                                color: Colors.white70,
-                                size: 20,
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                            ),
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20.0,
+                            vertical: 16.0,
                           ),
-                          const Text(
-                            'Mi PERFIL',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 2,
-                            ),
-                          ),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: IconButton(
-                              icon: const Icon(
-                                Icons.settings,
-                                color: Colors.white70,
-                                size: 20,
-                              ),
-                              onPressed: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => const ConfiguracionScreen(),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.arrow_back_ios_new,
+                                    color: Colors.white70,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => Navigator.pop(context),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Expanded(
-                      child: Center(
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 430),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 28.0,
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 8),
-                                Center(child: _buildAvatar()),
-                                const SizedBox(height: 24),
-
-                                const Text(
-                                  'Nombre',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
+                              const Text(
+                                'Mi PERFIL',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 2,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.settings,
+                                    color: Colors.white70,
+                                    size: 20,
                                   ),
-                                ),
-                                const SizedBox(height: 6),
-                                _buildInputField(
-                                  _nameController,
-                                  'Ingresa tu nombre',
-                                ),
-                                const SizedBox(height: 14),
-
-                                const Text(
-                                  'Apellido',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                _buildInputField(
-                                  _apellidoController,
-                                  'Ingresa tu apellido',
-                                ),
-                                const SizedBox(height: 14),
-
-                                const Text(
-                                  'Objetivo de Estudio',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                _buildInputField(
-                                  _objetivoController,
-                                  "Ej: Certificarme como programadora",
-                                ),
-                                const SizedBox(height: 16),
-
-                                Text(
-                                  'Nivel de Procrastinación: $_nivelProcrastinacion',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Slider(
-                                  value: _nivelProcrastinacion.toDouble(),
-                                  min: 1,
-                                  max: 10,
-                                  divisions: 9,
-                                  activeColor: const Color(0xFFFF44AA),
-                                  inactiveColor: const Color(0xFF1F1B2E),
-                                  onChanged: (value) => setState(
-                                    () => _nivelProcrastinacion = value.toInt(),
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-
-                                const Text(
-                                  'HORARIO DISPONIBLE',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-
-                                _buildGridSchedule(), // Tu hermosa cuadrícula de horarios intacta
-
-                                const SizedBox(height: 36),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 52,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
-                                        colors: [
-                                          Color(0xFFCC00CC),
-                                          Color(0xFFFF44AA),
-                                        ],
-                                      ),
-                                      borderRadius: BorderRadius.circular(30),
+                                  onPressed: () => Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const ConfiguracionScreen(),
                                     ),
-                                    child: ElevatedButton(
-                                      onPressed: _handleSend,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.transparent,
-                                        shadowColor: Colors.transparent,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                            30,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 430),
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.fromLTRB(28, 0, 28, 88),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const SizedBox(height: 8),
+                                    Center(child: _buildAvatar()),
+                                    const SizedBox(height: 18),
+                                    if (_showTutorial) _buildTutorialCard(),
+                                    const SizedBox(height: 20),
+
+                                    const Text(
+                                      'Nombre',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _buildInputField(
+                                      _nameController,
+                                      'Ingresa tu nombre',
+                                    ),
+                                    const SizedBox(height: 14),
+
+                                    const Text(
+                                      'Apellido',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _buildInputField(
+                                      _apellidoController,
+                                      'Ingresa tu apellido',
+                                    ),
+                                    const SizedBox(height: 14),
+
+                                    const Text(
+                                      'Objetivo de Estudio',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 6),
+                                    _buildInputField(
+                                      _objetivoController,
+                                      "Ej: Certificarme como programadora",
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    Text(
+                                      'Nivel de Procrastinación: $_nivelProcrastinacion',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Slider(
+                                      value: _nivelProcrastinacion.toDouble(),
+                                      min: 1,
+                                      max: 10,
+                                      divisions: 9,
+                                      activeColor: const Color(0xFFFF44AA),
+                                      inactiveColor: const Color(0xFF1F1B2E),
+                                      onChanged: (value) => setState(
+                                        () => _nivelProcrastinacion = value.toInt(),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 16),
+
+                                    const Text(
+                                      'HORARIO DISPONIBLE',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    _buildGridSchedule(),
+
+                                    const SizedBox(height: 36),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      height: 52,
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [
+                                              Color(0xFFCC00CC),
+                                              Color(0xFFFF44AA),
+                                            ],
+                                          ),
+                                          borderRadius: BorderRadius.circular(30),
+                                        ),
+                                        child: ElevatedButton(
+                                          onPressed: _handleSend,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(
+                                                30,
+                                              ),
+                                            ),
+                                          ),
+                                          child: const Text(
+                                            'Guardar Perfil',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 17,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                      child: const Text(
-                                        'Guardar Perfil',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 17,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
                                     ),
-                                  ),
+                                    const SizedBox(height: 32),
+                                  ],
                                 ),
-                                const SizedBox(height: 32),
-                              ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
+                    _buildBottomNavbar(),
                   ],
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTutorialCard() {
+    final steps = [
+      'Personaliza tu nombre y objetivo.',
+      'Ajusta tus horas disponibles por día.',
+      'Guarda para activar tu plan personalizado.',
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2E1B4E), Color(0xFF1F1A3A)],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFF44AA).withOpacity(0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.auto_awesome, color: Color(0xFFFF44AA), size: 18),
+              const SizedBox(width: 8),
+              const Text(
+                'Tu perfil guía tu aprendizaje',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _showTutorial = false),
+                child: const Icon(Icons.close, color: Colors.white54, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...List.generate(steps.length, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 22,
+                    height: 22,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFF44AA),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Text(
+                      '${index + 1}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      steps[index],
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
       ),
     );
   }
@@ -817,6 +910,69 @@ final horasPromedio = diasConHorario == 0
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: const BorderSide(color: Color(0xFFFF44AA), width: 1),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNavbar() {
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Container(
+        height: 60,
+        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1B1437),
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: const [
+            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            GestureDetector(
+              onTap: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => DashboardScreen(userId: widget.userId)),
+                );
+              },
+              child: const Icon(Icons.home_outlined, color: Colors.white38, size: 24),
+            ),
+            GestureDetector(
+              onTap: () async {
+                final tasks = await ApiService.getPlanesEstudio(widget.userId) ?? [];
+                if (!mounted) return;
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => CalendarScreen(userId: widget.userId, tasks: tasks),
+                  ),
+                );
+              },
+              child: const Icon(Icons.calendar_month_outlined, color: Colors.white38, size: 24),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => HistorialIAScreen(userId: widget.userId)),
+                );
+              },
+              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+            ),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => RecompensasScreen(userId: widget.userId)),
+                );
+              },
+              child: const Icon(Icons.emoji_events_rounded, color: Colors.white38, size: 24),
+            ),
+            const Icon(Icons.person, color: Color(0xFFFF44AA), size: 24),
+          ],
         ),
       ),
     );
