@@ -885,12 +885,21 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                               (guiaActual['id'] ??
                                                       guiaActual['plan_id'])
                                                   ?.toString();
+                                          final userIdRaw =
+                                              guiaActual['usuario_id'] ??
+                                              widget.guiaData['usuario_id'];
+                                          print(
+                                            "🔍 DEBUG USER_ID EN FLUTTER: $userIdRaw",
+                                          ); // Para ver qué trae realmente
+
                                           final userId =
-                                              guiaActual['usuario_id']
-                                                  ?.toString() ??
-                                              widget.guiaData['usuario_id']
-                                                  ?.toString() ??
-                                              '1';
+                                              userIdRaw?.toString() ?? '';
+
+                                          if (userId.isEmpty || userId == '1') {
+                                            print(
+                                              "⚠️ CUIDADO: El ID de usuario está vacío o es '1'",
+                                            );
+                                          }
 
                                           if (planId != null) {
                                             final planRegenerado =
