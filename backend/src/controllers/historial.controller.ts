@@ -1,10 +1,12 @@
+//historial.controller.ts
 import { Request, Response } from "express";
 import { obtenerHistorialIA, obtenerPlanIA } from "../services/historial.service";
+import { pool } from "../config/db";
 
 export async function getHistorial(req: Request, res: Response) {
   try {
     const { usuarioId } = req.params;
-    const historial = await obtenerHistorialIA(usuarioId);
+    const historial = await obtenerHistorialIA(usuarioId as string);
 
     return res.status(200).json(historial);
   } catch (error: any) {
@@ -20,7 +22,7 @@ export async function getHistorial(req: Request, res: Response) {
 export async function getPlan(req: Request, res: Response) {
   try {
     const { planId } = req.params;
-    const plan = await obtenerPlanIA(planId);
+    const plan = await obtenerPlanIA(planId as string);
 
     if (!plan) {
       return res.status(404).json({
@@ -35,6 +37,40 @@ export async function getPlan(req: Request, res: Response) {
     return res.status(500).json({
       ok: false,
       mensaje: "Error interno al obtener el plan de IA.",
+      detalle: error.message,
+    });
+  }
+}
+
+// 📌 NUEVO: Endpoint para guardar el estado de los checkboxes (pasos/subpasos) en tiempo real
+export async function actualizarProgresoPlan(req: Request, res: Response) {
+  try {
+    const { planId } = req.params;
+    const { pasos } = req.body;
+
+    if (!pasos || !Array.isArray(pasos)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Se requiere un array de pasos válido.",
+      });
+    }
+
+    await pool.query(
+      `UPDATE planes_ia 
+       SET pasos = $1, actualizado_en = NOW() 
+       WHERE plan_id = $2`,
+      [JSON.stringify(pasos), planId]
+    );
+
+    return res.status(200).json({
+      ok: true,
+      mensaje: "Progreso de pasos actualizado correctamente.",
+    });
+  } catch (error: any) {
+    console.error("Error en PUT /api/ia/plan/:planId/progreso:", error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: "Error al guardar el progreso en la base de datos.",
       detalle: error.message,
     });
   }

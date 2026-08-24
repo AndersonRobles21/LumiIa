@@ -25,25 +25,42 @@ export async function obtenerHistorialIA(usuarioId: string) {
 }
 
 export async function obtenerPlanIA(planId: string) {
-  const resultado = await pool.query(
-    `
-    SELECT respuesta
-    FROM historial_ia
-    WHERE plan_id = $1
-    ORDER BY id DESC
-    LIMIT 1
-    `,
+  const result = await pool.query(
+    `SELECT 
+        p.id,
+        p.nombre,
+        p.descripcion,
+        p.fecha_creacion,
+        pia.metodo_estudio,
+        pia.justificacion,
+        pia.tiempo_estimado_total,
+        pia.consejos,
+        pia.recursos,
+        pia.resumen_final,
+        pia.pasos,
+        pia.conceptos_clave,
+        pia.preguntas_recall
+     FROM planes_estudio p
+     INNER JOIN planes_ia pia ON pia.plan_id = p.id
+     WHERE p.id = $1`,
     [planId]
   );
 
-  if (resultado.rows.length === 0) {
-    return null;
-  }
+  if (result.rows.length === 0) return null;
 
-  const respuesta = resultado.rows[0].respuesta;
-  if (typeof respuesta === "string") {
-    return JSON.parse(respuesta);
-  }
-
-  return respuesta;
+  const row = result.rows[0];
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    descripcion: row.descripcion,
+    metodo_estudio: row.metodo_estudio,
+    justificacion: row.justificacion,
+    tiempo_estimado_total: row.tiempo_estimado_total,
+    consejos: typeof row.consejos === 'string' ? JSON.parse(row.consejos) : row.consejos,
+    recursos: typeof row.recursos === 'string' ? JSON.parse(row.recursos) : row.recursos,
+    resumen_final: row.resumen_final,
+    pasos: typeof row.pasos === 'string' ? JSON.parse(row.pasos) : row.pasos,
+    conceptos_clave: typeof row.conceptos_clave === 'string' ? JSON.parse(row.conceptos_clave) : row.conceptos_clave,
+    preguntas_recall: typeof row.preguntas_recall === 'string' ? JSON.parse(row.preguntas_recall) : row.preguntas_recall,
+  };
 }

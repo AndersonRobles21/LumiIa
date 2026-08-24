@@ -19,21 +19,8 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
   DateTime _fechaSeleccionada = DateTime.now().add(const Duration(days: 7));
   bool _isProcessing = false;
 
-  // Nuevos campos para optimizar la IA
-  String _metodoEstudioSeleccionado = 'Pomodoro';
+  // Dificultad para ajustar la densidad de carga de trabajo
   String _nivelDificultad = 'Media';
-
-  // Descripciones y tips para el banner informativo de cada método
-  final Map<String, String> _infoMetodos = {
-    'Pomodoro':
-        '⏱️ Trabajas en bloques de 25 min con descansos de 5 min. Ideal para mantener alta concentración sin fatiga.',
-    'Técnica Feynman':
-        '🧠 Explicas el concepto como si se lo enseñaras a un niño. Excelente para entender la lógica profunda.',
-    'Active Recall':
-        '❓ Te pones a prueba activamente recordando información en lugar de solo leer. Máxima retención.',
-    'Spaced Repetition':
-        '📅 Repites los temas en intervalos de tiempo espaciados para fijarlos en la memoria a largo plazo.',
-  };
 
   @override
   void dispose() {
@@ -74,13 +61,13 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
 
     setState(() => _isProcessing = true);
 
-    // Enviamos los parámetros al ApiService (el tiempo disponible se gestiona por perfil en el backend)
+    // Se envía 'Auto' en metodoEstudio para que la IA decida la mejor estrategia
     final resultado = await ApiService.generarPlanIA(
       userId: widget.userId,
       titulo: _tituloController.text.trim(),
       descripcion: _descController.text.trim(),
       fechaEntrega: DateFormat('yyyy-MM-dd').format(_fechaSeleccionada),
-      metodoEstudio: _metodoEstudioSeleccionado,
+      metodoEstudio: 'Auto', // 👈 La IA selecciona el método ideal
       dificultad: _nivelDificultad,
       enfoqueAdicional: _enfoqueController.text.trim(),
     );
@@ -130,31 +117,60 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Center(
-                child: Text(
-                  'NUEVA TAREA INTELIGENTE',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
+              // 🖼️ ENCABEZADO SUPERIOR RESPONSIVO CON IMAGEN 'logo/tarea.png'
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          Text(
+                            'Nueva tarea',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          SizedBox(height: 6),
+                          Text(
+                            'Organiza tu próximo objetivo de estudio',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: MediaQuery.of(context).size.width * 0.38,
+                    height: MediaQuery.of(context).size.width * 0.38,
+                    child: Image.asset(
+                      'logo/tarea.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) => const Icon(
+                        Icons.smart_toy,
+                        color: Color(0xFF00F0FF),
+                        size: 90,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 6),
-              const Center(
-                child: Text(
-                  'Configura los detalles para un plan de estudio ultra preciso',
-                  style: TextStyle(color: Colors.white38, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              const SizedBox(height: 25),
+              const SizedBox(height: 20),
 
               // Título
               TextField(
                 controller: _tituloController,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('Título del trabajo o materia'),
+                decoration: _inputDecoration('Título del trabajo'),
               ),
               const SizedBox(height: 15),
 
@@ -163,18 +179,11 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                 controller: _descController,
                 maxLines: 4,
                 style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration(
-                  'Descripción, objetivos o rúbrica...',
-                ),
+                decoration: _inputDecoration('Descripción o rúbrica....'),
               ),
               const SizedBox(height: 20),
 
               // Selector de Fecha Límite Editable
-              const Text(
-                'Fecha Límite de Entrega',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 8),
               GestureDetector(
                 onTap: () => _seleccionarFecha(context),
                 child: Container(
@@ -191,9 +200,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                       ),
                       const SizedBox(width: 12),
                       Text(
-                        DateFormat(
-                          'dd / MMM / yyyy',
-                        ).format(_fechaSeleccionada),
+                        'Fecha Límite: ${DateFormat('dd / MMM / yyyy').format(_fechaSeleccionada)}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w500,
@@ -207,88 +214,6 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                       ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Selector de Método de Estudio
-              const Text(
-                'Método de Estudio Principal',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF16003A),
-                  borderRadius: BorderRadius.circular(15),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _metodoEstudioSeleccionado,
-                    dropdownColor: const Color(0xFF1E1B3A),
-                    style: const TextStyle(color: Colors.white),
-                    icon: const Icon(
-                      Icons.arrow_drop_down,
-                      color: Color(0xFFFF44AA),
-                    ),
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'Pomodoro',
-                        child: Text('Pomodoro (Bloques de tiempo)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Técnica Feynman',
-                        child: Text('Técnica Feynman (Explicar y simplificar)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Active Recall',
-                        child: Text('Active Recall (Recuerdo activo)'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'Spaced Repetition',
-                        child: Text('Spaced Repetition (Repetición espaciada)'),
-                      ),
-                    ],
-                    onChanged: (String? nuevoValor) {
-                      if (nuevoValor != null) {
-                        setState(() => _metodoEstudioSeleccionado = nuevoValor);
-                      }
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Banner Explicativo Dinámico del Método
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1E1B3A).withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: const Color(0xFFFF44AA).withOpacity(0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.lightbulb_outline,
-                      color: Color(0xFFFF44AA),
-                      size: 22,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _infoMetodos[_metodoEstudioSeleccionado] ?? '',
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
               const SizedBox(height: 20),
@@ -368,13 +293,35 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                   child: _isProcessing
                       ? const CircularProgressIndicator(color: Colors.white)
                       : const Text(
-                          'GENERAR CRONOGRAMA INTELIGENTE',
+                          'GENERAR CRONOGRAMA',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
                             fontSize: 13,
                           ),
                         ),
+                ),
+              ),
+              const SizedBox(height: 25),
+
+              // 🖼️ BANNER INFERIOR CON LA IMAGEN 'logo/consejo_tarea.png'
+              Center(
+                child: Image.asset(
+                  'logo/consejo_tarea.png',
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1B3A),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Text(
+                      'Cuéntame qué tienes que hacer y yo te ayudo a organizarlo.',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),
@@ -386,13 +333,13 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
   }
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-    hintText: hint,
-    hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-    filled: true,
-    fillColor: const Color(0xFF16003A),
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(15),
-      borderSide: BorderSide.none,
-    ),
-  );
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+        filled: true,
+        fillColor: const Color(0xFF16003A),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(15),
+          borderSide: BorderSide.none,
+        ),
+      );
 }
