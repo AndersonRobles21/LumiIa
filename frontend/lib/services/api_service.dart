@@ -4,12 +4,7 @@ import 'package:http/http.dart' as http;
 import 'dart:io';
 
 class ApiService {
-  static const _configuredBackendHost = String.fromEnvironment('API_URL');
-
   static String get _backendHost {
-    if (_configuredBackendHost.isNotEmpty) {
-      return _configuredBackendHost.replaceFirst(RegExp(r'\/$'), '');
-    }
     if (kIsWeb) return 'http://localhost:3000';
     if (Platform.isAndroid) return 'http://10.0.2.2:3000';
     return 'http://localhost:3000';
