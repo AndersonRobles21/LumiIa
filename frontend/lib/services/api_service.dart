@@ -417,4 +417,88 @@ static Future<bool> completarTarea({
     return false;
   }
 }
+/*
+  ============================
+  ACTUALIZAR PROGRESO DEL PLAN (Pasos / Subpasos)
+  ============================
+  */
+  static Future<bool> actualizarProgresoPlan({
+    required String planId,
+    required List<dynamic> pasos,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$iaBaseUrl/plan/$planId/progreso'),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'pasos': pasos,
+        }),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error actualizarProgresoPlan: $e');
+      return false;
+    }
+  }
+  static Future<Map<String, dynamic>?> evaluarExplicacionFeynman({
+    required String concepto,
+    required String explicacion,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$iaBaseUrl/feynman/evaluar'), // Apunta correctamente a /api/ia/feynman/evaluar
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'concepto': concepto,
+          'explicacion': explicacion,
+        }),
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error evaluando Feynman: $e');
+      return null;
+    }
+  }
+  // Añade esta función en tu ApiService de Flutter:
+static Future<Map<String, dynamic>?> regenerarPlanExistente({
+  required String planId,
+  required String metodoEstudio,
+  required String userId,
+  required String titulo,
+  required String descripcion,
+  required String fechaEntrega,
+  required String dificultad,
+}) async {
+  try {
+    final response = await http.put(
+      Uri.parse('$iaBaseUrl/plan/$planId/metodo'),
+      headers: {'Content-Type': 'application/json' },
+      body: jsonEncode({
+        'metodo_estudio': metodoEstudio,
+        'usuario_id': userId,
+        'nombre': titulo,
+        'descripcion': descripcion,
+        'fecha_entrega': fechaEntrega,
+        'dificultad': dificultad,
+      }),
+    );
+
+    if (response.statusCode == 200 && response.body.isNotEmpty) {
+      final data = jsonDecode(response.body);
+      // Validamos si viene el plan directamente o dentro de un objeto
+      return data['plan'] ?? data;
+    }
+    return null;
+  } catch (e) {
+    print('Error al conectar con el servidor para cambiar método: $e');
+    return null;
+  }
+}
 }

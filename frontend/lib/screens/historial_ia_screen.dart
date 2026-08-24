@@ -18,11 +18,20 @@ class HistorialIAScreen extends StatefulWidget {
 class _HistorialIAScreenState extends State<HistorialIAScreen> {
   bool _isLoading = true;
   List<dynamic> _historial = [];
+  List<dynamic> _historialFiltrado = [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _cargarHistorial();
+    _searchController.addListener(_filtrarHistorial);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarHistorial() async {
@@ -33,18 +42,28 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
     if (mounted) {
       setState(() {
         _historial = lista ?? [];
+        _historialFiltrado = _historial;
         _isLoading = false;
       });
     }
   }
 
+  void _filtrarHistorial() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _historialFiltrado = _historial.where((plan) {
+        final nombre = (plan['nombre'] ?? '').toLowerCase();
+        final descripcion = (plan['descripcion'] ?? '').toLowerCase();
+        return nombre.contains(query) || descripcion.contains(query);
+      }).toList();
+    });
+  }
+
   Future<void> _abrirPlan(String planId) async {
     setState(() => _isLoading = true);
-
     final plan = await ApiService.obtenerPlan(planId);
 
     if (!mounted) return;
-
     setState(() => _isLoading = false);
 
     if (plan == null) {
@@ -67,17 +86,21 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
     );
   }
 
-  String _formatFecha(String fechaStr) {
-    try {
-      final fecha = DateTime.parse(fechaStr).toLocal();
-      return '${fecha.day}/${fecha.month}/${fecha.year}';
-    } catch (_) {
-      return fechaStr;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    // Agrupar elementos por su cabecera de fecha usando FormateadorHistorial
+    Map<String, List<dynamic>> grupos = {};
+    for (var plan in _historialFiltrado) {
+      final fechaRaw = plan['fecha_creacion'] ?? plan['created_at'];
+      final fechaLocal = FormateadorHistorial.parsearAHoraLocal(fechaRaw);
+      final cabecera = FormateadorHistorial.obtenerTituloSeccion(fechaLocal);
+
+      if (!grupos.containsKey(cabecera)) {
+        grupos[cabecera] = [];
+      }
+      grupos[cabecera]!.add(plan);
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFF0B0813),
       body: Container(
