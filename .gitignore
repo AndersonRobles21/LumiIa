@@ -160,3 +160,42 @@ app.*.map.json
 node_modules/
 *.env
 backend/.env
+# =========================
+# GENERAL / OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
+
+# =========================
+# BACKEND (Node.js / Express)
+# =========================
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/build/
+
+# =========================
+# FRONTEND (Flutter / Dart)
+# =========================
+frontend/.dart_tool/
+frontend/.flutter-plugins
+frontend/.flutter-plugins-dependencies
+frontend/.packages
+frontend/build/
+frontend/.pub/
+frontend/pubspec.lock
+
+# Archivos nativos generados o temporales de Flutter
+frontend/ios/Flutter/App.framework
+frontend/ios/Flutter/Flutter.framework
+frontend/ios/Pods/
+frontend/macos/Pods/
+frontend/windows/flutter/ephemeral/
+frontend/linux/flutter/ephemeral/
+
+# Credenciales o configuraciones locales de Flutter
+frontend/android/local.properties
+frontend/android/.gradle/

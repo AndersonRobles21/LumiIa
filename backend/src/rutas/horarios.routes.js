@@ -1,3 +1,5 @@
+
+// horarios.routes.js
 router.post("/horarios", async (req, res) => {
   const { usuario_id, horarios } = req.body; 
   // 'horarios' es un Array: [{ dia: 'lun', hora_inicio: '14:30', hora_fin: '14:50' }]

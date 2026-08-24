@@ -31,10 +31,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _cargarTodo() async {
     setState(() => _isLoading = true);
-    await Future.wait([
-      _cargarPlanes(),
-      _cargarEstadisticas(),
-    ]);
+    await Future.wait([_cargarPlanes(), _cargarEstadisticas()]);
     setState(() => _isLoading = false);
   }
 
@@ -123,7 +120,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 onRefresh: _cargarTodo,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24.0,
+                    vertical: 16.0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -141,7 +141,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.notifications_none, color: Colors.white, size: 26),
+                            icon: const Icon(
+                              Icons.notifications_none,
+                              color: Colors.white,
+                              size: 26,
+                            ),
                             onPressed: () {},
                           ),
                         ],
@@ -177,7 +181,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     await Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (_) => AgregarTareaScreen(userId: widget.userId),
+                                        builder: (_) => AgregarTareaScreen(
+                                          userId: widget.userId,
+                                        ),
                                       ),
                                     );
                                     _cargarPlanes();
@@ -194,17 +200,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                             _isLoading
                                 ? const Center(
-                                    child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
+                                    child: CircularProgressIndicator(
+                                      color: Color(0xFFFF44AA),
+                                    ),
                                   )
                                 : _tareasPendientes.isEmpty
-                                    ? const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 20.0),
-                                        child: Center(
-                                          child: Text(
-                                            'No hay tareas agregadas.\nToca el "+" para crear una.',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(color: Colors.white30, fontSize: 12),
-                                          ),
+                                ? const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 20.0,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        'No hay tareas agregadas.\nToca el "+" para crear una.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          color: Colors.white30,
+                                          fontSize: 12,
                                         ),
                                       )
                                     : ListView.builder(
@@ -262,10 +273,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                   ),
                                                 ],
                                               ),
-                                            ),
-                                          );
-                                        },
-                                      ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),
                           ],
                         ),
                       ),
@@ -302,20 +315,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           Expanded(
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF1F1A3A).withValues(alpha: 0.4),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(color: Colors.white12),
                               ),
                               child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        diaActual == 0 ? '¡EMPIEZA HOY!' : 'MAÑANA DÍA $diaSiguiente',
+                                        diaActual == 0
+                                            ? '¡EMPIEZA HOY!'
+                                            : 'MAÑANA DÍA $diaSiguiente',
                                         style: const TextStyle(
                                           color: Colors.white38,
                                           fontSize: 10,
@@ -324,7 +344,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        diaActual == 0 ? 'DÍA 0' : 'DÍA $diaActual',
+                                        diaActual == 0
+                                            ? 'DÍA 0'
+                                            : 'DÍA $diaActual',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 24,
@@ -384,7 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 28),
 
-                      // IA ESTADÍSTICAS
+                      // IA ESTADISTICAS
                       const Text(
                         'IA Estadisticas',
                         style: TextStyle(
@@ -545,7 +567,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           color: const Color(0xFF1B1437),
           borderRadius: BorderRadius.circular(30),
           boxShadow: const [
-            BoxShadow(color: Colors.black54, blurRadius: 10, offset: Offset(0, 4)),
+            BoxShadow(
+              color: Colors.black54,
+              blurRadius: 10,
+              offset: Offset(0, 4),
+            ),
           ],
         ),
         child: Row(
@@ -572,7 +598,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 );
               },
-              child: const Icon(Icons.psychology_outlined, color: Colors.white38, size: 24),
+              child: const Icon(
+                Icons.psychology_outlined,
+                color: Colors.white38,
+                size: 24,
+              ),
             ),
             GestureDetector(
               onTap: () {
@@ -592,7 +622,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId)),
                 );
               },
-              child: const Icon(Icons.person_outline, color: Colors.white38, size: 24),
+              child: const Icon(
+                Icons.person_outline,
+                color: Colors.white38,
+                size: 24,
+              ),
             ),
           ],
         ),
