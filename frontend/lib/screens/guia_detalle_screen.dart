@@ -9,8 +9,13 @@ import 'spaced_repetition_screen.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
+  final String? userId;
 
-  const GuiaDetalleScreen({super.key, required this.guiaData});
+  const GuiaDetalleScreen({
+    super.key,
+    required this.guiaData,
+    this.userId,
+  });
 
   @override
   State<GuiaDetalleScreen> createState() => _GuiaDetalleScreenState();
@@ -66,99 +71,69 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       final detalle = await ApiService.obtenerPlan(planId.toString());
       if (detalle != null && mounted) {
         setState(() {
-          guiaActual = Map<String, dynamic>.from(detalle);
-          _extraerListasDetalle();
-          _inicializarMensajesChat();
-          _isLoading = false;
+          guiaActual = detalle;
+          subtareas = (detalle['subtareas'] as List?) ?? [];
+          consejos = (detalle['consejos'] as List?) ?? [];
+          recursos = (detalle['recursos'] as List?) ?? [];
         });
+        _sincronizarSubtareasDesdeBackend();
+        _isLoading = false;
         return;
       }
     }
 
     if (mounted) {
       setState(() {
-        guiaActual = Map<String, dynamic>.from(widget.guiaData);
-        _extraerListasDetalle();
-        _inicializarMensajesChat();
-        _isLoading = false;
+        guiaActual = widget.guiaData;
+        subtareas = (guiaActual['subtareas'] as List?) ?? [];
+        consejos = (guiaActual['consejos'] as List?) ?? [];
+        recursos = (guiaActual['recursos'] as List?) ?? [];
       });
+      _sincronizarSubtareasDesdeBackend();
+      _isLoading = false;
     }
   }
 
-  void _extraerListasDetalle() {
-    consejos = (guiaActual['consejos'] as List?) ?? [];
-    recursos = (guiaActual['recursos'] as List?) ?? [];
-    conceptosClave = (guiaActual['conceptos_clave'] as List?) ?? [];
-    preguntasRecall = (guiaActual['preguntas_recall'] as List?) ?? [];
+  Future<void> _sincronizarSubtareasDesdeBackend() async {
+    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+    if (userId.isEmpty) {
+      _actualizarListasEstado();
+      return;
+    }
 
-    fasesPasos = (guiaActual['pasos'] as List?) ?? [];
-    cargandoFases = List.generate(fasesPasos.length, (_) => false);
-  }
+    final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
+    final mapaTitulos = <String, Map<String, dynamic>>{};
 
-  void _inicializarMensajesChat() {
-    final nombrePlan =
-        guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo o Tarea';
-    // LEEMOS DINÁMICAMENTE EL MÉTODO QUE LA IA RECOMENDÓ PARA ESTE PLAN (Sin quemar ninguno)
-    final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
-
-    _mensajes.clear();
-
-    // 1. Mensaje de recursos iniciales
-    String materialIncial =
-        "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
-    if (recursos.isNotEmpty) {
-      for (var i = 0; i < recursos.length; i++) {
-        final rec = recursos[i];
-        final nombreRec =
-            rec['nombre'] ?? rec['titulo'] ?? 'Material de apoyo ${i + 1}';
-        materialIncial += "• ${i + 1}. $nombreRec\n\n";
+    for (final tarea in tareas) {
+      if (tarea is Map) {
+        final tareaMap = Map<String, dynamic>.from(tarea);
+        final nombre = (tareaMap['nombre'] ?? tareaMap['titulo'] ?? '').toString();
+        if (nombre.isNotEmpty) mapaTitulos[nombre.toLowerCase()] = tareaMap;
       }
-    } else {
-      materialIncial +=
-          "• Ten listos tus apuntes, editor de código o libreta de notas antes de comenzar.\n\n";
     }
 
-    if (consejos.isNotEmpty) {
-      materialIncial += "💡 Consejo general de Lumi:\n${consejos.first}";
+    for (int i = 0; i < subtareas.length; i++) {
+      final sub = subtareas[i];
+      if (sub is! Map) continue;
+      final titulo = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
+      final tareaServidor = mapaTitulos[titulo.toLowerCase()];
+
+      if (tareaServidor != null) {
+        sub['id'] = tareaServidor['id'] ?? sub['id'];
+        sub['completada'] = tareaServidor['completada'] == true || (tareaServidor['estado'] ?? '').toString().toUpperCase() == 'COMPLETADA';
+      }
     }
 
-    _mensajes.add({
-      'esBot': true,
-      'texto': materialIncial,
-      'tipo': 'herramientas_iniciales',
-      'listaRecursos': recursos,
-    });
+    _actualizarListasEstado();
+  }
 
-    _mensajes.add({
-      'esBot': true,
-      'texto':
-          '¡Hola! Vamos a empezar a trabajar en tu "$nombrePlan".\n\nHe seleccionado el método **$metodoEstudio** porque es el que mejor se adapta a esta actividad. ¿Deseas mantenerlo o prefieres cambiarlo?',
-      'tipo': 'bienvenida',
-    });
-
-    // RECONSTRUCCIÓN INTELIGENTE DEL HISTORIAL DE CHAT SEGÚN EL PROGRESO GUARDADO
-    bool hayFasesPendientes = false;
-    for (int i = 0; i < fasesPasos.length; i++) {
-      final fase = fasesPasos[i];
-      if (fase is Map) {
-        final subpasos = (fase['subpasos'] as List?) ?? [];
-        bool todosCompletos =
-            subpasos.isNotEmpty &&
-            subpasos.every((sub) => sub['completado'] == true);
-        bool faseCompletaDirecta = fase['completado'] == true;
-
-        if (todosCompletos || faseCompletaDirecta) {
-          _mensajes.add({
-            'esBot': true,
-            'texto':
-                '📋 PASO ${i + 1} DE ${fasesPasos.length}: ${fase['titulo'] ?? 'Paso'}\n\n✅ ¡Fase completada con anterioridad!',
-            'faseIndexChat': i,
-          });
-        } else {
-          _faseActualIndex = i;
-          hayFasesPendientes = true;
-          _mostrarFasePaso(i);
-          break;
+  void _actualizarListasEstado() {
+    tareasCompletadas = List.generate(
+      subtareas.length,
+      (index) {
+        final sub = subtareas[index];
+        if (sub is Map && sub.containsKey('completada')) {
+          return sub['completada'] == true;
         }
       }
     }
@@ -209,32 +184,44 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     }
   }
 
-  Future<void> _actualizarSubpasoFase(
-    int faseIndex,
-    int subpasoIndex,
-    bool? val,
-  ) async {
-    if (faseIndex < fasesPasos.length) {
-      final fase = fasesPasos[faseIndex];
-      final subpasosList = (fase['subpasos'] as List?) ?? [];
-      if (subpasoIndex < subpasosList.length) {
-        subpasosList[subpasoIndex]['completado'] = val ?? false;
-      }
-    }
+  Future<void> _confirmarTarea(int index) async {
+    if (index >= subtareas.length || subtareas[index] is! Map) return;
 
-    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
-    if (planId != null) {
-      await ApiService.actualizarProgresoPlan(
-        planId: planId,
-        pasos: fasesPasos,
-      );
+    final sub = subtareas[index];
+    final tareaId = sub['id'];
+
+    if (tareaId == null) {
+      final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+      if (userId.isNotEmpty) {
+        final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
+        for (final tarea in tareas) {
+          if (tarea is Map) {
+            final nombre = (tarea['nombre'] ?? tarea['titulo'] ?? '').toString();
+            final tituloActual = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
+            if (nombre.toLowerCase() == tituloActual.toLowerCase()) {
+              sub['id'] = tarea['id'];
+              break;
+            }
+          }
+        }
+      }
+
+      if (sub['id'] == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('La tarea no tiene id de base de datos.')),
+        );
+        return;
+      }
     }
 
     setState(() {});
   }
 
-  Future<void> _completarFasePaso(int faseIndex) async {
-    if (faseIndex >= fasesPasos.length) return;
+    final ok = await ApiService.completarTarea(
+      tareaId: sub['id'].toString(),
+      completada: true,
+    );
 
     final fase = fasesPasos[faseIndex];
     final subpasosList = (fase['subpasos'] as List?) ?? [];
@@ -252,147 +239,15 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       return;
     }
 
-    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
-
-    setState(() => cargandoFases[faseIndex] = true);
-
-    fase['completado'] = true;
-    for (var sub in subpasosList) {
-      sub['completado'] = true;
-    }
-
-    if (planId != null) {
-      await ApiService.actualizarProgresoPlan(
-        planId: planId,
-        pasos: fasesPasos,
-      );
-    }
-
-    if (!mounted) return;
-
-    setState(() {
-      cargandoFases[faseIndex] = false;
-
-      _mensajes.add({
-        'esBot': true,
-        'texto': '✅ ¡Paso ${faseIndex + 1} completado y guardado con éxito!',
-      });
-
-      if (faseIndex + 1 < fasesPasos.length) {
-        _faseActualIndex = faseIndex + 1;
-        _mostrarFasePaso(_faseActualIndex);
-      } else {
-        _mensajes.add({
-          'esBot': true,
-          'texto':
-              '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
-        });
-      }
-    });
-  }
-
-  void _mostrarFasePaso(int index) {
-    if (index >= fasesPasos.length) return;
-
-    final fase = fasesPasos[index];
-    final tituloFase = fase['titulo'] ?? 'Paso ${index + 1}';
-    final descFase = fase['descripcion'] ?? '';
-    final consejoPaso = fase['consejo_paso'] ?? fase['consejo'] ?? '';
-    final duracion = fase['duracion_minutos'] ?? 20;
-
-    String mensajePaso =
-        '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
-        '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
-        '⏱️ Tiempo estimado de enfoque: $duracion minutos.';
-
-    if (consejoPaso.toString().isNotEmpty) {
-      mensajePaso += '\n\n💡 Tip clave para este paso:\n$consejoPaso';
+    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
+    if (userId.isNotEmpty) {
+      await ApiService.syncTaskStats(userId);
     }
 
     setState(() {
-      _mensajes.add({
-        'esBot': true,
-        'texto': mensajePaso,
-        'faseIndexChat': index,
-      });
-    });
-  }
-
-  void _explicarFase(int index) {
-    if (index >= fasesPasos.length) return;
-
-    final fase = fasesPasos[index];
-    final tituloFase = fase['titulo'] ?? '';
-    final descFase = fase['descripcion'] ?? '';
-    final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
-
-    final nivel = (_nivelesExplicacionFase[index] ?? 0) + 1;
-    _nivelesExplicacionFase[index] = nivel;
-
-    String explicacionExtensa = "";
-
-    if (nivel == 1) {
-      explicacionExtensa =
-          '🧠 EXPLICACIÓN PROFUNDA (Paso ${index + 1}: $tituloFase)\n\n'
-          '1. Objetivo Metodológico ($metodoEstudio):\n'
-          'En este punto la meta es: $descFase.\n\n'
-          '2. Guía de Ejecución:\n'
-          '• Abre tu entorno de trabajo y céntrate solo en los subpasos indicados arriba.\n'
-          '• Ve marcando cada casilla a medida que los vayas ejecutando.';
-    } else {
-      explicacionExtensa =
-          '🔍 EXPLICACIÓN SENCILLA (Nivel $nivel - Paso ${index + 1})\n\n'
-          'Tranquil@, divide "$tituloFase" en pequeñas acciones de 10 minutos y completa los subpasos uno por uno.';
-    }
-
-    setState(() {
-      _mensajes.add({
-        'esBot': false,
-        'texto': '¿Me explicas mejor el Paso ${index + 1}?',
-      });
-
-      _mensajes.add({
-        'esBot': true,
-        'texto': explicacionExtensa,
-        'faseIndexChat': index,
-      });
-    });
-  }
-
-  void _procesarOpcionRapida(String opcion) {
-    setState(() {
-      _mensajes.add({'esBot': false, 'texto': opcion});
-
-      final opLower = opcion.toLowerCase();
-      String respuestaBot = "";
-
-      if (opLower.contains('paso a paso')) {
-        _mostrarFasePaso(_faseActualIndex);
-        return;
-      } else if (opLower.contains('explica que toca hacer')) {
-        _nivelExplicacionGeneral++;
-        respuestaBot =
-            '📌 EXPLICACIÓN GENERAL DEL TRABAJO\n\n'
-            'Este plan divide tu proyecto en fases independientes. Completa los subpasos de la tarjeta actual para avanzar a la siguiente.';
-      } else if (opLower.contains('qué es este tema') ||
-          opLower.contains('que es este tema')) {
-        final titulo =
-            guiaActual['nombre'] ??
-            guiaActual['titulo'] ??
-            'el tema de tu tarea';
-        respuestaBot =
-            '📚 SOBRE EL TEMA: "$titulo"\n\nEsta actividad abarca conceptos fundamentales según la rúbrica.';
-      } else if (opLower.contains('dame un consejo')) {
-        final consejo = consejos.isNotEmpty
-            ? consejos.first
-            : "Elimina distracciones por los próximos 25 minutos.";
-        respuestaBot = '💡 CONSEJO DE LUMI:\n$consejo';
-      } else {
-        respuestaBot =
-            "Entendido. Selecciona una opción de abajo para continuar.";
-      }
-
-      _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      sub['completada'] = true;
+      tareasCompletadas[index] = true;
+      cargando[index] = false;
     });
   }
 
@@ -449,35 +304,19 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tituloPlan =
-        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+    final tituloPrincipal = (guiaActual['nombre'] ?? guiaActual['titulo'] ?? widget.guiaData['nombre'] ?? widget.guiaData['titulo'] ?? 'Plan de estudio').toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0B1E),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF161331),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
-          onPressed: () => Navigator.pop(context),
+        backgroundColor: Colors.transparent,
+        title: Text(
+          tituloPrincipal,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          overflow: TextOverflow.ellipsis,
         ),
-        title: Row(
-          children: [
-            _buildAvatarLumi(radius: 16),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                tituloPlan,
-                style: const TextStyle(
-                  color: Color(0xFFBD00FF),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           // 🔄 BOTÓN DE REINICIAR PROGRESO
           IconButton(
@@ -586,17 +425,51 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                         faseCargandoEstado = cargandoFases[faseIndexChat];
                       }
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          mainAxisAlignment: esBot
-                              ? MainAxisAlignment.start
-                              : MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (esBot) ...[
-                              _buildAvatarLumi(radius: 16),
-                              const SizedBox(width: 8),
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 20),
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1F1A3A),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: const Color(0xFFFF44AA).withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              isCargando
+                                  ? const SizedBox(
+                                      width: 24,
+                                      height: 24,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Icon(
+                                      isCompletada
+                                          ? Icons.check_circle_outline
+                                          : Icons.radio_button_unchecked,
+                                      color: isCompletada
+                                          ? Colors.greenAccent
+                                          : const Color(0xFFFF44AA),
+                                    ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  sub['titulo'] ?? 'Subtarea',
+                                  style: const TextStyle(
+                                    color: Colors.cyanAccent,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.white38, size: 18),
+                                onPressed: () => _mostrarModalModificarTarea(index),
+                              ),
                             ],
                             Flexible(
                               child: Column(

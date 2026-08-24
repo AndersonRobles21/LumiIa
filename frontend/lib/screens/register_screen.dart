@@ -36,62 +36,94 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // --- FUNCIÓN DE REGISTRO INTEGRADO CON SUPABASE AUTH REAL ---
   void _crearCuenta() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+    if (!_formKey.currentState!.validate()) return;
 
-      try {
-        // PASO 1: Registro real en Supabase Auth para poblar auth.users y generar el UUID real
-        final AuthResponse response = await Supabase.instance.client.auth.signUp(
-          email: _emailController.text.trim(),
-          password: _passwordController.text,
-        );
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
 
-        final user = response.user;
-        if (user == null) {
-          throw Exception('No se pudo crear el usuario en el servicio de autenticación.');
-        }
+    if (!email.contains('@') || !email.contains('.')) {
+      _mostrarError('El correo no tiene un formato válido.');
+      return;
+    }
 
-        // PASO 2: Estructura exacta con las columnas de tu tabla pública
-        final Map<String, dynamic> publicProfileData = {
-          "id": user.id, // El UUID oficial que ya existe en auth.users y cumple la FK
-          "nombre": _nombreController.text.trim(),
-          "apellido": _apellidoController.text.trim().isEmpty 
-              ? null 
-              : _apellidoController.text.trim(),
-          "rol_id": null, 
-        };
+    if (password.length < 6) {
+      _mostrarError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
 
-        // PASO 3: Mandamos el perfil público a tu Node.js con tu pg Pool
-        bool success = await ApiService.register(publicProfileData);
-        
-        if (!mounted) return;
+    if (password != confirmPassword) {
+      _mostrarError('Las contraseñas no coinciden.');
+      return;
+    }
 
-        if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('¡Cuenta registrada exitosamente en LUMI!', style: GoogleFonts.orbitron()),
-              backgroundColor: const Color(0xFF102CE4),
-            ),
-          );
-          Navigator.pop(context); // Regresa al Login limpiamente
-        } else {
-          throw Exception('Autenticación creada, pero el servidor Node.js rechazó el perfil.');
-        }
-      } catch (e) {
-        if (!mounted) return;
+    setState(() => _isLoading = true);
 
+    try {
+      // PASO 1: Registro real en Supabase Auth para poblar auth.users y generar el UUID real
+      final AuthResponse response = await Supabase.instance.client.auth.signUp(
+        email: email,
+        password: password,
+      );
+
+      final user = response.user;
+      if (user == null) {
+        throw Exception('No se pudo crear el usuario en el servicio de autenticación.');
+      }
+
+      // PASO 2: Estructura exacta con las columnas de tu tabla pública
+      final Map<String, dynamic> publicProfileData = {
+        "id": user.id, // El UUID oficial que ya existe en auth.users y cumple la FK
+        "nombre": _nombreController.text.trim(),
+        "apellido": _apellidoController.text.trim().isEmpty
+            ? null
+            : _apellidoController.text.trim(),
+        "rol_id": null,
+      };
+
+      // PASO 3: Mandamos el perfil público a tu Node.js con tu pg Pool
+      bool success = await ApiService.register(publicProfileData);
+
+      if (!mounted) return;
+
+      if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString().replaceAll('Exception: ', '')}', 
-              style: GoogleFonts.orbitron(fontSize: 12)
-            ),
-            backgroundColor: Colors.redAccent,
+            content: Text('¡Cuenta registrada exitosamente en LUMI!', style: GoogleFonts.orbitron()),
+            backgroundColor: const Color(0xFF102CE4),
           ),
         );
-      } finally {
-        if (mounted) setState(() => _isLoading = false);
+        Navigator.pop(context); // Regresa al Login limpiamente
+      } else {
+        throw Exception('Autenticación creada, pero el servidor Node.js rechazó el perfil.');
       }
+    } on AuthException catch (e) {
+      final message = e.message;
+      if (!mounted) return;
+      _mostrarError(message.contains('already')
+          ? 'Este correo ya está registrado.'
+          : message.isNotEmpty
+              ? message
+              : 'No se pudo crear la cuenta. Revisa el correo y la contraseña.');
+    } catch (e) {
+      if (!mounted) return;
+      _mostrarError(e.toString().replaceAll('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _mostrarError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Error: $message',
+          style: GoogleFonts.orbitron(fontSize: 12),
+        ),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
   }
 
   @override
