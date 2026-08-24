@@ -1,6 +1,64 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';
+
+
+class FormateadorHistorial {
+  /// Parsea cualquier string de fecha forzando la conversión UTC a hora local
+  static DateTime parsearAHoraLocal(dynamic fechaRaw) {
+    if (fechaRaw == null) return DateTime.now();
+
+    if (fechaRaw is DateTime) {
+      return fechaRaw.toLocal();
+    }
+
+    String fechaStr = fechaRaw.toString().trim();
+    if (fechaStr.isEmpty) return DateTime.now();
+
+    try {
+      // Si la fecha viene del backend tipo "2026-08-24 08:50:00" o "2026-08-24T08:50:00",
+      // aseguramos el formato ISO añadiendo 'T' si falta y 'Z' al final para marcar UTC.
+      if (!fechaStr.contains('T') && fechaStr.contains(' ')) {
+        fechaStr = fechaStr.replaceAll(' ', 'T');
+      }
+      if (!fechaStr.endsWith('Z') && !fechaStr.contains('+')) {
+        fechaStr += 'Z';
+      }
+
+      // Al parsear un string con 'Z', Dart entiende 100% que es UTC 
+      // y .toLocal() aplica la resta exacta a hora Colombia (UTC-5)
+      return DateTime.parse(fechaStr).toLocal();
+    } catch (_) {
+      return DateTime.now();
+    }
+  }
+
+  /// Retorna la cabecera de la sección: "HOY", "AYER" o "dd/MM/yyyy"
+  static String obtenerTituloSeccion(DateTime fechaLocal) {
+    final ahora = DateTime.now();
+
+    final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+    final fechaNormalizada =
+        DateTime(fechaLocal.year, fechaLocal.month, fechaLocal.day);
+
+    final diferenciaDias = hoy.difference(fechaNormalizada).inDays;
+
+    if (diferenciaDias == 0) {
+      return 'HOY';
+    } else if (diferenciaDias == 1) {
+      return 'AYER';
+    } else {
+      return DateFormat('dd/MM/yyyy').format(fechaLocal);
+    }
+  }
+
+  /// Formatea la hora individual en formato 12 horas AM/PM exacto (ej: 3:54 AM)
+  static String obtenerHoraFormateada(DateTime fechaLocal) {
+    return DateFormat('h:mm a').format(fechaLocal);
+  }
+}
 
 class HistorialIAScreen extends StatefulWidget {
   final String userId;
@@ -14,11 +72,20 @@ class HistorialIAScreen extends StatefulWidget {
 class _HistorialIAScreenState extends State<HistorialIAScreen> {
   bool _isLoading = true;
   List<dynamic> _historial = [];
+  List<dynamic> _historialFiltrado = [];
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _cargarHistorial();
+    _searchController.addListener(_filtrarHistorial);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarHistorial() async {
@@ -29,18 +96,28 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
     if (mounted) {
       setState(() {
         _historial = lista ?? [];
+        _historialFiltrado = _historial;
         _isLoading = false;
       });
     }
   }
 
+  void _filtrarHistorial() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      _historialFiltrado = _historial.where((plan) {
+        final nombre = (plan['nombre'] ?? '').toLowerCase();
+        final descripcion = (plan['descripcion'] ?? '').toLowerCase();
+        return nombre.contains(query) || descripcion.contains(query);
+      }).toList();
+    });
+  }
+
   Future<void> _abrirPlan(String planId) async {
     setState(() => _isLoading = true);
-
     final plan = await ApiService.obtenerPlan(planId);
 
     if (!mounted) return;
-
     setState(() => _isLoading = false);
 
     if (plan == null) {
@@ -54,148 +131,206 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
 
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => GuiaDetalleScreen(guiaData: plan),
-      ),
+      MaterialPageRoute(builder: (_) => GuiaDetalleScreen(guiaData: plan)),
     );
-  }
-
-  String _formatFecha(String fechaStr) {
-    try {
-      final fecha = DateTime.parse(fechaStr).toLocal();
-      return '${fecha.day}/${fecha.month}/${fecha.year}';
-    } catch (_) {
-      return fechaStr;
-    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Agrupar elementos por su cabecera de fecha usando FormateadorHistorial
+    Map<String, List<dynamic>> grupos = {};
+    for (var plan in _historialFiltrado) {
+      final fechaRaw = plan['fecha_creacion'] ?? plan['created_at'];
+      final fechaLocal = FormateadorHistorial.parsearAHoraLocal(fechaRaw);
+      final cabecera = FormateadorHistorial.obtenerTituloSeccion(fechaLocal);
+
+      if (!grupos.containsKey(cabecera)) {
+        grupos[cabecera] = [];
+      }
+      grupos[cabecera]!.add(plan);
+    }
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: const Color(0xFF0D0B1E),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Historial IA'),
+        elevation: 0,
         centerTitle: true,
+        title: const Text(
+          'Historial IA',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: RefreshIndicator(
-        color: const Color(0xFFFF44AA),
+        color: const Color(0xFF00F0FF),
         onRefresh: _cargarHistorial,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 10),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1F1A3A).withOpacity(0.4),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24, width: 1),
+              Center(
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Image.asset(
+                    'logo/historial_lumi.png',
+                    height: 190,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Icon(Icons.smart_toy, size: 90, color: Color(0xFF00F0FF)),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Aquí verás tus planes de IA generados previamente.',
-                      style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Selecciona uno para revisarlo en detalle.',
-                      style: TextStyle(
-                        color: Colors.white30,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+              ),
+              const SizedBox(height: 24),
+
+              // Buscador
+              TextField(
+                controller: _searchController,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'Buscar conversaciones con Lumi',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFF8B87BA),
+                    fontSize: 14,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Color(0xFF8B87BA),
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFF1A1736),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 ),
               ),
               const SizedBox(height: 20),
+
+              // Listado agrupado por fechas
               if (_isLoading)
                 const Center(
-                  child: CircularProgressIndicator(color: Color(0xFFFF44AA)),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+                  ),
                 )
-              else if (_historial.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 40),
+              else if (_historialFiltrado.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
                     child: Text(
-                      'No hay planes de IA guardados aún.',
+                      'No hay registros en el historial.',
                       style: TextStyle(color: Colors.white38, fontSize: 14),
-                      textAlign: TextAlign.center,
                     ),
                   ),
                 )
               else
-                ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _historial.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final plan = _historial[index];
-                    final fecha = plan['fecha_creacion'] != null
-                        ? _formatFecha(plan['fecha_creacion'].toString())
-                        : '';
-                    return GestureDetector(
-                      onTap: () {
-                        final planId = plan['id']?.toString();
-                        if (planId != null) {
-                          _abrirPlan(planId);
-                        }
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1F1A3A),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              plan['nombre'] ?? 'Plan de estudio',
-                              style: const TextStyle(
-                                color: Colors.cyanAccent,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              plan['descripcion'] ?? '',
-                              style: const TextStyle(color: Colors.white70, fontSize: 13),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 10),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  plan['metodo_estudio'] ?? '',
-                                  style: const TextStyle(color: Colors.white38, fontSize: 12),
-                                ),
-                                Text(
-                                  fecha,
-                                  style: const TextStyle(color: Colors.white38, fontSize: 12),
-                                ),
-                              ],
-                            ),
-                          ],
+                ...grupos.entries.map((entry) {
+                  String fechaTitulo = entry.key;
+                  List<dynamic> planesDelDia = entry.value;
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Encabezado del Grupo (HOY, AYER, DD/MM/YYYY)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          fechaTitulo,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            letterSpacing: 1.1,
+                          ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                      const SizedBox(height: 6),
+                      
+                      // Tarjetas de planes
+                      ...planesDelDia.map((plan) {
+                        final fechaRaw = plan['fecha_creacion'] ?? plan['created_at'];
+                        final fechaLocal = FormateadorHistorial.parsearAHoraLocal(fechaRaw);
+                        final horaFormateada = FormateadorHistorial.obtenerHoraFormateada(fechaLocal);
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: GestureDetector(
+                            onTap: () {
+                              final planId = plan['id']?.toString();
+                              if (planId != null) _abrirPlan(planId);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 16,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1A1736),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withOpacity(0.05),
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          plan['nombre'] ??
+                                              'Trabajo de flutter',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          plan['descripcion'] ??
+                                              'Desarrollo de app educativa',
+                                          style: const TextStyle(
+                                            color: Color(0xFF9E9AC8),
+                                            fontSize: 12,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    horaFormateada,
+                                    style: const TextStyle(
+                                      color: Color(0xFF9E9AC8),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                      const SizedBox(height: 10),
+                    ],
+                  );
+                }),
             ],
           ),
         ),
