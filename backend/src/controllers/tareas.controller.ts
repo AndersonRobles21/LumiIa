@@ -1,6 +1,20 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 
+const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+
+function esUuidValido(valor: string | undefined | null): boolean {
+  if (typeof valor !== "string") return false;
+  return UUID_REGEX.test(valor.trim());
+}
+
+function obtenerParametroUnico(valor: string | string[] | undefined): string {
+  if (Array.isArray(valor)) {
+    return valor[0] ?? "";
+  }
+  return valor ?? "";
+}
+
 function mapTareaRow(row: any) {
   return {
     id: row.id,
@@ -8,6 +22,7 @@ function mapTareaRow(row: any) {
     descripcion: row.descripcion ?? "",
     estado: row.estado ?? (row.completada ? "COMPLETADA" : "PENDIENTE"),
     fecha_creacion: row.fecha_creacion ?? new Date().toISOString(),
+    fecha_entrega: row.fecha_entrega ?? row.fecha ?? null,
     completada: row.completada ?? false,
   };
 }
@@ -121,11 +136,19 @@ export async function crearTarea(req: Request, res: Response): Promise<any> {
       });
     }
 
-    const usuarioId = typeof req.params.userId === "string" && req.params.userId.trim() !== ""
-      ? req.params.userId.trim()
+    const usuarioIdParam = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    const usuarioId = usuarioIdParam !== ""
+      ? usuarioIdParam
       : payload.usuario_id;
 
     if (!usuarioId) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Se requiere un usuario válido para crear la tarea.",
+      });
+    }
+
+    if (usuarioIdParam !== "" && !esUuidValido(usuarioIdParam)) {
       return res.status(400).json({
         ok: false,
         mensaje: "Se requiere un usuario válido para crear la tarea.",
@@ -175,9 +198,9 @@ export async function obtenerTareasPorUsuario(
   res: Response
 ): Promise<any> {
   try {
-    const { userId } = req.params;
+    const userId = obtenerParametroUnico(req.params.userId);
 
-    if (!userId) {
+    if (!esUuidValido(userId)) {
       return res.status(400).json({
         ok: false,
         mensaje: "Se requiere un usuario válido.",
@@ -195,6 +218,7 @@ export async function obtenerTareasPorUsuario(
           ELSE 'PENDIENTE'
         END AS estado,
         NOW()::timestamp AS fecha_creacion,
+        a.fecha AS fecha_entrega,
         t.completada
       FROM tareas t
       LEFT JOIN actividades a ON a.id = t.actividad_id
@@ -224,22 +248,31 @@ export async function obtenerTareaPorId(
   res: Response
 ): Promise<any> {
   try {
-    const { tareaId } = req.params;
+    const tareaId = obtenerParametroUnico(req.params.tareaId);
+
+    if (!esUuidValido(tareaId)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Identificador de tarea inválido.",
+      });
+    }
 
     const resultado = await pool.query(
       `
       SELECT
-        id,
-        titulo AS nombre,
-        descripcion,
+        t.id,
+        t.titulo AS nombre,
+        t.descripcion,
         CASE
-          WHEN completada THEN 'COMPLETADA'
+          WHEN t.completada THEN 'COMPLETADA'
           ELSE 'PENDIENTE'
         END AS estado,
         NOW()::timestamp AS fecha_creacion,
-        completada
-      FROM tareas
-      WHERE id = $1
+        a.fecha AS fecha_entrega,
+        t.completada
+      FROM tareas t
+      LEFT JOIN actividades a ON a.id = t.actividad_id
+      WHERE t.id = $1
       `,
       [tareaId]
     );
@@ -270,7 +303,15 @@ export async function actualizarTarea(
   res: Response
 ): Promise<any> {
   try {
-    const { tareaId } = req.params;
+    const tareaId = obtenerParametroUnico(req.params.tareaId);
+
+    if (!esUuidValido(tareaId)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Identificador de tarea inválido.",
+      });
+    }
+
     const payload = normalizarTareaPayload(req.body);
 
     if ("error" in payload) {
@@ -324,7 +365,14 @@ export async function eliminarTarea(
   res: Response
 ): Promise<any> {
   try {
-    const { tareaId } = req.params;
+    const tareaId = obtenerParametroUnico(req.params.tareaId);
+
+    if (!esUuidValido(tareaId)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Identificador de tarea inválido.",
+      });
+    }
 
     const resultado = await pool.query(
       `
@@ -361,7 +409,15 @@ export async function completarTarea(
   res: Response
 ): Promise<any> {
   try {
-    const { tareaId } = req.params;
+    const tareaId = obtenerParametroUnico(req.params.tareaId);
+
+    if (!esUuidValido(tareaId)) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "Identificador de tarea inválido.",
+      });
+    }
+
     const { completada } = req.body;
 
     if (typeof completada !== "boolean") {
@@ -386,6 +442,53 @@ export async function completarTarea(
         ok: false,
         mensaje: "Tarea no encontrada.",
       });
+    }
+
+    const userResult = await pool.query(
+      `
+      SELECT p.usuario_id
+      FROM tareas t
+      JOIN actividades a ON a.id = t.actividad_id
+      JOIN planes_estudio p ON p.id = a.plan_id
+      WHERE t.id = $1
+      LIMIT 1
+      `,
+      [tareaId]
+    );
+
+    const userId = userResult.rows[0]?.usuario_id;
+    if (userId) {
+      const statsResult = await pool.query(
+        `
+        SELECT
+          COUNT(*) AS total_tareas,
+          COUNT(*) FILTER (WHERE t.completada = true) AS tareas_completadas
+        FROM tareas t
+        JOIN actividades a ON a.id = t.actividad_id
+        JOIN planes_estudio p ON p.id = a.plan_id
+        WHERE p.usuario_id = $1
+        `,
+        [userId]
+      );
+
+      const totalTareas = Number(statsResult.rows[0]?.total_tareas ?? 0);
+      const tareasCompletadas = Number(statsResult.rows[0]?.tareas_completadas ?? 0);
+
+      await pool.query(
+        `
+        INSERT INTO estadisticas (usuario_id, tareas_completadas, racha, horas_estudio)
+        VALUES ($1, $2, 0, 0)
+        ON CONFLICT (usuario_id) DO UPDATE SET tareas_completadas = EXCLUDED.tareas_completadas
+        `,
+        [userId, tareasCompletadas]
+      );
+
+      if (totalTareas === 0) {
+        await pool.query(
+          `UPDATE estadisticas SET tareas_completadas = 0 WHERE usuario_id = $1`,
+          [userId]
+        );
+      }
     }
 
     return res.status(200).json({

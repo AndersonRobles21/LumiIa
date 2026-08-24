@@ -31,6 +31,20 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> syncTaskStats(String userId) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/estadisticas/$userId/tareas'),
+        headers: {'Content-Type': 'application/json'},
+      );
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error en ApiService syncTaskStats: $e');
+      return null;
+    }
+  }
+
   /*
   ============================
   UPDATE PROFILE
