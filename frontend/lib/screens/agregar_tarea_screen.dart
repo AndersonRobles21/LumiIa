@@ -80,10 +80,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
       await Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => GuiaDetalleScreen(
-            guiaData: resultado['plan'],
-            userId: widget.userId,
-          ),
+          builder: (_) => GuiaDetalleScreen(guiaData: resultado['plan']),
         ),
       );
 
