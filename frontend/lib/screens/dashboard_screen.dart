@@ -64,7 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     setState(() => isLoading = false);
 
-    // Mostrar diálogo de racha solo si no se ha mostrado hoy
+    // Mostrar bottom sheet de racha solo si no se ha mostrado hoy
     final lastShownDate = prefs.getString('last_streak_dialog_${widget.userId}');
     final today = DateTime.now().toIso8601String().split('T')[0];
 
@@ -99,11 +99,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // OBTENER EL PLAN COMPLETO PARA TENER LOS PASOS ACTUALIZADOS
       final planCompleto = await ApiService.obtenerPlan(planId);
-      
+
       double progress = 0.0;
       bool allCompleted = false;
 
-      if (planCompleto != null && planCompleto['pasos'] != null && planCompleto['pasos'] is List) {
+      if (planCompleto != null &&
+          planCompleto['pasos'] != null &&
+          planCompleto['pasos'] is List) {
         final pasos = planCompleto['pasos'] as List;
         if (pasos.isNotEmpty) {
           int totalSubpasos = 0;
@@ -132,31 +134,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final completedTimeStr = prefs.getString(completedKey);
 
         if (completedTimeStr == null) {
-          // Primera vez que se completa, guardar la hora
           await prefs.setString(completedKey, now.toIso8601String());
-          print('✅ Plan $planId completado al 100% - guardando hora: ${now.toIso8601String()}');
         } else {
-          // Ya se había completado antes, verificar si han pasado 5 horas
           final completedTime = DateTime.parse(completedTimeStr);
           final difference = now.difference(completedTime);
 
-          print('⏰ Plan $planId - Tiempo desde completado: ${difference.inHours} horas');
-
           if (difference.inHours >= 5) {
-            // Han pasado 5 horas, ocultar el plan
-            print('🚫 Plan $planId - Ocultando después de 5 horas');
             continue;
-          } else {
-            // Aún no han pasado 5 horas, mostrar con 100%
-            print('⏳ Plan $planId - Mostrando al 100%, faltan ${5 - difference.inHours} horas para ocultar');
           }
         }
       } else {
-        // Si el plan NO está al 100%, eliminar la marca de completado
         final completedKey = 'plan_completed_time_$planId';
         if (prefs.containsKey(completedKey)) {
           await prefs.remove(completedKey);
-          print('🔄 Plan $planId - Reiniciado, eliminando marca de completado');
         }
       }
 
@@ -228,124 +218,164 @@ class _DashboardScreenState extends State<DashboardScreen> {
     setState(() {});
   }
 
+  // ──────────────────────────────────────────────
+  // STREAK BOTTOM SHEET — aparece solo una vez/día
+  // Solo muestra la parte de la racha (pestaña pequeña),
+  // NO duplica el header/saludo/plan del dashboard.
+  // ──────────────────────────────────────────────
   void _showStreakDialog() {
-    showDialog(
+    showModalBottomSheet(
       context: context,
-      barrierDismissible: false,
-      barrierColor: Colors.black.withOpacity(0.75),
-      builder: (BuildContext dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-          child: Container(
-            padding: const EdgeInsets.all(20),
+      isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withOpacity(0.0),
+      builder: (BuildContext sheetContext) {
+        return _buildStreakBottomSheet(sheetContext);
+      },
+    );
+  }
+
+  Widget _buildStreakBottomSheet(BuildContext sheetContext) {
+    return Container(
+      padding: const EdgeInsets.only(top: 16, bottom: 24),
+      decoration: const BoxDecoration(
+        color: Color(0xFF100B2C),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // ── Manija (drag handle) ──
+          Container(
+            width: 40,
+            height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFF17122F),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: const Color(0xFF2B2251)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Image.asset(
-                  'logo/racha.png',
-                  height: 110,
-                  width: 110,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.local_fire_department,
-                    size: 90,
-                    color: Color(0xFFFF9D00),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '$activeStreak ${activeStreak == 1 ? 'Racha activa !' : 'Rachas activas !'}',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Completar una lección al día como rutina.',
-                  style: TextStyle(
-                    color: Color(0xFFBDB5D6),
-                    fontSize: 12,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 20),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(
-                    weekDays.length,
-                    (index) {
-                      final isCompleted = completedDays[index];
-                      return Column(
-                        children: [
-                          Text(
-                            weekDays[index],
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          SizedBox(
-                            height: 28,
-                            width: 28,
-                            child: isCompleted
-                                ? Image.asset(
-                                    'logo/racha.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.local_fire_department,
-                                      size: 24,
-                                      color: Color(0xFFFF9D00),
-                                    ),
-                                  )
-                                : Container(
-                                    decoration: const BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Color(0xFF2B2251),
-                                    ),
-                                  ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD72CFA),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                    child: const Text(
-                      'Seguir Aprendiendo',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-        );
-      },
+
+          const SizedBox(height: 18),
+
+          // ── Llama de fuego ──
+          Image.asset(
+            'logo/racha.png',
+            height: 80,
+            width: 80,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Text(
+              '🔥',
+              style: TextStyle(fontSize: 64),
+            ),
+          ),
+
+          const SizedBox(height: 8),
+
+          // ── Conteo de racha ──
+          Text(
+            '$activeStreak Racha activa !',
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'Completar una lección al día como rutina.',
+              style: TextStyle(color: Color(0xFFBDB5D6), fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ),
+
+          const SizedBox(height: 18),
+
+          // ── Días de la semana ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(weekDays.length, (index) {
+                final isCompleted = completedDays[index];
+                return Column(
+                  children: [
+                    Text(
+                      weekDays[index],
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    SizedBox(
+                      height: 30,
+                      width: 30,
+                      child: isCompleted
+                          ? Image.asset(
+                              'logo/racha.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => const Icon(
+                                Icons.local_fire_department,
+                                size: 24,
+                                color: Color(0xFFFF9D00),
+                              ),
+                            )
+                          : Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF2B2251),
+                                border: Border.all(
+                                  color: const Color(0xFF4B9EFF),
+                                  width: 2,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.water_drop,
+                                size: 14,
+                                color: Color(0xFF4B9EFF),
+                              ),
+                            ),
+                    ),
+                  ],
+                );
+              }),
+            ),
+          ),
+
+          const SizedBox(height: 22),
+
+          // ── Botón Seguir Aprendiendo ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(sheetContext).pop(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD72CFA),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                ),
+                child: const Text(
+                  'Seguir Aprendiendo',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -383,7 +413,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
     );
 
-    // Recargar planes después de ver el detalle para actualizar el progreso
     await _loadActivePlans();
   }
 

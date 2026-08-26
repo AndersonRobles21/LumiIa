@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import 'app_bottom_navbar.dart';
 
+const String kLumiProgresoAsset = 'logo/Lumi_progreso.png';
+
 class ProgresoScreen extends StatefulWidget {
   final String userId;
   const ProgresoScreen({super.key, required this.userId});
@@ -21,13 +23,13 @@ class _Categoria {
 class _ProgresoScreenState extends State<ProgresoScreen> {
   bool _isLoading = true;
 
-  double _horasEstudio = 0;
+  double _horasEstudio = 0.0;
   int _tareasCompletadas = 0;
   int _tareasFaltantes = 0;
   int _racha = 0;
-  List<double> _horasPorDia = List.filled(7, 0);
+  List<double> _horasPorDia = List.filled(7, 0.0);
   String _mejorDia = '';
-  double _mejorHoras = 0;
+  double _mejorHoras = 0.0;
 
   static const List<String> _diasSemana = [
     'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom',
@@ -38,10 +40,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
   ];
 
   List<_Categoria> _distribucion = const [
-    _Categoria('Estudio profundo', 55, Color(0xFF007EFF)),
-    _Categoria('Repasos', 25, Color(0xFF7000FF)),
-    _Categoria('Práctica', 15, Color(0xFFFF2A85)),
-    _Categoria('Otros', 5, Color(0xFFFFB800)),
+    _Categoria('Estudio profundo', 50, Color(0xFF007EFF)),
+    _Categoria('Repasos y tareas', 30, Color(0xFF7000FF)),
+    _Categoria('Práctica y Pomodoro', 20, Color(0xFFFF2A85)),
   ];
 
   @override
@@ -62,74 +63,143 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     final inicioNormalizado = DateTime(inicioSemana.year, inicioSemana.month, inicioSemana.day);
     final finNormalizado = inicioNormalizado.add(const Duration(days: 7));
 
-    return fechaNormalizada.isAtSameMomentAs(inicioNormalizado) ||
-        (fechaNormalizada.isAfter(inicioNormalizado) && fechaNormalizada.isBefore(finNormalizado));
+    return (fechaNormalizada.isAtSameMomentAs(inicioNormalizado) || fechaNormalizada.isAfter(inicioNormalizado)) &&
+        fechaNormalizada.isBefore(finNormalizado);
   }
 
   Future<void> _cargarDatos() async {
     setState(() => _isLoading = true);
 
-    final resultados = await Future.wait([
-      ApiService.getEstadisticas(widget.userId),
-      ApiService.getPlanesEstudio(widget.userId),
-    ]);
+    try {
+      final resultados = await Future.wait([
+        ApiService.getEstadisticas(widget.userId),
+        ApiService.getPlanesEstudio(widget.userId),
+        ApiService.obtenerHistorial(widget.userId),
+      ]);
 
-    final stats = resultados[0] as Map<String, dynamic>?;
-    final tareasRaw = resultados[1] as List<dynamic>?;
+      final stats = resultados[0] as Map<String, dynamic>?;
+      final tareasRaw = resultados[1] as List<dynamic>?;
+      final historialRaw = resultados[2] as List<dynamic>?;
 
-    final tareas = (tareasRaw ?? [])
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+      int completadas = 0;
+      int faltantes = 0;
+      double totalHorasReales = 0.0;
+      final List<double> horasPorDia = List.filled(7, 0.0);
+      final ahora = DateTime.now();
 
-    final completadas = tareas.where(_estaCompletada).toList();
-    final faltantes = tareas.length - completadas.length;
+      // 1. PROCESAR TAREAS MANUALES
+      final tareas = (tareasRaw ?? [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
 
-    final horas = double.tryParse('${stats?['horas_estudio'] ?? 0}') ?? 0;
-    final racha = (stats?['racha'] as int?) ?? 0;
-
-    final conteoPorDia = List<int>.filled(7, 0);
-    for (final t in completadas) {
-      final raw = t['fecha_entrega'] ?? t['fecha_creacion'];
-      final fecha = DateTime.tryParse('$raw');
-      if (fecha != null && _esDeEstaSemana(fecha)) {
-        conteoPorDia[fecha.weekday - 1]++;
+      for (final t in tareas) {
+        final estaComp = _estaCompletada(t);
+        if (estaComp) {
+          completadas++;
+          totalHorasReales += 1.0;
+          final raw = t['fecha_entrega'] ?? t['fecha'] ?? t['fecha_creacion'] ?? t['created_at'];
+          final fecha = DateTime.tryParse('$raw');
+          if (fecha != null && _esDeEstaSemana(fecha)) {
+            final idx = (fecha.weekday - 1).clamp(0, 6);
+            horasPorDia[idx] += 1.0;
+          }
+        } else {
+          faltantes++;
+        }
       }
-    }
 
-    final totalConteo = conteoPorDia.fold<int>(0, (a, b) => a + b);
+      // 2. PROCESAR PLANES Y TRABAJOS DE IA
+      for (final h in (historialRaw ?? [])) {
+        if (h is! Map) continue;
+        final planId = h['id']?.toString();
+        if (planId == null) continue;
 
-    List<double> horasPorDia;
-    if (horas > 0 && totalConteo > 0) {
-      horasPorDia = List<double>.generate(7, (i) {
-        return horas * (conteoPorDia[i] / totalConteo);
+        final tiempoEstimadoMin = (h['tiempo_estimado_total'] as num?)?.toInt() ?? 60;
+        final duracionHoras = double.parse((tiempoEstimadoMin / 60.0).toStringAsFixed(1));
+
+        final estado = (h['estado'] ?? '').toString().toUpperCase();
+        bool planTerminado = estado == 'COMPLETADO' || estado == 'FINALIZADO';
+
+        // Consultar progreso de pasos del plan
+        final planCompleto = await ApiService.obtenerPlan(planId);
+        if (planCompleto != null && planCompleto['pasos'] is List) {
+          final pasos = planCompleto['pasos'] as List;
+          if (pasos.isNotEmpty) {
+            int totalSub = 0;
+            int compSub = 0;
+            for (var p in pasos) {
+              if (p['subpasos'] is List) {
+                final subList = p['subpasos'] as List;
+                totalSub += subList.length;
+                compSub += subList.where((s) => s['completado'] == true || s['completado'] == 1).length;
+              }
+            }
+            if (totalSub > 0) {
+              planTerminado = (compSub / totalSub) >= 1.0;
+            }
+          }
+        }
+
+        if (planTerminado) {
+          completadas++;
+          totalHorasReales += duracionHoras;
+          final rawFecha = h['fecha_creacion'] ?? h['fecha_entrega'];
+          final fecha = DateTime.tryParse('$rawFecha');
+          if (fecha != null && _esDeEstaSemana(fecha)) {
+            final idx = (fecha.weekday - 1).clamp(0, 6);
+            horasPorDia[idx] += duracionHoras;
+          } else {
+            final hoyIdx = (ahora.weekday - 1).clamp(0, 6);
+            horasPorDia[hoyIdx] += duracionHoras;
+          }
+        } else {
+          faltantes++;
+        }
+      }
+
+      final racha = (stats?['racha'] as num?)?.toInt() ?? 0;
+
+      // Si no hay horas calculadas, usar valor lógico
+      final horasFinales = totalHorasReales > 0
+          ? double.parse(totalHorasReales.toStringAsFixed(1))
+          : (completadas > 0 ? double.parse((completadas * 1.5).toStringAsFixed(1)) : 0.0);
+
+      // Encontrar el día más activo
+      double maxHoras = 0.0;
+      int mejorDiaIndex = -1;
+      for (int i = 0; i < horasPorDia.length; i++) {
+        horasPorDia[i] = double.parse(horasPorDia[i].toStringAsFixed(1));
+        if (horasPorDia[i] > maxHoras) {
+          maxHoras = horasPorDia[i];
+          mejorDiaIndex = i;
+        }
+      }
+
+      final totalItems = completadas + faltantes;
+      final distribucion = <_Categoria>[
+        _Categoria('Estudio profundo', totalItems > 0 ? 55 : 50, const Color(0xFF007EFF)),
+        _Categoria('Repasos y tareas', completadas > 0 ? 30 : 35, const Color(0xFF7000FF)),
+        _Categoria('Práctica y Pomodoro', 15, const Color(0xFFFF2A85)),
+      ];
+
+      if (!mounted) return;
+      setState(() {
+        _horasEstudio = horasFinales;
+        _tareasCompletadas = completadas;
+        _tareasFaltantes = faltantes;
+        _racha = racha;
+        _horasPorDia = horasPorDia;
+        _mejorDia = (mejorDiaIndex >= 0 && maxHoras > 0) ? _diasCompletos[mejorDiaIndex] : '';
+        _mejorHoras = maxHoras;
+        _distribucion = distribucion;
+        _isLoading = false;
       });
-    } else if (horas > 0) {
-      horasPorDia = List<double>.filled(7, horas / 7);
-    } else {
-      horasPorDia = [4, 2, 5, 3, 6, 1, 0];
+    } catch (e) {
+      debugPrint('Error en ProgresoScreen: $e');
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
-
-    double maxHoras = 0;
-    int mejorDiaIndex = 0;
-    for (int i = 0; i < horasPorDia.length; i++) {
-      if (horasPorDia[i] > maxHoras) {
-        maxHoras = horasPorDia[i];
-        mejorDiaIndex = i;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      _horasEstudio = horas;
-      _tareasCompletadas = (stats?['tareas_completadas'] as int?) ?? completadas.length;
-      _tareasFaltantes = faltantes < 0 ? 0 : faltantes;
-      _racha = racha;
-      _horasPorDia = horasPorDia;
-      _mejorDia = _diasCompletos[mejorDiaIndex];
-      _mejorHoras = maxHoras;
-      _isLoading = false;
-    });
   }
 
   String _formatearHoras(double horas) {
@@ -173,10 +243,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                       )
                     : ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 110),
+                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
                         children: [
                           _buildHeader(),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 18),
                           _buildTopSectionGrid(),
                           const SizedBox(height: 20),
                           _buildGraficaCard(),
@@ -193,46 +263,27 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // ENCABEZADO
+  // ---------------------------------------------------------------------------
   Widget _buildHeader() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Tu Progreso',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            letterSpacing: -0.5,
-          ),
+    return const Padding(
+      padding: EdgeInsets.only(top: 4, bottom: 4),
+      child: Text(
+        'Tu Progreso',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 28,
+          fontWeight: FontWeight.bold,
+          letterSpacing: -0.5,
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1F1B4E).withOpacity(0.8),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.12)),
-          ),
-          child: const Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Esta semana',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, color: Colors.white70, size: 16),
-            ],
-          ),
-        ),
-      ],
+      ),
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // GRID SUPERIOR
+  // ---------------------------------------------------------------------------
   Widget _buildTopSectionGrid() {
     return IntrinsicHeight(
       child: Row(
@@ -367,7 +418,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ),
           ),
           const Text(
-            'en total esta semana',
+            'en total acumuladas',
             style: TextStyle(
               color: Color(0xFF867DAE),
               fontSize: 10,
@@ -386,7 +437,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 const Text('🔥', style: TextStyle(fontSize: 10)),
                 const SizedBox(width: 4),
                 Text(
-                  '$_racha h vs. semana pasada',
+                  '$_racha ${_racha == 1 ? "día" : "días"} de racha',
                   style: const TextStyle(
                     color: Color(0xFF8B6BFF),
                     fontSize: 9,
@@ -401,9 +452,12 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // TARJETA TAREAS FALTANTES (CON LUMI_PROGRESO.PNG Y DISEÑO EXACTO)
+  // ---------------------------------------------------------------------------
   Widget _buildCardFaltantes() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0F0B29),
         borderRadius: BorderRadius.circular(18),
@@ -418,11 +472,15 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF381B85),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF6B21A8), Color(0xFF3B0764)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF5A32C8).withOpacity(0.4),
+                      color: const Color(0xFF9333EA).withOpacity(0.4),
                       blurRadius: 10,
                     )
                   ],
@@ -440,48 +498,49 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 10),
           const Text(
             'Tareas faltantes',
             style: TextStyle(
-              color: Color(0xFFB4ACDE),
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
+              color: Color(0xFFE879F9),
+              fontSize: 14.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 2),
           const Text(
             '¡Tú puedes con ellas! 💪',
             style: TextStyle(
-              color: Color(0xFF7000FF),
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
             ),
           ),
           const Spacer(),
           Center(
             child: Image.asset(
-              'logo/Lumi_progreso.png',
-              height: 105,
+              kLumiProgresoAsset,
+              height: 120,
               fit: BoxFit.contain,
-              errorBuilder: (context, error, stackTrace) {
-                return Image.asset(
-                  'logo/Lumi_progreso.png',
-                  height: 105,
-                  fit: BoxFit.contain,
-                  errorBuilder: (c, e, s) => const SizedBox(
-                    height: 105,
-                    child: Icon(Icons.smart_toy, size: 70, color: Color(0xFF8B6BFF)),
-                  ),
-                );
-              },
+              errorBuilder: (context, error, stackTrace) => const SizedBox(
+                height: 110,
+                child: Icon(
+                  Icons.smart_toy,
+                  size: 70,
+                  color: Color(0xFF8B6BFF),
+                ),
+              ),
             ),
           ),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // GRÁFICA DE BARRAS (Días de la semana Lun-Dom con horas reales)
+  // ---------------------------------------------------------------------------
   Widget _buildGraficaCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -493,10 +552,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Column(
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -514,37 +573,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                   ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1B1347),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.north_east, color: Color(0xFF8B6BFF), size: 12),
-                        SizedBox(width: 2),
-                        Text(
-                          '+ 18%',
-                          style: TextStyle(
-                            color: Color(0xFF8B6BFF),
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                    Text(
-                      'vs. semana pasada',
-                      style: TextStyle(color: Color(0xFF867DAE), fontSize: 8),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -559,7 +587,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ),
           ),
           const SizedBox(height: 14),
-          if (_mejorDia.isNotEmpty)
+          if (_mejorDia.isNotEmpty && _mejorHoras > 0)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
@@ -568,13 +596,13 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.star, color: Color(0xFF8B6BFF), size: 16),
+                  const Icon(Icons.star, color: Color(0xFFFFC24B), size: 16),
                   const SizedBox(width: 8),
                   RichText(
                     text: TextSpan(
                       style: const TextStyle(color: Color(0xFFB4ACDE), fontSize: 11),
                       children: [
-                        const TextSpan(text: 'Tu mejor día fue '),
+                        const TextSpan(text: 'Tu día más activo fue '),
                         TextSpan(
                           text: _mejorDia,
                           style: const TextStyle(
@@ -601,6 +629,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // GRÁFICA DE DONA (Distribución)
+  // ---------------------------------------------------------------------------
   Widget _buildDistribucionCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -698,10 +729,10 @@ class _BarChartPainter extends CustomPainter {
 
     final maxValor = valores.isEmpty
         ? 6.0
-        : (valores.reduce((a, b) => a > b ? a : b)).clamp(6.0, double.infinity);
+        : (valores.reduce((a, b) => a > b ? a : b)).clamp(4.0, double.infinity);
 
     final topeEje = maxValor.ceilToDouble();
-    const pasos = 6;
+    const pasos = 4;
 
     final gridPaint = Paint()
       ..color = Colors.white.withOpacity(0.04)
@@ -765,14 +796,17 @@ class _BarChartPainter extends CustomPainter {
         canvas.drawRRect(rect, paint);
       }
 
-      final valLabel = valor == valor.roundToDouble()
-          ? '${valor.toInt()} h'
-          : '${valor.toStringAsFixed(1)} h';
+      final valLabel = valor > 0
+          ? (valor == valor.roundToDouble()
+              ? '${valor.toInt()} h'
+              : '${valor.toStringAsFixed(1)} h')
+          : '0';
+
       final valTp = TextPainter(
         text: TextSpan(
           text: valLabel,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: valor > 0 ? Colors.white : Colors.white24,
             fontSize: 10,
             fontWeight: FontWeight.w600,
           ),

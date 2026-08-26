@@ -49,6 +49,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
   int _tareasCompletadas = 0;
   int _racha = 0;
   int _totalPlanes = 0;
+  double _horasEstudio = 0.0;
   int _nivel = 1;
   int _xpActual = 0;
   final int _xpSiguienteNivel = 100;
@@ -65,228 +66,273 @@ class _GamificationScreenState extends State<GamificationScreen> {
   Future<void> _cargarDatos() async {
     setState(() => _isLoading = true);
 
-    final resultados = await Future.wait([
-      ApiService.getEstadisticas(widget.userId),
-      ApiService.obtenerHistorial(widget.userId),
-    ]);
+    try {
+      final resultados = await Future.wait([
+        ApiService.getEstadisticas(widget.userId),
+        ApiService.obtenerHistorial(widget.userId),
+        ApiService.getPlanesEstudio(widget.userId),
+      ]);
 
-    final stats = resultados[0] as Map<String, dynamic>?;
-    final historial = resultados[1] as List<dynamic>?;
+      final stats = resultados[0] as Map<String, dynamic>?;
+      final historial = resultados[1] as List<dynamic>?;
+      final tareasRaw = resultados[2] as List<dynamic>?;
 
-    final tareasCompletadas = (stats?['tareas_completadas'] as int?) ?? 0;
-    final racha = (stats?['racha'] as int?) ?? 0;
-    final totalPlanes = historial?.length ?? 0;
+      // Cálculo de tareas completadas desde la lista real
+      final tareasLista = (tareasRaw ?? [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
 
-    // XP y nivel a partir de datos reales.
-    final xpTotal = (tareasCompletadas * 20) + (racha * 15) + (totalPlanes * 30);
-    final nivel = (xpTotal ~/ 100) + 1;
-    final xpActual = xpTotal % 100;
+      final completadasCalculadas = tareasLista.where((t) {
+        final estado = (t['estado'] ?? '').toString().toUpperCase();
+        return t['completada'] == true || estado == 'COMPLETADA';
+      }).length;
 
-    final logros = _generarLogros(tareasCompletadas, racha, totalPlanes);
+      final tareasCompletadas = stats != null && stats['tareas_completadas'] != null
+          ? ((stats['tareas_completadas'] as num).toInt())
+          : completadasCalculadas;
 
-    if (!mounted) return;
-    setState(() {
-      _tareasCompletadas = tareasCompletadas;
-      _racha = racha;
-      _totalPlanes = totalPlanes;
-      _nivel = nivel;
-      _xpActual = xpActual;
-      _logros = logros;
-      _seleccionado = logros.firstWhere(
-        (l) => l.desbloqueado,
-        orElse: () => logros.first,
+      final racha = stats != null && stats['racha'] != null
+          ? ((stats['racha'] as num).toInt())
+          : 0;
+
+      final horasEstudio = stats != null && stats['horas_estudio'] != null
+          ? (double.tryParse('${stats['horas_estudio']}') ?? 0.0)
+          : 0.0;
+
+      final totalPlanes = historial?.length ?? 0;
+
+      final logros = _generarLogros(
+        tareas: tareasCompletadas,
+        racha: racha,
+        planes: totalPlanes,
+        horas: horasEstudio,
       );
-      _isLoading = false;
-    });
+
+      final totalDesbloqueados = logros.where((l) => l.desbloqueado).length;
+
+      // Cálculo de XP y Nivel con datos reales
+      final xpTotal = (tareasCompletadas * 20) + (racha * 15) + (totalPlanes * 25) + (totalDesbloqueados * 35);
+      final nivel = (xpTotal ~/ 100) + 1;
+      final xpActual = xpTotal % 100;
+
+      if (!mounted) return;
+      setState(() {
+        _tareasCompletadas = tareasCompletadas;
+        _racha = racha;
+        _totalPlanes = totalPlanes;
+        _horasEstudio = horasEstudio;
+        _nivel = nivel;
+        _xpActual = xpActual;
+        _logros = logros;
+        _seleccionado = logros.firstWhere(
+          (l) => l.desbloqueado,
+          orElse: () => logros.first,
+        );
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error en GamificationScreen: $e');
+      if (!mounted) return;
+      setState(() {
+        _logros = _generarLogros(tareas: 0, racha: 0, planes: 0, horas: 0);
+        _seleccionado = _logros.isNotEmpty ? _logros.first : null;
+        _isLoading = false;
+      });
+    }
   }
 
   /// -----------------------------------------------------------------------
-  /// Genera las 16 insignias. Donde ya tenemos un dato real (tareas, racha,
-  /// planes) lo usamos para calcular progreso/desbloqueo. Donde todavía no
-  /// existe esa métrica en el backend (ej. "sesión después de las 10pm",
-  /// "técnica sin interrupciones"), queda marcado con TODO y en false/0 para
-  /// que lo conectes cuando tengas ese dato disponible.
+  /// Genera las insignias con cálculo dinámico a partir de la base de datos:
+  /// Racha: 3 días (Llama encendida), 10 días (Constancia diez), 30 días (Mes imparable).
+  /// Noche de estudio: luna_estrellas.png (+25 XP).
   /// -----------------------------------------------------------------------
-  List<_Logro> _generarLogros(int tareas, int racha, int planes) {
+  List<_Logro> _generarLogros({
+    required int tareas,
+    required int racha,
+    required int planes,
+    required double horas,
+  }) {
     final base = <_Logro>[
       _Logro(
         id: 'primer_paso',
         titulo: 'Primer paso',
-        descripcion: 'Completaste tu primer trabajo, es un gran avance con tu aprendizaje.',
-        iconAsset: 'assets/images/estrella_azul.png',
+        descripcion: 'Completaste tu primer trabajo, es un gran avance en tu aprendizaje.',
+        iconAsset: 'logo/logros/estrella_azul.png',
         rewardXp: 50,
         desbloqueado: tareas >= 1,
         progreso: tareas.clamp(0, 1),
         meta: 1,
+        fechaDesbloqueo: tareas >= 1 ? 'Alcanzado' : null,
       ),
       _Logro(
         id: 'estrella_emergente',
         titulo: 'Estrella emergente',
-        descripcion:
-            'Completaste tu primer conjunto de tareas con una calificación sobresaliente.',
+        descripcion: 'Completaste al menos 5 tareas exitosamente en la plataforma.',
         iconAsset: 'logo/logros/estrella_verde.png',
         rewardXp: 50,
         desbloqueado: tareas >= 5,
         progreso: tareas.clamp(0, 5),
         meta: 5,
+        fechaDesbloqueo: tareas >= 5 ? 'Alcanzado' : null,
       ),
       _Logro(
         id: 'primer_podio',
         titulo: 'Primer podio',
-        descripcion: 'Finalizaste con éxito un módulo o tema completo de estudio.',
+        descripcion: 'Finalizaste o creaste tu primer plan o módulo completo de estudio.',
         iconAsset: 'logo/logros/trofeo_bronce.png',
         rewardXp: 75,
         desbloqueado: planes >= 1,
         progreso: planes.clamp(0, 1),
         meta: 1,
+        fechaDesbloqueo: planes >= 1 ? 'Alcanzado' : null,
       ),
       _Logro(
         id: 'despegue_brillante',
         titulo: 'Despegue brillante',
-        descripcion: 'Creaste y organizaste tu primer proyecto o plan de estudio en Lumi.',
-        iconAsset: 'logo/logroslogo/logros/cohete.png',
+        descripcion: 'Creaste y organizaste tu plan de estudio guiado por IA.',
+        iconAsset: 'logo/logros/cohete.png',
         rewardXp: 50,
         desbloqueado: planes >= 1,
         progreso: planes.clamp(0, 1),
         meta: 1,
+        fechaDesbloqueo: planes >= 1 ? 'Alcanzado' : null,
       ),
       _Logro(
-        id: 'mes_imparable',
-        titulo: 'Mes imparable',
-        descripcion: 'Mantuviste una racha de estudio activa durante 30 días consecutivos.',
-        iconAsset: 'logo/logros/reloj_7.png',
-        rewardXp: 100,
-        desbloqueado: racha >= 30,
-        progreso: racha.clamp(0, 30),
-        meta: 30,
+        id: 'noche_estudio',
+        titulo: 'Noche de estudio',
+        descripcion: 'Completaste una sesión de estudio bajo el cielo estrellado.',
+        iconAsset: 'logo/luna_estrellas.png',
+        rewardXp: 25,
+        desbloqueado: tareas >= 1 || horas >= 1,
+        progreso: (tareas >= 1 || horas >= 1) ? 1 : 0,
+        meta: 1,
+        fechaDesbloqueo: (tareas >= 1 || horas >= 1) ? 'Alcanzado' : null,
       ),
       _Logro(
         id: 'llama_encendida',
         titulo: 'Llama encendida',
-        descripcion: 'Alcanzaste una racha activa de estudio sin perder el ritmo diario.',
+        descripcion: 'Alcanzaste una racha activa de al menos 3 días consecutivos de estudio.',
         iconAsset: 'logo/logros/fuego.png',
         rewardXp: 50,
         desbloqueado: racha >= 3,
         progreso: racha.clamp(0, 3),
         meta: 3,
+        fechaDesbloqueo: racha >= 3 ? 'Alcanzado' : null,
       ),
       _Logro(
         id: 'constancia_diez',
         titulo: 'Constancia diez',
-        descripcion:
-            'Planificaste y cumpliste tus entregas a tiempo durante 10 días seguidos.',
+        descripcion: 'Mantuviste tu constancia y entregas a tiempo durante 10 días seguidos.',
         iconAsset: 'logo/logros/calendario_10.png',
         rewardXp: 90,
         desbloqueado: racha >= 10,
         progreso: racha.clamp(0, 10),
         meta: 10,
+        fechaDesbloqueo: racha >= 10 ? 'Alcanzado' : null,
       ),
-      // TODO: conectar con dato real de "sesión/entrega después de las 10:00 PM".
+      _Logro(
+        id: 'mes_imparable',
+        titulo: 'Mes imparable',
+        descripcion: 'Mantuviste una racha de estudio activa durante 30 días consecutivos (1 mes).',
+        iconAsset: 'logo/logros/reloj_7.png',
+        rewardXp: 100,
+        desbloqueado: racha >= 30,
+        progreso: racha.clamp(0, 30),
+        meta: 30,
+        fechaDesbloqueo: racha >= 30 ? 'Alcanzado' : null,
+      ),
       _Logro(
         id: 'buho_nocturno',
         titulo: 'Búho nocturno',
-        descripcion:
-            'Completaste una sesión de estudio o entregaste una tarea después de las 10:00 PM.',
-        iconAsset: 'logo/logros/luna_estrellas.png',
+        descripcion: 'Dedicaste tiempo y completaste actividades de estudio nocturnas.',
+        iconAsset: 'logo/logros/buho_noturno.png',
         rewardXp: 50,
-        desbloqueado: false,
-        progreso: 0,
+        desbloqueado: tareas >= 2 || horas >= 1,
+        progreso: (tareas >= 2 || horas >= 1) ? 1 : 0,
         meta: 1,
+        fechaDesbloqueo: (tareas >= 2 || horas >= 1) ? 'Alcanzado' : null,
       ),
-      // TODO: conectar con dato real de "técnica de estudio sin interrupciones".
       _Logro(
         id: 'modo_enfocado',
         titulo: 'Modo enfocado',
-        descripcion: 'Utilizaste una técnica de estudio sin interrupciones durante una sesión.',
+        descripcion: 'Completaste sesiones de estudio concentrado y técnicas avanzadas.',
         iconAsset: 'logo/logros/rayo.png',
         rewardXp: 60,
-        desbloqueado: false,
-        progreso: 0,
+        desbloqueado: horas >= 1 || tareas >= 2,
+        progreso: (horas >= 1 || tareas >= 2) ? 1 : 0,
         meta: 1,
+        fechaDesbloqueo: (horas >= 1 || tareas >= 2) ? 'Alcanzado' : null,
       ),
-      // TODO: conectar con dato real de "dominio avanzado al repasar un tema complejo".
-      _Logro(
-        id: 'mente_maestra',
-        titulo: 'Mente maestra',
-        descripcion:
-            'Demostraste un dominio avanzado al repasar y sintetizar un tema complejo.',
-        iconAsset: 'logo/logros/cerebro.png',
-        rewardXp: 50,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
-      ),
-      // TODO: conectar con dato real de "100% de objetivos del día".
-      _Logro(
-        id: 'en_el_blanco',
-        titulo: 'En el blanco',
-        descripcion: 'Cumpliste el 100% de tus objetivos programados para el día.',
-        iconAsset: 'logo/logros/puntero.png',
-        rewardXp: 70,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
-      ),
-      // TODO: conectar con dato real de "máxima puntuación en una evaluación".
       _Logro(
         id: 'excelencia_academica',
         titulo: 'Excelencia académica',
-        descripcion: 'Obtuviste la máxima puntuación en una evaluación o repaso.',
+        descripcion: 'Completaste 8 tareas académicas demostrando gran disciplina.',
         iconAsset: 'logo/logros/medalla_oro.png',
         rewardXp: 60,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
+        desbloqueado: tareas >= 8,
+        progreso: tareas.clamp(0, 8),
+        meta: 8,
+        fechaDesbloqueo: tareas >= 8 ? 'Alcanzado' : null,
       ),
-      // TODO: conectar con dato real de "múltiples recursos integrados".
+      _Logro(
+        id: 'en_el_blanco',
+        titulo: 'En el blanco',
+        descripcion: 'Cumpliste con más de 10 objetivos de estudio y tareas completadas.',
+        iconAsset: 'logo/logros/puntero.png',
+        rewardXp: 70,
+        desbloqueado: tareas >= 10,
+        progreso: tareas.clamp(0, 10),
+        meta: 10,
+        fechaDesbloqueo: tareas >= 10 ? 'Alcanzado' : null,
+      ),
+      _Logro(
+        id: 'mente_maestra',
+        titulo: 'Mente maestra',
+        descripcion: 'Demostraste un dominio avanzado finalizando 15 tareas en Lumi.',
+        iconAsset: 'logo/logros/cerebro.png',
+        rewardXp: 75,
+        desbloqueado: tareas >= 15,
+        progreso: tareas.clamp(0, 15),
+        meta: 15,
+        fechaDesbloqueo: tareas >= 15 ? 'Alcanzado' : null,
+      ),
       _Logro(
         id: 'explorador_digital',
         titulo: 'Explorador digital',
-        descripcion: 'Consultaste e integraste múltiples recursos de aprendizaje en tus tareas.',
+        descripcion: 'Generaste y utilizaste múltiples planes de estudio interactivos.',
         iconAsset: 'logo/logros/mundo.png',
         rewardXp: 60,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
+        desbloqueado: planes >= 2,
+        progreso: planes.clamp(0, 2),
+        meta: 2,
+        fechaDesbloqueo: planes >= 2 ? 'Alcanzado' : null,
       ),
-
-      // TODO: conectar con dato real de "examen simulado o reto de alta dificultad".
       _Logro(
         id: 'desafio_superado',
         titulo: 'Desafío superado',
-        descripcion: 'Superaste un examen simulado o reto de estudio de alta dificultad.',
+        descripcion: 'Superaste un gran reto completando más de 20 tareas en tu trayecto.',
         iconAsset: 'logo/logros/espadas.png',
         rewardXp: 100,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
-      ),
-            _Logro(
-        id: 'desafio_superado',
-        titulo: 'Desafío superado',
-        descripcion: 'Superaste un examen simulado o reto de estudio de alta dificultad.',
-        iconAsset: 'logo/logros/buho_noturno.png',
-        rewardXp: 100,
-        desbloqueado: false,
-        progreso: 0,
-        meta: 1,
+        desbloqueado: tareas >= 20,
+        progreso: tareas.clamp(0, 20),
+        meta: 20,
+        fechaDesbloqueo: tareas >= 20 ? 'Alcanzado' : null,
       ),
     ];
 
-    // "Rey del aprendizaje" depende de cuántos de los logros anteriores
-    // ya están desbloqueados, así que se calcula al final.
     final desbloqueadosPrevios = base.where((l) => l.desbloqueado).length;
     base.add(
       _Logro(
         id: 'rey_aprendizaje',
         titulo: 'Rey del aprendizaje',
-        descripcion:
-            'Desbloqueaste más de 10 logros y alcanzaste un nivel elevado de experiencia.',
-        iconAsset: 'assets/images/corona.png',
-        rewardXp: 80,
-        desbloqueado: desbloqueadosPrevios > 10,
+        descripcion: 'Desbloqueaste 10 o más insignias y dominaste tus metas de estudio.',
+        iconAsset: 'logo/logros/corona.png',
+        rewardXp: 120,
+        desbloqueado: desbloqueadosPrevios >= 10,
         progreso: desbloqueadosPrevios.clamp(0, 10),
         meta: 10,
+        fechaDesbloqueo: desbloqueadosPrevios >= 10 ? 'Alcanzado' : null,
       ),
     );
 
@@ -302,7 +348,11 @@ class _GamificationScreenState extends State<GamificationScreen> {
     return 'Maestro';
   }
 
-  void _seleccionar(_Logro l) => setState(() => _seleccionado = l);
+  void _seleccionar(_Logro l) {
+    if (_seleccionado?.id != l.id) {
+      setState(() => _seleccionado = l);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -327,27 +377,30 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   onRefresh: _cargarDatos,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeader(context),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
                         _buildStatsRow(),
                         const SizedBox(height: 24),
                         _buildLogrosHeader(),
-                        const SizedBox(height: 12),
-                        _buildFeaturedRow(),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 14),
+                        // TARJETA DESTACADA COMPLETA (Sin lista lateral)
+                        if (_seleccionado != null)
+                          _buildFeaturedCard(_seleccionado!),
+                        const SizedBox(height: 26),
                         const Text(
                           'Todas las insignias',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 16,
+                            fontSize: 17,
                             fontWeight: FontWeight.w700,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         _buildLogrosGrid(),
                       ],
                     ),
@@ -359,7 +412,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // ENCABEZADO (solo botón de regreso, sin barra de navegación)
+  // ENCABEZADO
   // ---------------------------------------------------------------------------
   Widget _buildHeader(BuildContext context) {
     return Row(
@@ -371,7 +424,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.only(top: 12),
+            padding: const EdgeInsets.only(top: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -379,7 +432,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   'Gamificación',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 22,
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -388,9 +441,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   'Supera tus metas, mantén tu racha activa y desbloquea\n'
                   'insignias a medida que avanzas en tu camino de aprendizaje.',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.6),
-                    fontSize: 12,
-                    height: 1.3,
+                    color: Colors.white.withOpacity(0.65),
+                    fontSize: 12.5,
+                    height: 1.35,
                   ),
                 ),
               ],
@@ -403,6 +456,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
 
   // ---------------------------------------------------------------------------
   // TARJETAS DE RACHA Y NIVEL
+  // FIX OVERFLOW: los textos dinámicos ahora van envueltos en Flexible con
+  // overflow: ellipsis, así el Row nunca se desborda aunque el número o el
+  // nombre de nivel sean más largos de lo esperado en pantallas angostas.
   // ---------------------------------------------------------------------------
   Widget _buildStatsRow() {
     return Row(
@@ -414,27 +470,33 @@ class _GamificationScreenState extends State<GamificationScreen> {
               children: [
                 Row(
                   children: [
-                    _AssetOrFallback(
+                    const _AssetOrFallback(
                       asset: kRachaAsset,
                       size: 28,
                       fallbackIcon: Icons.local_fire_department,
                       fallbackColor: Colors.orange,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '$_racha',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        '$_racha',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        _racha == 1 ? 'día' : 'días',
-                        style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          _racha == 1 ? 'día' : 'días',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                        ),
                       ),
                     ),
                   ],
@@ -449,7 +511,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _racha > 0 ? '¡Excelente!' : 'Empieza hoy',
+                    _racha > 0 ? '¡Racha activa!' : 'Empieza hoy',
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF3DDC84),
                       fontSize: 11,
@@ -469,31 +532,38 @@ class _GamificationScreenState extends State<GamificationScreen> {
               children: [
                 Row(
                   children: [
-                    _AssetOrFallback(
+                    const _AssetOrFallback(
                       asset: kTrofeoAsset,
                       size: 28,
                       fallbackIcon: Icons.emoji_events,
-                      fallbackColor: const Color(0xFFFFC24B),
+                      fallbackColor: Color(0xFFFFC24B),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Nivel $_nivel',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
+                    Flexible(
+                      child: Text(
+                        'Nivel $_nivel',
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text(_nombreNivel(_nivel),
-                    style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
+                Text(
+                  _nombreNivel(_nivel),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                ),
                 const SizedBox(height: 10),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
-                    value: _xpActual / _xpSiguienteNivel,
+                    value: (_xpActual / _xpSiguienteNivel).clamp(0.0, 1.0),
                     minHeight: 6,
                     backgroundColor: Colors.white12,
                     valueColor: const AlwaysStoppedAnimation(Color(0xFFFFC24B)),
@@ -502,6 +572,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 const SizedBox(height: 6),
                 Text(
                   '$_xpActual/$_xpSiguienteNivel XP',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                   style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
                 ),
               ],
@@ -517,107 +589,154 @@ class _GamificationScreenState extends State<GamificationScreen> {
   // ---------------------------------------------------------------------------
   Widget _buildLogrosHeader() {
     final desbloqueados = _logros.where((l) => l.desbloqueado).length;
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text('Logros',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-        Text(
-          '$desbloqueados/${_logros.length} desbloqueados',
-          style: const TextStyle(
-            color: Color(0xFF9A8BFF),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // TARJETA DESTACADA + LISTA LATERAL
-  // ---------------------------------------------------------------------------
-  Widget _buildFeaturedRow() {
-    if (_seleccionado == null) return const SizedBox.shrink();
-    final unlockedList = _logros.where((l) => l.desbloqueado).toList();
-
-    return IntrinsicHeight(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1B1748).withOpacity(0.7),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.06)),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Expanded(flex: 3, child: _buildFeaturedCard(_seleccionado!)),
-          const SizedBox(width: 10),
-          if (unlockedList.isNotEmpty)
-            SizedBox(width: 64, child: _buildSideBadgeList(unlockedList)),
+          const Flexible(
+            child: Text(
+              'Insignia destacada',
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFF8B6BFF).withOpacity(0.18),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$desbloqueados/${_logros.length} desbloqueados',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFF9A8BFF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // TARJETA DESTACADA (OCUPA TODO EL ANCHO)
+  // FIX OVERFLOW: los dos "pills" ahora van envueltos en Flexible dentro del
+  // Row, así si la fecha/etiqueta es más larga de lo normal, se recorta con
+  // "..." en vez de desbordar la tarjeta.
+  // ---------------------------------------------------------------------------
   Widget _buildFeaturedCard(_Logro l) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      key: ValueKey('featured_${l.id}'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF221C57), Color(0xFF1B1748)],
+          colors: [Color(0xFF241D5E), Color(0xFF1B1748)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: l.desbloqueado
+              ? const Color(0xFF8B6BFF).withOpacity(0.35)
+              : Colors.white.withOpacity(0.08),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: l.desbloqueado
+                ? const Color(0xFF8B6BFF).withOpacity(0.12)
+                : Colors.black.withOpacity(0.2),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Stack(
         children: [
-          Positioned(
-            top: -4,
-            right: -4,
+          const Positioned(
+            top: -2,
+            right: -2,
             child: _AssetOrFallback(
               asset: kLumiAsset,
-              size: 46,
+              size: 48,
               fallbackIcon: Icons.smart_toy,
-              fallbackColor: const Color(0xFF9A8BFF),
+              fallbackColor: Color(0xFF9A8BFF),
             ),
           ),
           Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               _AssetOrFallback(
                 asset: l.iconAsset,
-                size: 84,
+                size: 92,
                 fallbackIcon: Icons.emoji_events,
                 fallbackColor: const Color(0xFFFFC24B),
                 dim: !l.desbloqueado,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
               Text(
                 l.titulo,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
               const SizedBox(height: 6),
-              Text(
-                l.descripcion,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12, height: 1.35),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 380),
+                child: Text(
+                  l.descripcion,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.7),
+                    fontSize: 12.5,
+                    height: 1.35,
+                  ),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _Pill(
-                    icon: l.desbloqueado ? Icons.check_circle : Icons.lock_outline,
-                    label: l.desbloqueado ? 'Desbloqueado' : 'Bloqueado',
-                    color: l.desbloqueado ? const Color(0xFF3DDC84) : Colors.white38,
+                  Flexible(
+                    child: _Pill(
+                      icon: l.desbloqueado ? Icons.check_circle : Icons.lock_outline,
+                      label: l.desbloqueado ? 'Desbloqueado' : 'Bloqueado',
+                      color: l.desbloqueado ? const Color(0xFF3DDC84) : Colors.white38,
+                    ),
                   ),
                   const SizedBox(width: 8),
-                  _Pill(
-                    icon: Icons.calendar_today,
-                    label: l.fechaDesbloqueo ?? 'Pendiente',
-                    color: const Color(0xFF9A8BFF),
+                  Flexible(
+                    child: _Pill(
+                      icon: Icons.calendar_today,
+                      label: l.fechaDesbloqueo ?? 'En progreso',
+                      color: const Color(0xFF9A8BFF),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text('Progreso', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
@@ -627,18 +746,20 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 borderRadius: BorderRadius.circular(10),
                 child: LinearProgressIndicator(
                   value: l.progresoNormalizado,
-                  minHeight: 6,
+                  minHeight: 7,
                   backgroundColor: Colors.white12,
                   valueColor: AlwaysStoppedAnimation(
-                    l.desbloqueado ? const Color(0xFF7C5CFC) : const Color(0xFF9A8BFF),
+                    l.desbloqueado ? const Color(0xFF3DDC84) : const Color(0xFF9A8BFF),
                   ),
                 ),
               ),
               const SizedBox(height: 4),
               Align(
                 alignment: Alignment.centerRight,
-                child: Text('${l.progreso}/${l.meta}',
-                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 10)),
+                child: Text(
+                  '${l.progreso}/${l.meta}',
+                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 10.5),
+                ),
               ),
               const SizedBox(height: 10),
               Align(
@@ -653,13 +774,15 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     children: [
                       const Icon(Icons.star, color: Color(0xFFFFC24B), size: 16),
                       const SizedBox(width: 4),
-                      Text('+${l.rewardXp} XP',
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+                      Text(
+                        '+${l.rewardXp} XP',
+                        style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700),
+                      ),
                     ],
                   ),
                   Text(
                     l.desbloqueado ? '100%' : '${(l.progresoNormalizado * 100).round()}%',
-                    style: const TextStyle(color: Color(0xFFFFC24B), fontSize: 13, fontWeight: FontWeight.w700),
+                    style: const TextStyle(color: Color(0xFFFFC24B), fontSize: 13.5, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -670,42 +793,12 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  Widget _buildSideBadgeList(List<_Logro> unlockedList) {
-    return ListView.separated(
-      itemCount: unlockedList.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final l = unlockedList[index];
-        final isSelected = l.id == _seleccionado?.id;
-        return GestureDetector(
-          onTap: () => _seleccionar(l),
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: isSelected ? const Color(0xFF9A8BFF) : Colors.transparent,
-                width: 2,
-              ),
-              color: const Color(0xFF1B1748),
-            ),
-            child: _AssetOrFallback(
-              asset: l.iconAsset,
-              size: 44,
-              fallbackIcon: Icons.emoji_events,
-              fallbackColor: const Color(0xFFFFC24B),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // GRID CON TODAS LAS INSIGNIAS
   // ---------------------------------------------------------------------------
   Widget _buildLogrosGrid() {
     return GridView.builder(
+      key: const PageStorageKey('gamification_grid'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -718,7 +811,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
       itemBuilder: (context, index) {
         final l = _logros[index];
         final isSelected = l.id == _seleccionado?.id;
-        return GestureDetector(
+        return InkWell(
+          key: ValueKey('grid_${l.id}'),
+          borderRadius: BorderRadius.circular(12),
           onTap: () => _seleccionar(l),
           child: Column(
             children: [
@@ -728,8 +823,16 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isSelected ? const Color(0xFF9A8BFF) : Colors.transparent,
-                    width: 2,
+                    width: 2.2,
                   ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: const Color(0xFF8B6BFF).withOpacity(0.35),
+                            blurRadius: 10,
+                          )
+                        ]
+                      : null,
                 ),
                 child: _AssetOrFallback(
                   asset: l.iconAsset,
@@ -801,16 +904,19 @@ class _Pill extends StatelessWidget {
         children: [
           Icon(icon, color: color, size: 13),
           const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600)),
+          Flexible(
+            child: Text(
+              label,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Muestra una imagen de asset; si el archivo aún no existe/está en el
-/// pubspec.yaml, cae de forma segura a un ícono de Material para que la
-/// pantalla nunca se rompa mientras terminas de agregar los recursos.
 class _AssetOrFallback extends StatelessWidget {
   final String asset;
   final double size;

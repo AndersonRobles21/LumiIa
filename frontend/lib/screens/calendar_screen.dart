@@ -6,6 +6,8 @@ import 'gamification_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+const String kLumiBannerAsset = 'logo/lumi_gamificacion.png';
+
 class CalendarScreen extends StatefulWidget {
   final String userId;
   final List<dynamic> tasks;
@@ -23,18 +25,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
   bool _isLoading = false;
   bool _localeReady = false;
 
+  static const Color kColorEntrega = Color(0xFFFF2A55);
+
   static const Map<String, Color> _tipoColores = {
-    'Examen': Color(0xFFFF4D94),
-    'Proyecto': Color(0xFFFF9E00),
     'Trabajos': Color(0xFF9D4EDD),
+    'Proyecto': Color(0xFFFFB800),
+    'Examen': Color(0xFFFF4D94),
+    'Entrega': kColorEntrega,
   };
 
   @override
   void initState() {
     super.initState();
-    // NOTA: normalizamos a UTC para que coincida con firstDay/lastDay
-    // (DateTime.utc) y con las claves de _eventsByDay. Mezclar UTC y
-    // hora local es lo que causaba el desplazamiento de días.
     final hoy = DateTime.now();
     _selectedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
     _focusedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
@@ -51,16 +53,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
     await _cargarTareas();
   }
 
-  // Devuelve siempre una fecha "solo día" en UTC (medianoche UTC),
-  // usada como clave única para eventos y comparaciones del calendario.
   DateTime? _parsearFecha(dynamic fechaRaw) {
     if (fechaRaw == null) return null;
+    if (fechaRaw is DateTime) {
+      return DateTime.utc(fechaRaw.year, fechaRaw.month, fechaRaw.day);
+    }
     final str = fechaRaw.toString().trim();
     if (str.isEmpty) return null;
 
-    // Caso más común: fechas tipo "YYYY-MM-DD..." (ISO). Extraemos
-    // año/mes/día directamente del string para evitar que DateTime.parse
-    // interprete zona horaria y desplace el día.
     final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(str);
     if (match != null) {
       final year = int.parse(match.group(1)!);
@@ -83,18 +83,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final hoyNormalizado = DateTime.utc(hoy.year, hoy.month, hoy.day);
 
     for (final task in tasks) {
-      final fechaEntregaRaw = task['fecha_entrega'] ?? task['fechaEntrega'];
-      final fechaLimite = _parsearFecha(fechaEntregaRaw);
-      if (fechaLimite == null) continue;
+      if (task is! Map) continue;
 
-      final fechaCreacionRaw = task['created_at'] ?? task['fecha_creacion'] ?? task['fechaCreacion'];
-      DateTime fechaInicio = _parsearFecha(fechaCreacionRaw) ?? hoyNormalizado;
+      final rawEntrega = task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+      final fechaLimite = _parsearFecha(rawEntrega);
 
-      if (fechaInicio.isAfter(fechaLimite)) {
-        fechaInicio = fechaLimite;
+      final rawCreacion = task['created_at'] ?? task['fecha_creacion'] ?? task['fechaCreacion'];
+      final fechaInicio = _parsearFecha(rawCreacion) ?? hoyNormalizado;
+
+      if (fechaLimite == null) {
+        events.putIfAbsent(fechaInicio, () => []).add(task);
+        continue;
       }
 
-      DateTime cursor = fechaInicio;
+      DateTime inicioReal = fechaInicio.isAfter(fechaLimite) ? fechaLimite : fechaInicio;
+
+      DateTime cursor = inicioReal;
       while (!cursor.isAfter(fechaLimite)) {
         final key = DateTime.utc(cursor.year, cursor.month, cursor.day);
         events.putIfAbsent(key, () => []).add(task);
@@ -102,7 +106,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
 
-    setState(() => _eventsByDay = events);
+    if (mounted) {
+      setState(() => _eventsByDay = events);
+    }
   }
 
   Future<void> _cargarTareas() async {
@@ -131,14 +137,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     for (final item in historial) {
       if (item is! Map) continue;
-
-      final fechaActual = item['fecha_entrega'] ?? item['fechaEntrega'];
-      final tieneFecha = fechaActual != null && fechaActual.toString().isNotEmpty;
-
-      if (tieneFecha) {
-        resultado.add(item);
-        continue;
-      }
 
       final id = item['id']?.toString();
       if (id == null) {
@@ -185,9 +183,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     return '${day.day} de ${meses[day.month - 1]} ${day.year}';
   }
 
+  String _formatearFechaCorta(DateTime day) {
+    final mesesCortos = [
+      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+    ];
+    return '${day.day} de ${mesesCortos[day.month - 1]}';
+  }
+
   Color _colorParaTarea(Map task) {
     final tipo = _tipoNombreTarea(task);
-    return _tipoColores[tipo]!;
+    return _tipoColores[tipo] ?? const Color(0xFF9D4EDD);
   }
 
   String _tipoNombreTarea(Map task) {
@@ -203,8 +209,163 @@ class _CalendarScreenState extends State<CalendarScreen> {
     } else if (nombre.contains('proyecto')) {
       return 'Proyecto';
     }
-    
+
     return 'Trabajos';
+  }
+
+  Widget _buildStatusBadge(String text, Color color, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.18),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.45)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 12),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGamificationCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D0B1E),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: const Color(0xFF261D45),
+          width: 1.2,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Image.asset(
+            kLumiBannerAsset,
+            width: 90,
+            height: 90,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.smart_toy_rounded,
+              size: 60,
+              color: Color(0xFF8B5CF6),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1033),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFFEC4899),
+                      width: 1.2,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.star_border_rounded,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                      SizedBox(width: 4),
+                      Text(
+                        'Gamificación',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Accede aquí para explorar tu progreso en forma de logros, insignias y más.',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.8),
+                    fontSize: 11.5,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(30),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => GamificationScreen(
+                              userId: widget.userId,
+                            ),
+                          ),
+                        );
+                      },
+                      child: Ink(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF0088CC), Color(0xFF8B5CF6)],
+                            begin: Alignment.centerLeft,
+                            end: Alignment.centerRight,
+                          ),
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              'Ver mis logros',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 13.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -213,9 +374,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return const Scaffold(
         backgroundColor: Color(0xFF03020A),
         body: Center(
-          child: CircularProgressIndicator(
-            color: Color(0xFF9D4EDD),
-          ),
+          child: CircularProgressIndicator(color: Color(0xFF9D4EDD)),
         ),
       );
     }
@@ -223,6 +382,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final selectedTasks = _selectedDay == null
         ? const <dynamic>[]
         : _getTasksForDay(_selectedDay!);
+
+    final esHoy = _selectedDay != null &&
+        isSameDay(_selectedDay, DateTime.now());
 
     return Scaffold(
       backgroundColor: const Color(0xFF03020A),
@@ -250,54 +412,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // ENCABEZADO
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: const [
-                              Text(
-                                'Calendario',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 30,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Organiza tu tiempo y alcanza tus metas',
-                                style: TextStyle(
-                                  color: Colors.white54,
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF160B33),
-                              border: Border.all(
-                                color: const Color(0xFF3B1E6D),
-                                width: 1.2,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.calendar_month_outlined,
+                          Text(
+                            'Calendario',
+                            style: TextStyle(
                               color: Colors.white,
-                              size: 20,
+                              fontSize: 30,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Organiza tu tiempo y alcanza tus metas',
+                            style: TextStyle(
+                              color: Colors.white54,
+                              fontSize: 13,
                             ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 20),
 
-                      // CALENDARIO COMPLETO + LEYENDA
+                      // CALENDARIO + LEYENDA
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -380,7 +519,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   color: Colors.white,
                                   size: 28,
                                 ),
-                                headerPadding: EdgeInsets.symmetric(vertical: 8),
+                                headerPadding:
+                                    EdgeInsets.symmetric(vertical: 8),
                               ),
                               daysOfWeekStyle: const DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
@@ -402,18 +542,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: events.take(4).map((e) {
-                                        final color = e is Map
-                                            ? _colorParaTarea(e)
-                                            : const Color(0xFF9D4EDD);
+                                        if (e is! Map) {
+                                          return Container(
+                                            width: 5.5,
+                                            height: 5.5,
+                                            margin: const EdgeInsets.symmetric(
+                                                horizontal: 1),
+                                            decoration: const BoxDecoration(
+                                              color: Color(0xFF9D4EDD),
+                                              shape: BoxShape.circle,
+                                            ),
+                                          );
+                                        }
+
+                                        final rawEnt = e['fecha_entrega'] ??
+                                            e['fechaEntrega'] ??
+                                            e['fecha'];
+                                        final fEntrega = _parsearFecha(rawEnt);
+
+                                        final esEntregaExacta = fEntrega !=
+                                                null &&
+                                            date.year == fEntrega.year &&
+                                            date.month == fEntrega.month &&
+                                            date.day == fEntrega.day;
+
+                                        final dotColor = esEntregaExacta
+                                            ? kColorEntrega
+                                            : _colorParaTarea(e);
+
                                         return Container(
-                                          width: 5,
-                                          height: 5,
+                                          width: esEntregaExacta ? 6.5 : 5.0,
+                                          height: esEntregaExacta ? 6.5 : 5.0,
                                           margin: const EdgeInsets.symmetric(
-                                            horizontal: 1,
-                                          ),
+                                              horizontal: 1.2),
                                           decoration: BoxDecoration(
-                                            color: color,
+                                            color: dotColor,
                                             shape: BoxShape.circle,
+                                            boxShadow: esEntregaExacta
+                                                ? [
+                                                    BoxShadow(
+                                                      color: kColorEntrega
+                                                          .withOpacity(0.6),
+                                                      blurRadius: 4,
+                                                    )
+                                                  ]
+                                                : null,
                                           ),
                                         );
                                       }).toList(),
@@ -426,10 +599,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             const Divider(color: Color(0xFF1E1038), height: 1),
                             const SizedBox(height: 12),
                             // LEYENDA
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            Wrap(
+                              alignment: WrapAlignment.spaceEvenly,
+                              spacing: 14,
+                              runSpacing: 8,
                               children: _tipoColores.entries.map((entry) {
                                 return Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
                                       width: 8,
@@ -457,7 +633,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
                       const SizedBox(height: 20),
 
-                      // TAREAS DEL DÍA SELECCIONADO
+                      // LISTA DE TRABAJOS DEL DÍA SELECCIONADO
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -475,11 +651,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
-                                  'Trabajos para hoy',
-                                  style: TextStyle(
+                                Text(
+                                  esHoy
+                                      ? 'Trabajos para hoy'
+                                      : (_selectedDay != null
+                                          ? _formatDateHeader(_selectedDay!)
+                                          : 'Trabajos asignados'),
+                                  style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 18,
+                                    fontSize: 17,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
@@ -496,418 +676,208 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                   ),
                                   child: Text(
-                                    '${selectedTasks.length} ${selectedTasks.length == 1 ? 'tarea' : 'tareas'}',
+                                    '${selectedTasks.length} ${selectedTasks.length == 1 ? 'trabajo' : 'trabajos'}',
                                     style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 11,
+                                      color: Color(0xFF9D4EDD),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              _selectedDay == null
-                                  ? ''
-                                  : _formatDateHeader(_selectedDay!),
-                              style: const TextStyle(
-                                color: Color(0xFF8A2BE2),
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
                             const SizedBox(height: 14),
-                            if (_isLoading)
-                              const Center(
-                                child: CircularProgressIndicator(
-                                  color: Color(0xFF9D4EDD),
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            else if (selectedTasks.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Text(
-                                  'No hay trabajos para este día.',
-                                  style: TextStyle(
-                                    color: Colors.white38,
-                                    fontSize: 13,
+                            if (selectedTasks.isEmpty)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(
+                                        Icons.event_available_outlined,
+                                        color: Colors.white.withOpacity(0.3),
+                                        size: 40,
+                                      ),
+                                      const SizedBox(height: 8),
+                                      Text(
+                                        'No hay trabajos programados para este día',
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.5),
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               )
                             else
-                              ...selectedTasks.map((task) {
-                                final t = task is Map
-                                    ? Map<String, dynamic>.from(task)
-                                    : <String, dynamic>{};
-                                final title =
-                                    t['nombre'] ?? t['titulo'] ?? 'Tarea';
-                                final color = _colorParaTarea(t);
-                                final tipoNombre = _tipoNombreTarea(t);
-                                final completada = t['completada'] == true ||
-                                    (t['estado'] ?? '')
-                                            .toString()
-                                            .toUpperCase() ==
-                                        'COMPLETADA';
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: selectedTasks.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final t = selectedTasks[index];
+                                  final map = t is Map ? t : {};
+                                  final titulo = map['nombre'] ??
+                                      map['titulo'] ??
+                                      'Sin título';
+                                  final desc = map['descripcion'] ?? '';
+                                  final completada =
+                                      map['completada'] == true ||
+                                          (map['estado'] ?? '')
+                                                  .toString()
+                                                  .toUpperCase() ==
+                                              'COMPLETADA';
+                                  final color = _colorParaTarea(map);
 
-                                // Validación de si es el día exacto de la entrega
-                                final fechaEntregaRaw =
-                                    t['fecha_entrega'] ?? t['fechaEntrega'];
-                                final fechaLimite = _parsearFecha(fechaEntregaRaw);
-                                final esDiaEntrega = _selectedDay != null &&
-                                    fechaLimite != null &&
-                                    _selectedDay!.year == fechaLimite.year &&
-                                    _selectedDay!.month == fechaLimite.month &&
-                                    _selectedDay!.day == fechaLimite.day;
+                                  final rawEntrega = map['fecha_entrega'] ??
+                                      map['fechaEntrega'] ??
+                                      map['fecha'];
+                                  final fechaEntrega =
+                                      _parsearFecha(rawEntrega);
 
-                                // Tono morado suave e iluminado
-                                const moradoSuave = Color(0xFFB388FF);
+                                  final esDiaDeEntrega = fechaEntrega != null &&
+                                      _selectedDay != null &&
+                                      _selectedDay!.year ==
+                                          fechaEntrega.year &&
+                                      _selectedDay!.month ==
+                                          fechaEntrega.month &&
+                                      _selectedDay!.day == fechaEntrega.day;
 
-                                return GestureDetector(
-                                  onTap: () => _mostrarDetalleTarea(t),
-                                  child: Container(
-                                    margin: const EdgeInsets.only(bottom: 10),
-                                    padding: const EdgeInsets.all(12),
+                                  final diasRestantes = (fechaEntrega != null &&
+                                          _selectedDay != null)
+                                      ? fechaEntrega
+                                          .difference(_selectedDay!)
+                                          .inDays
+                                      : 0;
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF120826),
-                                      borderRadius: BorderRadius.circular(14),
+                                      color: const Color(0xFF150A2E),
+                                      borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
-                                        color: esDiaEntrega
-                                            ? moradoSuave.withOpacity(0.8)
-                                            : const Color(0xFF261247),
-                                        width: esDiaEntrega ? 1.4 : 1.0,
+                                        color: esDiaDeEntrega
+                                            ? kColorEntrega.withOpacity(0.85)
+                                            : color.withOpacity(0.3),
+                                        width: esDiaDeEntrega ? 1.5 : 1,
                                       ),
-                                      boxShadow: esDiaEntrega
-                                          ? [
-                                              BoxShadow(
-                                                color: moradoSuave.withOpacity(0.15),
-                                                blurRadius: 6,
-                                                spreadRadius: 1,
-                                              )
-                                            ]
-                                          : null,
                                     ),
-                                    child: Row(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Container(
-                                          width: 40,
-                                          height: 40,
-                                          decoration: BoxDecoration(
-                                            color: esDiaEntrega
-                                                ? moradoSuave.withOpacity(0.18)
-                                                : const Color(0xFF6A1B9A),
-                                            borderRadius: BorderRadius.circular(12),
-                                            border: esDiaEntrega
-                                                ? Border.all(
-                                                    color: moradoSuave.withOpacity(0.6))
-                                                : null,
-                                          ),
-                                          child: Icon(
-                                            Icons.code,
-                                            color: esDiaEntrega
-                                                ? moradoSuave
-                                                : Colors.white,
-                                            size: 20,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                title,
-                                                style: TextStyle(
-                                                  color: completada
-                                                      ? Colors.white38
-                                                      : Colors.white,
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 14,
-                                                  decoration: completada
-                                                      ? TextDecoration.lineThrough
-                                                      : null,
-                                                ),
+                                        Row(
+                                          children: [
+                                            Container(
+                                              width: 4,
+                                              height: 38,
+                                              decoration: BoxDecoration(
+                                                color: esDiaDeEntrega
+                                                    ? kColorEntrega
+                                                    : color,
+                                                borderRadius:
+                                                    BorderRadius.circular(2),
                                               ),
-                                              const SizedBox(height: 3),
-                                              Row(
+                                            ),
+                                            const SizedBox(width: 12),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
-                                                  Container(
-                                                    width: 6,
-                                                    height: 6,
-                                                    decoration: BoxDecoration(
-                                                      color: color,
-                                                      shape: BoxShape.circle,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(width: 6),
                                                   Text(
-                                                    tipoNombre,
-                                                    style: const TextStyle(
-                                                      color: Colors.white54,
-                                                      fontSize: 11,
+                                                    titulo,
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 14.5,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                      decoration: completada
+                                                          ? TextDecoration
+                                                              .lineThrough
+                                                          : null,
                                                     ),
                                                   ),
+                                                  if (desc.isNotEmpty) ...[
+                                                    const SizedBox(height: 3),
+                                                    Text(
+                                                      desc,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: Colors.white
+                                                            .withOpacity(0.6),
+                                                        fontSize: 11.5,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ],
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                            if (completada)
+                                              const Icon(
+                                                Icons.check_circle,
+                                                color: Color(0xFF3DDC84),
+                                                size: 22,
+                                              ),
+                                          ],
                                         ),
-                                        if (esDiaEntrega)
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 8,
-                                              vertical: 4,
-                                            ),
-                                            margin:
-                                                const EdgeInsets.only(right: 6),
-                                            decoration: BoxDecoration(
-                                              color: moradoSuave.withOpacity(0.12),
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(
-                                                color: moradoSuave.withOpacity(0.5),
+                                        const SizedBox(height: 10),
+                                        Row(
+                                          children: [
+                                            if (completada)
+                                              _buildStatusBadge(
+                                                'Completada',
+                                                const Color(0xFF3DDC84),
+                                                Icons.check_circle,
+                                              )
+                                            else if (esDiaDeEntrega)
+                                              _buildStatusBadge(
+                                                '🎯 ¡Fecha de entrega hoy!',
+                                                kColorEntrega,
+                                                Icons.alarm,
+                                              )
+                                            else if (diasRestantes > 0 &&
+                                                fechaEntrega != null)
+                                              _buildStatusBadge(
+                                                '⏳ Pendiente (Entrega: ${_formatearFechaCorta(fechaEntrega)})',
+                                                color,
+                                                Icons.schedule,
+                                              )
+                                            else
+                                              _buildStatusBadge(
+                                                'Pendiente',
+                                                color,
+                                                Icons.circle,
                                               ),
-                                            ),
-                                            child: const Text(
-                                              '¡Entrega Hoy!',
-                                              style: TextStyle(
-                                                color: moradoSuave,
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                          ),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          color: Colors.white38,
-                                          size: 18,
+                                          ],
                                         ),
                                       ],
                                     ),
-                                  ),
-                                );
-                              }),
+                                  );
+                                },
+                              ),
                           ],
                         ),
                       ),
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 22),
 
-                      // TARJETA DE GAMIFICACIÓN
-                      _buildGamificacionCard(context),
+                      // CARD DE GAMIFICACIÓN
+                      _buildGamificationCard(context),
                     ],
                   ),
                 ),
               ),
             ),
-            AppBottomNavbar(userId: widget.userId, currentIndex: 2),
+            AppBottomNavbar(userId: widget.userId, currentIndex: 1),
           ],
         ),
-      ),
-    );
-  }
-
-  void _mostrarDetalleTarea(Map<String, dynamic> task) {
-    final title = task['nombre'] ?? task['titulo'] ?? 'Tarea';
-    final description = task['descripcion'] ?? 'Sin descripción';
-    final estado = task['estado'] ?? 'PENDIENTE';
-    final fechaRaw = task['fecha_entrega'] ?? task['fechaEntrega'];
-    String fecha = 'Sin fecha';
-    final fechaParsed = _parsearFecha(fechaRaw);
-    if (fechaParsed != null) {
-      fecha = DateFormat('dd/MM/yyyy').format(fechaParsed);
-    }
-
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: const Color(0xFF120826),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
-        title: Text(
-          title,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        content: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Fecha de entrega: $fecha',
-              style: const TextStyle(color: Color(0xFF00B4D8), fontSize: 13),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              description,
-              style: const TextStyle(
-                color: Colors.white70,
-                height: 1.4,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: estado.toUpperCase() == 'COMPLETADA'
-                    ? Colors.green.withOpacity(0.2)
-                    : const Color(0xFFFF4D94).withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                estado,
-                style: TextStyle(
-                  color: estado.toUpperCase() == 'COMPLETADA'
-                      ? Colors.greenAccent
-                      : const Color(0xFFFF4D94),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Cerrar',
-              style: TextStyle(color: Colors.white70),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildGamificacionCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0C071E).withOpacity(0.9),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: const Color(0xFF261247),
-          width: 1.2,
-        ),
-      ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 110,
-            height: 120,
-            child: Image.asset(
-              'logo/lumi_gamificacion.png',
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.smart_toy,
-                color: Color(0xFF9D4EDD),
-                size: 80,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC77DFF).withOpacity(0.18),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: const Color(0xFFFF4D94),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(
-                        Icons.star_border_rounded,
-                        color: Colors.white,
-                        size: 14,
-                      ),
-                      SizedBox(width: 4),
-                      Text(
-                        'Gamificación',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                const Text(
-                  'Accede aquí para explorar tu progreso en forma de logros, insignias y más.',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11.5,
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => GamificationScreen(userId: widget.userId),
-                      ),
-                    );
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [Color(0xFF0077B6), Color(0xFF8A2BE2)],
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF8A2BE2).withOpacity(0.4),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: const [
-                        Text(
-                          'Ver mis logros',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(width: 6),
-                        Icon(
-                          Icons.arrow_forward,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
