@@ -805,7 +805,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ),
                       ],
                     ),
-              AppBottomNavbar(userId: _userId, currentIndex: 3),
+              AppBottomNavbar(userId: _userId, currentIndex: 4),
             ],
           ),
         ),

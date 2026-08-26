@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'app_language.dart';
+import '/services/api_service.dart';
 import 'dashboard_screen.dart';
+import 'calendar_screen.dart';
 import 'historial_ia_screen.dart';
+import 'progreso_screen.dart';
 import 'profile_screen.dart';
 
 class AppBottomNavbar extends StatelessWidget {
   final String userId;
-
   final int currentIndex;
 
   const AppBottomNavbar({
@@ -15,39 +16,53 @@ class AppBottomNavbar extends StatelessWidget {
     required this.currentIndex,
   });
 
-  void _goTo(BuildContext context, int index) {
-
+  Future<void> _goTo(BuildContext context, int index) async {
     if (index == currentIndex) return;
 
     switch (index) {
       case 0:
-
+        // Dashboard
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => DashboardScreen(userId: userId)),
           (route) => false,
         );
         break;
-      case 1:
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppLanguage.instance.t('nav_calendar_soon')),
-            backgroundColor: const Color(0xFF2E1B4E),
+      case 1:
+        // Calendario 
+        final tasks = await ApiService.getPlanesEstudio(userId) ?? [];
+        if (!context.mounted) return;
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => CalendarScreen(userId: userId, tasks: tasks),
           ),
         );
         break;
+
       case 2:
-        Navigator.push(
-          context,
+        // Historial IA
+        Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => HistorialIAScreen(userId: userId),
           ),
         );
         break;
+
       case 3:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => ProfileScreen(userId: userId)),
+        // Progreso (Gráfica)
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ProgresoScreen(userId: userId),
+          ),
+        );
+        break;
+
+      case 4:
+        // Perfil
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => ProfileScreen(userId: userId),
+          ),
         );
         break;
     }
@@ -77,7 +92,8 @@ class AppBottomNavbar extends StatelessWidget {
             _navIcon(context, index: 0, icon: Icons.home),
             _navIcon(context, index: 1, icon: Icons.calendar_month_outlined),
             _navIcon(context, index: 2, icon: Icons.psychology_outlined),
-            _navIcon(context, index: 3, icon: Icons.person_outline),
+            _navIcon(context, index: 3, icon: Icons.bar_chart_rounded),
+            _navIcon(context, index: 4, icon: Icons.person_outline),
           ],
         ),
       ),

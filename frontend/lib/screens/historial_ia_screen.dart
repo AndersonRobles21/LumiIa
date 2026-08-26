@@ -2,12 +2,9 @@ import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/intl.dart';
 import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'app_language.dart';
-
-
 
 class FormateadorHistorial {
   /// Parsea cualquier string de fecha forzando la conversión UTC a hora local
@@ -55,7 +52,7 @@ class FormateadorHistorial {
       return 'AYER';
     } else {
       return DateFormat('dd/MM/yyyy').format(fechaLocal);
-    }
+    } 
   }
 
   /// Formatea la hora individual en formato 12 horas AM/PM exacto (ej: 3:54 AM)
@@ -170,174 +167,185 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: RefreshIndicator(
-        color: const Color(0xFF00F0FF),
-        onRefresh: _cargarHistorial,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: SizedBox(
-                  width: double.infinity,
-                  child: Image.asset(
-                    'logo/historial_lumi.png',
-                    height: 190,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) =>
-                        const Icon(Icons.smart_toy, size: 90, color: Color(0xFF00F0FF)),
-                  ),
-                ),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            color: const Color(0xFF00F0FF),
+            onRefresh: _cargarHistorial,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                top: 16.0,
+                bottom: 90.0, // Espacio para la barra de navegación
               ),
-              const SizedBox(height: 24),
-
-              // Buscador
-              TextField(
-                controller: _searchController,
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: 'Buscar conversaciones con Lumi',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFF8B87BA),
-                    fontSize: 14,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    color: Color(0xFF8B87BA),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFF1A1736),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(30),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Listado agrupado por fechas
-              if (_isLoading)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 40),
-                    child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
-                  ),
-                )
-              else if (_historialFiltrado.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 40),
-                  child: Center(
-                    child: Text(
-                      'No hay registros en el historial.',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: Image.asset(
+                        'logo/historial_lumi.png',
+                        height: 190,
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(Icons.smart_toy, size: 90, color: Color(0xFF00F0FF)),
+                      ),
                     ),
                   ),
-                )
-              else
-                ...grupos.entries.map((entry) {
-                  String fechaTitulo = entry.key;
-                  List<dynamic> planesDelDia = entry.value;
+                  const SizedBox(height: 24),
 
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Encabezado del Grupo (HOY, AYER, DD/MM/YYYY)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                  // Buscador
+                  TextField(
+                    controller: _searchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar conversaciones con Lumi',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF8B87BA),
+                        fontSize: 14,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.search,
+                        color: Color(0xFF8B87BA),
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF1A1736),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Listado agrupado por fechas
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 40),
+                        child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
+                      ),
+                    )
+                  else if (_historialFiltrado.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 40),
+                      child: Center(
                         child: Text(
-                          fechaTitulo,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            letterSpacing: 1.1,
-                          ),
+                          'No hay registros en el historial.',
+                          style: TextStyle(color: Colors.white38, fontSize: 14),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      
-                      // Tarjetas de planes
-                      ...planesDelDia.map((plan) {
-                        final fechaRaw = plan['fecha_creacion'] ?? plan['created_at'];
-                        final fechaLocal = FormateadorHistorial.parsearAHoraLocal(fechaRaw);
-                        final horaFormateada = FormateadorHistorial.obtenerHoraFormateada(fechaLocal);
+                    )
+                  else
+                    ...grupos.entries.map((entry) {
+                      String fechaTitulo = entry.key;
+                      List<dynamic> planesDelDia = entry.value;
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: GestureDetector(
-                            onTap: () {
-                              final planId = plan['id']?.toString();
-                              if (planId != null) _abrirPlan(planId);
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF1A1736),
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(
-                                  color: Colors.white.withOpacity(0.05),
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          plan['nombre'] ??
-                                              'Trabajo de flutter',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          plan['descripcion'] ??
-                                              'Desarrollo de app educativa',
-                                          style: const TextStyle(
-                                            color: Color(0xFF9E9AC8),
-                                            fontSize: 12,
-                                          ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  Text(
-                                    horaFormateada,
-                                    style: const TextStyle(
-                                      color: Color(0xFF9E9AC8),
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ],
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Encabezado del Grupo (HOY, AYER, DD/MM/YYYY)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              fechaTitulo,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                letterSpacing: 1.1,
                               ),
                             ),
                           ),
-                        );
-                      }),
-                      const SizedBox(height: 10),
-                    ],
-                  );
-                }),
-            ],
+                          const SizedBox(height: 6),
+                          
+                          // Tarjetas de planes
+                          ...planesDelDia.map((plan) {
+                            final fechaRaw = plan['fecha_creacion'] ?? plan['created_at'];
+                            final fechaLocal = FormateadorHistorial.parsearAHoraLocal(fechaRaw);
+                            final horaFormateada = FormateadorHistorial.obtenerHoraFormateada(fechaLocal);
+
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: GestureDetector(
+                                onTap: () {
+                                  final planId = plan['id']?.toString();
+                                  if (planId != null) _abrirPlan(planId);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 20,
+                                    vertical: 16,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF1A1736),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.05),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              plan['nombre'] ??
+                                                  'Trabajo de flutter',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              plan['descripcion'] ??
+                                                  'Desarrollo de app educativa',
+                                              style: const TextStyle(
+                                                color: Color(0xFF9E9AC8),
+                                                fontSize: 12,
+                                              ),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Text(
+                                        horaFormateada,
+                                        style: const TextStyle(
+                                          color: Color(0xFF9E9AC8),
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                          const SizedBox(height: 10),
+                        ],
+                      );
+                    }),
+                ],
+              ),
+            ),
           ),
-        ),
+          // Barra de navegación inferior
+          AppBottomNavbar(userId: widget.userId, currentIndex: 2),
+        ],
       ),
     );
   }
