@@ -417,6 +417,27 @@ static Future<bool> completarTarea({
     return false;
   }
 }
+// este es para eliminar el plan 
+static Future<bool> eliminarPlan(String planId) async {
+  try {
+    final response = await http.delete(
+      Uri.parse('$iaBaseUrl/plan/$planId'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    
+    if (response.statusCode == 200) {
+      return true;
+    }
+    
+    print('Error eliminando plan: ${response.statusCode} - ${response.body}');
+    return false;
+  } catch (e) {
+    print('Error eliminando plan: $e');
+    return false;
+  }
+}
+
+
 /*
   ============================
   ACTUALIZAR PROGRESO DEL PLAN (Pasos / Subpasos)

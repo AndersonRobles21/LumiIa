@@ -8,7 +8,7 @@ if (!process.env.GEMINI_API_KEY) {
 }
 
 export const GEMINI_MODEL =
-  process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
 export const GEMINI_TEMPERATURE = Number(
   process.env.GEMINI_TEMPERATURE ?? 0.6

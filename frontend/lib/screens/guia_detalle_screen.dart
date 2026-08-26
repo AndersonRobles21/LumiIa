@@ -18,6 +18,7 @@ class GuiaDetalleScreen extends StatefulWidget {
 
 class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   bool _isLoading = true;
+  bool _cambiandoMetodo = false; // ← NUEVO: loading solo para cambio de método
   Map<String, dynamic> guiaActual = {};
   List<dynamic> fasesPasos = [];
   List<dynamic> consejos = [];
@@ -32,6 +33,10 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   int _nivelExplicacionGeneral = 0;
 
   final List<Map<String, dynamic>> _mensajes = [];
+  final ScrollController _scrollController = ScrollController();
+
+  // ← NUEVO: guardar el userId desde el inicio
+  String _userId = '';
 
   String formatearTiempo(int minutos) {
     final horas = minutos ~/ 60;
@@ -56,7 +61,15 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   @override
   void initState() {
     super.initState();
+    // ← NUEVO: guardar userId desde widget.guiaData antes de cargar
+    _userId = widget.guiaData['usuario_id']?.toString() ?? '';
     _cargarDetallePlan();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarDetallePlan() async {
@@ -65,12 +78,17 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     if (planId != null) {
       final detalle = await ApiService.obtenerPlan(planId.toString());
       if (detalle != null && mounted) {
+        // ← NUEVO: guardar userId del backend si no lo teníamos
+        if (_userId.isEmpty && detalle['usuario_id'] != null) {
+          _userId = detalle['usuario_id'].toString();
+        }
         setState(() {
           guiaActual = Map<String, dynamic>.from(detalle);
           _extraerListasDetalle();
           _inicializarMensajesChat();
           _isLoading = false;
         });
+        _scrollToBottom();
         return;
       }
     }
@@ -82,7 +100,20 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         _inicializarMensajesChat();
         _isLoading = false;
       });
+      _scrollToBottom();
     }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   void _extraerListasDetalle() {
@@ -98,12 +129,10 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   void _inicializarMensajesChat() {
     final nombrePlan =
         guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo o Tarea';
-    // LEEMOS DINÁMICAMENTE EL MÉTODO QUE LA IA RECOMENDÓ PARA ESTE PLAN (Sin quemar ninguno)
     final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
 
     _mensajes.clear();
 
-    // 1. Mensaje de recursos iniciales
     String materialIncial =
         "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
     if (recursos.isNotEmpty) {
@@ -136,7 +165,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       'tipo': 'bienvenida',
     });
 
-    // RECONSTRUCCIÓN INTELIGENTE DEL HISTORIAL DE CHAT SEGÚN EL PROGRESO GUARDADO
     bool hayFasesPendientes = false;
     for (int i = 0; i < fasesPasos.length; i++) {
       final fase = fasesPasos[i];
@@ -171,9 +199,10 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
             '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
       });
     }
+
+    _scrollToBottom();
   }
 
-  // 🔄 REINICIO TOTAL DEL PROGRESO
   Future<void> _reiniciarProgreso() async {
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
 
@@ -289,6 +318,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         });
       }
     });
+
+    _scrollToBottom();
   }
 
   void _mostrarFasePaso(int index) {
@@ -316,6 +347,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         'faseIndexChat': index,
       });
     });
+
+    _scrollToBottom();
   }
 
   void _explicarFase(int index) {
@@ -357,6 +390,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         'faseIndexChat': index,
       });
     });
+
+    _scrollToBottom();
   }
 
   void _procesarOpcionRapida(String opcion) {
@@ -394,6 +429,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
       _mensajes.add({'esBot': true, 'texto': respuestaBot});
     });
+
+    _scrollToBottom();
   }
 
   void _abrirPantallaTecnicaDinamica() {
@@ -447,6 +484,113 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     }
   }
 
+  // ← NUEVO: función separada para cambiar método
+  Future<void> _cambiarMetodoEstudio() async {
+    final tituloPlan =
+        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+
+    final nuevoMetodo = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeleccionarMetodoScreen(
+          tituloTarea: tituloPlan,
+          metodoRecomendado: guiaActual['metodo_estudio'] ?? 'Pomodoro',
+          onMetodoSeleccionado: (metodo) {},
+        ),
+      ),
+    );
+
+    if (nuevoMetodo == null || !mounted) return;
+
+    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
+
+    // ← CLAVE: usar _userId que guardamos al inicio
+    final userId = _userId.isNotEmpty
+        ? _userId
+        : guiaActual['usuario_id']?.toString() ?? '';
+
+    print('🔍 Cambiar método - planId: $planId, userId: $userId, método: $nuevoMetodo');
+
+    if (planId == null || planId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: No se encontró el ID del plan'),
+          backgroundColor: Color(0xFFFF4444),
+        ),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: No se encontró el usuario. Cierra y vuelve a abrir el plan.'),
+          backgroundColor: Color(0xFFFF4444),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _cambiandoMetodo = true);
+
+    try {
+      final planRegenerado = await ApiService.regenerarPlanExistente(
+        planId: planId,
+        metodoEstudio: nuevoMetodo,
+        userId: userId,
+        titulo: guiaActual['nombre'] ?? guiaActual['titulo'] ?? tituloPlan,
+        descripcion: guiaActual['descripcion'] ?? '',
+        fechaEntrega: guiaActual['fecha_entrega'] ??
+            DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+        dificultad: guiaActual['dificultad'] ?? 'Media',
+      );
+
+      if (!mounted) return;
+
+      if (planRegenerado != null) {
+        setState(() {
+          guiaActual = Map<String, dynamic>.from(planRegenerado);
+          guiaActual['metodo_estudio'] = nuevoMetodo;
+          // ← Mantener el userId después de regenerar
+          if (guiaActual['usuario_id'] == null || guiaActual['usuario_id'].toString().isEmpty) {
+            guiaActual['usuario_id'] = userId;
+          }
+          _userId = userId;
+          _extraerListasDetalle();
+          _faseActualIndex = 0;
+          _inicializarMensajesChat();
+          _cambiandoMetodo = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('¡Método cambiado a $nuevoMetodo! 🚀'),
+            backgroundColor: const Color(0xFF4CAF50),
+          ),
+        );
+      } else {
+        setState(() => _cambiandoMetodo = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: El servidor no respondió correctamente'),
+            backgroundColor: Color(0xFFFF4444),
+          ),
+        );
+      }
+    } catch (e) {
+      print('❌ Error cambiando método: $e');
+      if (mounted) {
+        setState(() => _cambiandoMetodo = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cambiar método: $e'),
+            backgroundColor: const Color(0xFFFF4444),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final tituloPlan =
@@ -479,7 +623,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           ],
         ),
         actions: [
-          // 🔄 BOTÓN DE REINICIAR PROGRESO
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF00F0FF), size: 22),
             tooltip: 'Reiniciar pasos',
@@ -525,7 +668,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
               );
             },
           ),
-          // ⚡ BOTÓN DE MÉTODO DINÁMICO
           IconButton(
             icon: const Icon(
               Icons.flash_on,
@@ -540,554 +682,467 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
             )
-          : Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  color: const Color(0xFF13102A),
-                  child: const Text(
-                    'Consejo: Toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
-                    style: TextStyle(
-                      color: Color(0xFF9E9AC8),
-                      fontSize: 11,
-                      height: 1.3,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                // Lista del Chat
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _mensajes.length,
-                    itemBuilder: (context, index) {
-                      final msg = _mensajes[index];
-                      final esBot = msg['esBot'] as bool;
-                      final esBienvenida = msg['tipo'] == 'bienvenida';
-                      final faseIndexChat = msg['faseIndexChat'];
-                      final listaRecursosMsg =
-                          (msg['listaRecursos'] as List?) ?? [];
-
-                      List<dynamic> subpasosDeEstaFase = [];
-                      bool faseCompletadaEstado = false;
-                      bool faseCargandoEstado = false;
-
-                      if (faseIndexChat != null &&
-                          faseIndexChat < fasesPasos.length) {
-                        final faseObj = fasesPasos[faseIndexChat];
-                        subpasosDeEstaFase =
-                            (faseObj['subpasos'] as List?) ?? [];
-                        faseCompletadaEstado = faseObj['completado'] == true;
-                        faseCargandoEstado = cargandoFases[faseIndexChat];
-                      }
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          mainAxisAlignment: esBot
-                              ? MainAxisAlignment.start
-                              : MainAxisAlignment.end,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (esBot) ...[
-                              _buildAvatarLumi(radius: 16),
-                              const SizedBox(width: 8),
-                            ],
-                            Flexible(
-                              child: Column(
-                                crossAxisAlignment: esBot
-                                    ? CrossAxisAlignment.start
-                                    : CrossAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: esBot
-                                          ? const Color(0xFF1A1736)
-                                          : const Color(0xFF32285E),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: esBot
-                                            ? const Color(
-                                                0xFF4A3E8D,
-                                              ).withOpacity(0.4)
-                                            : const Color(0xFFBD00FF),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          msg['texto'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 13.5,
-                                            height: 1.4,
-                                          ),
-                                        ),
-
-                                        // 🔗 Enlaces recomendados
-                                        if (listaRecursosMsg.isNotEmpty) ...[
-                                          const SizedBox(height: 12),
-                                          ...listaRecursosMsg.map((rec) {
-                                            final nombreRec =
-                                                rec['nombre'] ??
-                                                rec['titulo'] ??
-                                                'Enlace de apoyo';
-                                            final urlRec = rec['url'] ?? '';
-                                            if (urlRec.isEmpty)
-                                              return const SizedBox.shrink();
-
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 8,
-                                              ),
-                                              child: InkWell(
-                                                onTap: () => _abrirUrl(urlRec),
-                                                child: Container(
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 8,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFF00F0FF,
-                                                    ).withOpacity(0.15),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: const Color(
-                                                        0xFF00F0FF,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.link,
-                                                        color: Color(
-                                                          0xFF00F0FF,
-                                                        ),
-                                                        size: 16,
-                                                      ),
-                                                      const SizedBox(width: 8),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Abrir: $nombreRec 🚀',
-                                                          style:
-                                                              const TextStyle(
-                                                                color: Color(
-                                                                  0xFF00F0FF,
-                                                                ),
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }),
-                                        ],
-
-                                        // 🟩 CHECKLIST DE SUBPASOS DE ESTA FASE
-                                        if (subpasosDeEstaFase.isNotEmpty &&
-                                            faseIndexChat != null) ...[
-                                          const SizedBox(height: 12),
-                                          const Divider(
-                                            color: Color(0xFF4A3E8D),
-                                            height: 1,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            '📌 Subpasos obligatorios para este paso:',
-                                            style: TextStyle(
-                                              color: Color(0xFF00F0FF),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          ...List.generate(
-                                            subpasosDeEstaFase.length,
-                                            (sIdx) {
-                                              final subMap =
-                                                  subpasosDeEstaFase[sIdx];
-                                              bool subCompletado =
-                                                  subMap['completado'] == true;
-                                              return CheckboxListTile(
-                                                contentPadding: EdgeInsets.zero,
-                                                dense: true,
-                                                title: Text(
-                                                  subMap['texto'] ?? '',
-                                                  style: TextStyle(
-                                                    color: subCompletado
-                                                        ? Colors.white38
-                                                        : Colors.white,
-                                                    fontSize: 11.5,
-                                                    decoration: subCompletado
-                                                        ? TextDecoration
-                                                              .lineThrough
-                                                        : null,
-                                                  ),
-                                                ),
-                                                value: subCompletado,
-                                                activeColor: const Color(
-                                                  0xFFFF44AA,
-                                                ),
-                                                checkColor: Colors.black,
-                                                onChanged: faseCompletadaEstado
-                                                    ? null
-                                                    : (bool? val) {
-                                                        _actualizarSubpasoFase(
-                                                          faseIndexChat,
-                                                          sIdx,
-                                                          val,
-                                                        );
-                                                      },
-                                              );
-                                            },
-                                          ),
-                                        ],
-
-                                        // 🔘 BOTONES DE LA FASE (Explicar y Completar)
-                                        if (faseIndexChat != null &&
-                                            !faseCompletadaEstado) ...[
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                style: OutlinedButton.styleFrom(
-                                                  foregroundColor: const Color(
-                                                    0xFF00F0FF,
-                                                  ),
-                                                  side: const BorderSide(
-                                                    color: Color(0xFF00F0FF),
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
-                                                      ),
-                                                ),
-                                                onPressed: () => _explicarFase(
-                                                  faseIndexChat,
-                                                ),
-                                                icon: const Icon(
-                                                  Icons.help_outline,
-                                                  size: 14,
-                                                ),
-                                                label: Text(
-                                                  'Explicar Paso ${faseIndexChat + 1}',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                  ),
-                                                ),
-                                              ),
-                                              faseCargandoEstado
-                                                  ? const SizedBox(
-                                                      width: 20,
-                                                      height: 20,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: Color(
-                                                              0xFFFF44AA,
-                                                            ),
-                                                          ),
-                                                    )
-                                                  : ElevatedButton.icon(
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            const Color(
-                                                              0xFFFF44AA,
-                                                            ),
-                                                        foregroundColor:
-                                                            Colors.black,
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
-                                                              horizontal: 10,
-                                                              vertical: 6,
-                                                            ),
-                                                      ),
-                                                      onPressed: () =>
-                                                          _completarFasePaso(
-                                                            faseIndexChat,
-                                                          ),
-                                                      icon: const Icon(
-                                                        Icons
-                                                            .check_circle_outline,
-                                                        size: 14,
-                                                      ),
-                                                      label: Text(
-                                                        'Completar Paso ${faseIndexChat + 1}',
-                                                        style: const TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                            ],
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Botón para cambiar método de estudio en bienvenida
-                                  // Botón para cambiar método de estudio en bienvenida
-                                  if (esBienvenida) ...[
-                                    const SizedBox(height: 10),
-                                    GestureDetector(
-                                      onTap: () async {
-                                        // 1. Abrimos la pantalla para seleccionar el nuevo método usando el que la IA asignó
-                                        final nuevoMetodo = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => SeleccionarMetodoScreen(
-                                              tituloTarea: tituloPlan,
-                                              metodoRecomendado:
-                                                  guiaActual['metodo_estudio'],
-                                              onMetodoSeleccionado: (metodo) {
-                                                setState(() {
-                                                  guiaActual['metodo_estudio'] =
-                                                      metodo;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        );
-
-                                        // 2. Si se seleccionó un método nuevo, actualizamos el backend, guardamos y regeneramos los pasos
-                                        // 2. Si se seleccionó un método nuevo, actualizamos el backend, guardamos y regeneramos los pasos
-                                        if (nuevoMetodo != null && mounted) {
-                                          setState(() => _isLoading = true);
-
-                                          final planId =
-                                              (guiaActual['id'] ??
-                                                      guiaActual['plan_id'])
-                                                  ?.toString();
-                                          final userIdRaw =
-                                              guiaActual['usuario_id'] ??
-                                              widget.guiaData['usuario_id'];
-                                          print(
-                                            "🔍 DEBUG USER_ID EN FLUTTER: $userIdRaw",
-                                          ); // Para ver qué trae realmente
-
-                                          final userId =
-                                              userIdRaw?.toString() ?? '';
-
-                                          if (userId.isEmpty || userId == '1') {
-                                            print(
-                                              "⚠️ CUIDADO: El ID de usuario está vacío o es '1'",
-                                            );
-                                          }
-
-                                          if (planId != null) {
-                                            final planRegenerado =
-                                                await ApiService.regenerarPlanExistente(
-                                                  planId: planId,
-                                                  metodoEstudio: nuevoMetodo,
-                                                  userId: userId,
-                                                  titulo: tituloPlan,
-                                                  descripcion:
-                                                      guiaActual['descripcion'] ??
-                                                      '',
-                                                  fechaEntrega:
-                                                      guiaActual['fecha_entrega'] ??
-                                                      DateTime.now()
-                                                          .add(
-                                                            const Duration(
-                                                              days: 3,
-                                                            ),
-                                                          )
-                                                          .toIso8601String(),
-                                                  dificultad:
-                                                      guiaActual['dificultad'] ??
-                                                      'Media',
-                                                );
-
-                                            if (planRegenerado != null &&
-                                                mounted) {
-                                              setState(() {
-                                                // Reemplazamos la guía actual con el mapa que devolvió el backend (que ya trae los nuevos pasos del método)
-                                                guiaActual =
-                                                    Map<String, dynamic>.from(
-                                                      planRegenerado,
-                                                    );
-                                                guiaActual['metodo_estudio'] =
-                                                    nuevoMetodo;
-
-                                                // Extraemos las nuevas listas y reiniciamos el chat con los pasos del nuevo método
-                                                _extraerListasDetalle();
-                                                _faseActualIndex =
-                                                    0; // Volvemos al inicio del nuevo plan
-                                                _inicializarMensajesChat();
-                                                _isLoading = false;
-
-                                                _mensajes.add({
-                                                  'esBot': true,
-                                                  'texto':
-                                                      '🚀 ¡Listo! He cambiado tu plan al método **$nuevoMetodo**, regeneré tus pasos y se ha guardado en la base de datos.',
-                                                });
-                                              });
-
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    '¡Cambiado a $nuevoMetodo y guardado con éxito! 🚀',
-                                                  ),
-                                                ),
-                                              );
-                                            } else {
-                                              setState(
-                                                () => _isLoading = false,
-                                              );
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      '⚠️ Error al comunicarse con el servidor para actualizar el método.',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          } else {
-                                            setState(() => _isLoading = false);
-                                          }
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF261D4C),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFBD00FF),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: const [
-                                            Icon(
-                                              Icons.settings_suggest,
-                                              color: Color(0xFF00F0FF),
-                                              size: 18,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              'Cambiar método de estudio',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            CircleAvatar(
-                                              radius: 10,
-                                              backgroundColor: Color(
-                                                0xFFBD00FF,
-                                              ),
-                                              child: Icon(
-                                                Icons.arrow_forward_ios,
-                                                color: Colors.white,
-                                                size: 10,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (!esBot) ...[
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Color(0xFF2E7D32),
-                                child: Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Botones inferiores predeterminados
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  color: const Color(0xFF0D0B1E),
+          : _cambiandoMetodo
+              ? const Center(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildBotonPredeterminado("Paso a Paso"),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildBotonPredeterminado(
-                              "Explica que toca hacer",
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildBotonPredeterminado(
-                              "¿Qué es este tema?",
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildBotonPredeterminado("Dame un consejo"),
-                          ),
-                        ],
+                      CircularProgressIndicator(color: Color(0xFFBD00FF)),
+                      SizedBox(height: 16),
+                      Text(
+                        'Cambiando método de estudio...\nEsto puede tardar unos segundos.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
                     ],
                   ),
+                )
+              : Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      color: const Color(0xFF13102A),
+                      child: const Text(
+                        'Consejo: Toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
+                        style: TextStyle(
+                          color: Color(0xFF9E9AC8),
+                          fontSize: 11,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _mensajes.length,
+                        itemBuilder: (context, index) {
+                          final msg = _mensajes[index];
+                          final esBot = msg['esBot'] as bool;
+                          final esBienvenida = msg['tipo'] == 'bienvenida';
+                          final faseIndexChat = msg['faseIndexChat'];
+                          final listaRecursosMsg =
+                              (msg['listaRecursos'] as List?) ?? [];
+
+                          List<dynamic> subpasosDeEstaFase = [];
+                          bool faseCompletadaEstado = false;
+                          bool faseCargandoEstado = false;
+
+                          if (faseIndexChat != null &&
+                              faseIndexChat < fasesPasos.length) {
+                            final faseObj = fasesPasos[faseIndexChat];
+                            subpasosDeEstaFase =
+                                (faseObj['subpasos'] as List?) ?? [];
+                            faseCompletadaEstado = faseObj['completado'] == true;
+                            faseCargandoEstado = cargandoFases[faseIndexChat];
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              mainAxisAlignment: esBot
+                                  ? MainAxisAlignment.start
+                                  : MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (esBot) ...[
+                                  _buildAvatarLumi(radius: 16),
+                                  const SizedBox(width: 8),
+                                ],
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: esBot
+                                        ? CrossAxisAlignment.start
+                                        : CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: esBot
+                                              ? const Color(0xFF1A1736)
+                                              : const Color(0xFF32285E),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: esBot
+                                                ? const Color(
+                                                    0xFF4A3E8D,
+                                                  ).withOpacity(0.4)
+                                                : const Color(0xFFBD00FF),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              msg['texto'] ?? '',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13.5,
+                                                height: 1.4,
+                                              ),
+                                            ),
+
+                                            // Enlaces recomendados
+                                            if (listaRecursosMsg.isNotEmpty) ...[
+                                              const SizedBox(height: 12),
+                                              ...listaRecursosMsg.map((rec) {
+                                                final nombreRec =
+                                                    rec['nombre'] ??
+                                                    rec['titulo'] ??
+                                                    'Enlace de apoyo';
+                                                final urlRec = rec['url'] ?? '';
+                                                if (urlRec.isEmpty)
+                                                  return const SizedBox.shrink();
+
+                                                return Padding(
+                                                  padding:
+                                                      const EdgeInsets.only(
+                                                        bottom: 8,
+                                                      ),
+                                                  child: InkWell(
+                                                    onTap: () =>
+                                                        _abrirUrl(urlRec),
+                                                    child: Container(
+                                                      padding:
+                                                          const EdgeInsets.symmetric(
+                                                            horizontal: 10,
+                                                            vertical: 8,
+                                                          ),
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
+                                                          0xFF00F0FF,
+                                                        ).withOpacity(0.15),
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              8,
+                                                            ),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                            0xFF00F0FF,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.link,
+                                                            color: Color(
+                                                              0xFF00F0FF,
+                                                            ),
+                                                            size: 16,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              'Abrir: $nombreRec 🚀',
+                                                              style:
+                                                                  const TextStyle(
+                                                                    color: Color(
+                                                                      0xFF00F0FF,
+                                                                    ),
+                                                                    fontSize: 12,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }),
+                                            ],
+
+                                            // Checklist de subpasos
+                                            if (subpasosDeEstaFase.isNotEmpty &&
+                                                faseIndexChat != null) ...[
+                                              const SizedBox(height: 12),
+                                              const Divider(
+                                                color: Color(0xFF4A3E8D),
+                                                height: 1,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              const Text(
+                                                '📌 Subpasos obligatorios para este paso:',
+                                                style: TextStyle(
+                                                  color: Color(0xFF00F0FF),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              ...List.generate(
+                                                subpasosDeEstaFase.length,
+                                                (sIdx) {
+                                                  final subMap =
+                                                      subpasosDeEstaFase[sIdx];
+                                                  bool subCompletado =
+                                                      subMap['completado'] ==
+                                                      true;
+                                                  return CheckboxListTile(
+                                                    contentPadding:
+                                                        EdgeInsets.zero,
+                                                    dense: true,
+                                                    title: Text(
+                                                      subMap['texto'] ?? '',
+                                                      style: TextStyle(
+                                                        color: subCompletado
+                                                            ? Colors.white38
+                                                            : Colors.white,
+                                                        fontSize: 11.5,
+                                                        decoration:
+                                                            subCompletado
+                                                            ? TextDecoration
+                                                                  .lineThrough
+                                                            : null,
+                                                      ),
+                                                    ),
+                                                    value: subCompletado,
+                                                    activeColor: const Color(
+                                                      0xFFFF44AA,
+                                                    ),
+                                                    checkColor: Colors.black,
+                                                    onChanged:
+                                                        faseCompletadaEstado
+                                                        ? null
+                                                        : (bool? val) {
+                                                            _actualizarSubpasoFase(
+                                                              faseIndexChat,
+                                                              sIdx,
+                                                              val,
+                                                            );
+                                                          },
+                                                  );
+                                                },
+                                              ),
+                                            ],
+
+                                            // Botones de la fase
+                                            if (faseIndexChat != null &&
+                                                !faseCompletadaEstado) ...[
+                                              const SizedBox(height: 12),
+                                              Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment
+                                                        .spaceBetween,
+                                                children: [
+                                                  OutlinedButton.icon(
+                                                    style:
+                                                        OutlinedButton.styleFrom(
+                                                          foregroundColor:
+                                                              const Color(
+                                                                0xFF00F0FF,
+                                                              ),
+                                                          side:
+                                                              const BorderSide(
+                                                                color: Color(
+                                                                  0xFF00F0FF,
+                                                                ),
+                                                              ),
+                                                          padding:
+                                                              const EdgeInsets.symmetric(
+                                                                horizontal: 10,
+                                                                vertical: 6,
+                                                              ),
+                                                        ),
+                                                    onPressed: () =>
+                                                        _explicarFase(
+                                                          faseIndexChat,
+                                                        ),
+                                                    icon: const Icon(
+                                                      Icons.help_outline,
+                                                      size: 14,
+                                                    ),
+                                                    label: Text(
+                                                      'Explicar Paso ${faseIndexChat + 1}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  faseCargandoEstado
+                                                      ? const SizedBox(
+                                                          width: 20,
+                                                          height: 20,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                                color: Color(
+                                                                  0xFFFF44AA,
+                                                                ),
+                                                              ),
+                                                        )
+                                                      : ElevatedButton.icon(
+                                                          style: ElevatedButton.styleFrom(
+                                                            backgroundColor:
+                                                                const Color(
+                                                                  0xFFFF44AA,
+                                                                ),
+                                                            foregroundColor:
+                                                                Colors.black,
+                                                            padding:
+                                                                const EdgeInsets.symmetric(
+                                                                  horizontal:
+                                                                      10,
+                                                                  vertical: 6,
+                                                                ),
+                                                          ),
+                                                          onPressed: () =>
+                                                              _completarFasePaso(
+                                                                faseIndexChat,
+                                                              ),
+                                                          icon: const Icon(
+                                                            Icons
+                                                                .check_circle_outline,
+                                                            size: 14,
+                                                          ),
+                                                          label: Text(
+                                                            'Completar Paso ${faseIndexChat + 1}',
+                                                            style:
+                                                                const TextStyle(
+                                                                  fontSize: 11,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                          ),
+                                                        ),
+                                                ],
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+
+                                      // ← Botón cambiar método simplificado
+                                      if (esBienvenida) ...[
+                                        const SizedBox(height: 10),
+                                        GestureDetector(
+                                          onTap: _cambiarMetodoEstudio,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF261D4C),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: const Color(0xFFBD00FF),
+                                              ),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: const [
+                                                Icon(
+                                                  Icons.settings_suggest,
+                                                  color: Color(0xFF00F0FF),
+                                                  size: 18,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Cambiar método de estudio',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                CircleAvatar(
+                                                  radius: 10,
+                                                  backgroundColor: Color(
+                                                    0xFFBD00FF,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.arrow_forward_ios,
+                                                    color: Colors.white,
+                                                    size: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                if (!esBot) ...[
+                                  const SizedBox(width: 8),
+                                  const CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: Color(0xFF2E7D32),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      color: const Color(0xFF0D0B1E),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child:
+                                    _buildBotonPredeterminado("Paso a Paso"),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildBotonPredeterminado(
+                                  "Explica que toca hacer",
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildBotonPredeterminado(
+                                  "¿Qué es este tema?",
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildBotonPredeterminado(
+                                  "Dame un consejo",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 

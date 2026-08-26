@@ -1,6 +1,5 @@
-// ia.routes.ts
 import { Router } from "express";
-import { generarPlan, evaluarFeynman, regenerarMetodoPlan } from "../controllers/ia.controller"; // <--- Aquí importamos los tres controladores necesarios
+import { generarPlan, evaluarFeynman, regenerarMetodoPlan, eliminarPlan } from "../controllers/ia.controller";
 import { getPlan, actualizarProgresoPlan } from "../controllers/historial.controller";
 
 const router = Router();
@@ -14,10 +13,13 @@ router.get("/plan/:planId", getPlan);
 // Guardar el progreso de los checkboxes (pasos/subpasos)
 router.put("/plan/:planId/progreso", actualizarProgresoPlan);
 
-// 📌 RUTA NUEVA: Evaluar Feynman con IA
+// Evaluar Feynman con IA
 router.post('/feynman/evaluar', evaluarFeynman);
 
-// 📌 RUTA NUEVA: Regenerar el plan completo con el nuevo método seleccionado
+// Regenerar el plan completo con el nuevo método seleccionado
 router.put("/plan/:planId/metodo", regenerarMetodoPlan);
+
+// Eliminar un plan específico
+router.delete("/plan/:planId", eliminarPlan);
 
 export default router;
