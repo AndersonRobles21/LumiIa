@@ -126,8 +126,8 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                       padding: const EdgeInsets.only(top: 10.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          Text(
+                        children: [
+                          const Text(
                             'Nueva tarea',
                             style: TextStyle(
                               color: Colors.white,
@@ -135,13 +135,31 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(height: 6),
-                          Text(
+                          const SizedBox(height: 6),
+                          const Text(
                             'Organiza tu próximo objetivo de estudio',
                             style: TextStyle(
                               color: Colors.white54,
                               fontSize: 13,
                               height: 1.3,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // 🖼️ Nueva imagen 'logo/recordatorio.png'
+                          SizedBox(
+                            width:
+                                MediaQuery.of(context).size.width *
+                                0.62, 
+                            height: 140, 
+                            child: Image.asset(
+                              'logo/recordatorio.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.notifications,
+                                    color: Color(0xFFFF44AA),
+                                    size: 40,
+                                  ),
                             ),
                           ),
                         ],
@@ -333,13 +351,13 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
   }
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
-        filled: true,
-        fillColor: const Color(0xFF16003A),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(15),
-          borderSide: BorderSide.none,
-        ),
-      );
+    hintText: hint,
+    hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+    filled: true,
+    fillColor: const Color(0xFF16003A),
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(15),
+      borderSide: BorderSide.none,
+    ),
+  );
 }
