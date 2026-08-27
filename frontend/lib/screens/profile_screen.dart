@@ -438,23 +438,25 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
-
-  Future<void> _seleccionarNuevaImagen() async {
+ Future<void> _seleccionarNuevaImagen() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 500,
-        maxHeight: 500,
-        imageQuality: 85,
+        maxWidth: 250,   // Reducido para que la resolución sea ligera
+        maxHeight: 250,  // Reducido para que la resolución sea ligera
+        imageQuality: 40, // Alta compresión para que pese muy pocos KB y no dé error 413
       );
+      
       if (pickedFile != null) {
-        final File file = File(pickedFile.path);
-        final bytes = await file.readAsBytes();
-        final base64String = base64Encode(
-          bytes,
-        ).replaceAll('\n', '').replaceAll('\r', '');
+        final bytes = await pickedFile.readAsBytes();
+        String base64String = base64Encode(bytes);
+        
+        if (base64String.contains(',')) {
+          base64String = base64String.split(',').last;
+        }
+
         setState(() {
-          _imageFile = file;
+          _imageFile = null;
           _base64Image = base64String;
         });
       }
@@ -468,6 +470,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _cargarDatosDeBaseDeDatos() async {
     setState(() => _isLoading = true);
     final data = await ApiService.getProfile(_userId);
+    
     if (data != null) {
       final scheduleFromServer = List<List<String>>.generate(
         _days.length,
@@ -475,7 +478,14 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
 
       if (data['perfil_estudio'] != null) {
-        _base64Image = data['perfil_estudio']['foto_perfil'];
+        var fotoServidor = data['perfil_estudio']['foto_perfil'];
+        
+        // Limpiamos el Base64 por si en la BD se guardó con el header data:image/...
+        if (fotoServidor != null && fotoServidor.toString().contains(',')) {
+          fotoServidor = fotoServidor.toString().split(',').last;
+        }
+
+        _base64Image = fotoServidor;
         _objetivoController.text = data['perfil_estudio']['objetivo'] ?? '';
         _nivelProcrastinacion =
             data['perfil_estudio']['nivel_procrastinacion'] ?? 1;
@@ -506,6 +516,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           }
         }
       }
+      
       setState(() {
         _nameController.text = data['nombre'] ?? '';
         _apellidoController.text = data['apellido'] ?? '';
@@ -514,6 +525,80 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     setState(() => _isLoading = false);
   }
+
+  Widget _buildAvatar() {
+    Widget avatarChild = const Icon(
+      Icons.person,
+      size: 50,
+      color: Colors.white30,
+    );
+
+    if (_imageFile != null) {
+      // Prioridad 1: Imagen recién seleccionada desde el dispositivo (Archivo local)
+      avatarChild = ClipRRect(
+        borderRadius: BorderRadius.circular(50),
+        child: Image.file(
+          _imageFile!,
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (_base64Image != null && _base64Image!.trim().isNotEmpty) {
+      // Prioridad 2: Imagen convertida en Base64 proveniente de Supabase / Backend
+      try {
+        String cleanBase64 = _base64Image!.trim();
+        if (cleanBase64.contains(',')) {
+          cleanBase64 = cleanBase64.split(',').last;
+        }
+
+        avatarChild = ClipRRect(
+          borderRadius: BorderRadius.circular(50),
+          child: Image.memory(
+            base64Decode(cleanBase64),
+            width: 100,
+            height: 100,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return const Icon(Icons.broken_image, size: 40, color: Colors.white54);
+            },
+          ),
+        );
+      } catch (e) {
+        avatarChild = const Icon(Icons.person, size: 50, color: Colors.white30);
+      }
+    }
+
+    return GestureDetector(
+      onTap: _seleccionarNuevaImagen,
+      child: Stack(
+        children: [
+          CircleAvatar(
+            radius: 50,
+            backgroundColor: const Color(0xFF2A1F5A),
+            child: avatarChild,
+          ),
+          Positioned(
+            bottom: 0,
+            right: 0,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFF44AA),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                size: 16,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
 
   void _handleSend() async {
     if (_nameController.text.trim().isEmpty) {
@@ -842,66 +927,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildAvatar() {
-    Widget avatarChild = const Icon(
-      Icons.person,
-      size: 50,
-      color: Colors.white30,
-    );
-
-    if (_imageFile != null) {
-      avatarChild = ClipRRect(
-        borderRadius: BorderRadius.circular(50),
-        child: Image.file(
-          _imageFile!,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-        ),
-      );
-    } else if (_base64Image != null && _base64Image!.trim().isNotEmpty) {
-      try {
-        avatarChild = ClipRRect(
-          borderRadius: BorderRadius.circular(50),
-          child: Image.memory(
-            base64Decode(_base64Image!),
-            width: 100,
-            height: 100,
-            fit: BoxFit.cover,
-          ),
-        );
-      } catch (_) {}
-    }
-
-    return GestureDetector(
-      onTap: _seleccionarNuevaImagen,
-      child: Stack(
-        children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundColor: const Color(0xFF2A1F5A),
-            child: avatarChild,
-          ),
-          Positioned(
-            bottom: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFF44AA),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                size: 16,
-                color: Colors.white,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Widget _buildGridSchedule() {
     return GridView.builder(
