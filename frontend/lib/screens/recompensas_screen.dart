@@ -115,7 +115,7 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF14002A), Color(0xFF0B0813)],
+            colors: [Color.fromARGB(255, 4, 0, 13), Color(0xFF0B0813)],
           ),
         ),
         child: Stack(

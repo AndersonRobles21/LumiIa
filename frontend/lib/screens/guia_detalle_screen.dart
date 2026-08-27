@@ -9,13 +9,8 @@ import 'spaced_repetition_screen.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
-  final String? userId;
 
-  const GuiaDetalleScreen({
-    super.key,
-    required this.guiaData,
-    this.userId,
-  });
+  const GuiaDetalleScreen({super.key, required this.guiaData});
 
   @override
   State<GuiaDetalleScreen> createState() => _GuiaDetalleScreenState();
@@ -23,6 +18,8 @@ class GuiaDetalleScreen extends StatefulWidget {
 
 class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   bool _isLoading = true;
+  bool _cambiandoMetodo = false;
+
   Map<String, dynamic> guiaActual = {};
   List<dynamic> fasesPasos = [];
   List<dynamic> consejos = [];
@@ -37,31 +34,45 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   int _nivelExplicacionGeneral = 0;
 
   final List<Map<String, dynamic>> _mensajes = [];
+  final ScrollController _scrollController = ScrollController();
+
+  String _userId = '';
 
   String formatearTiempo(int minutos) {
     final horas = minutos ~/ 60;
     final minutosRestantes = minutos % 60;
+
     if (horas == 0) return "$minutosRestantes min";
     if (minutosRestantes == 0) return "$horas h";
+
     return "$horas h $minutosRestantes min";
   }
 
   Future<void> _abrirUrl(String urlString) async {
     if (urlString.trim().isEmpty) return;
+
     final Uri uri = Uri.parse(urlString.trim());
+
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir el enlace: $urlString')),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el enlace: $urlString')),
+      );
     }
   }
 
   @override
   void initState() {
     super.initState();
+    _userId = widget.guiaData['usuario_id']?.toString() ?? '';
     _cargarDetallePlan();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _cargarDetallePlan() async {
@@ -69,71 +80,123 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
     if (planId != null) {
       final detalle = await ApiService.obtenerPlan(planId.toString());
+
       if (detalle != null && mounted) {
+        if (_userId.isEmpty && detalle['usuario_id'] != null) {
+          _userId = detalle['usuario_id'].toString();
+        }
+
         setState(() {
-          guiaActual = detalle;
-          subtareas = (detalle['subtareas'] as List?) ?? [];
-          consejos = (detalle['consejos'] as List?) ?? [];
-          recursos = (detalle['recursos'] as List?) ?? [];
+          guiaActual = Map<String, dynamic>.from(detalle);
+          _extraerListasDetalle();
+          _inicializarMensajesChat();
+          _isLoading = false;
         });
-        _sincronizarSubtareasDesdeBackend();
-        _isLoading = false;
+
+        _scrollToBottom();
         return;
       }
     }
 
-    if (mounted) {
-      setState(() {
-        guiaActual = widget.guiaData;
-        subtareas = (guiaActual['subtareas'] as List?) ?? [];
-        consejos = (guiaActual['consejos'] as List?) ?? [];
-        recursos = (guiaActual['recursos'] as List?) ?? [];
-      });
-      _sincronizarSubtareasDesdeBackend();
+    if (!mounted) return;
+
+    setState(() {
+      guiaActual = Map<String, dynamic>.from(widget.guiaData);
+      _extraerListasDetalle();
+      _inicializarMensajesChat();
       _isLoading = false;
-    }
+    });
+
+    _scrollToBottom();
   }
 
-  Future<void> _sincronizarSubtareasDesdeBackend() async {
-    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
-    if (userId.isEmpty) {
-      _actualizarListasEstado();
-      return;
-    }
-
-    final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
-    final mapaTitulos = <String, Map<String, dynamic>>{};
-
-    for (final tarea in tareas) {
-      if (tarea is Map) {
-        final tareaMap = Map<String, dynamic>.from(tarea);
-        final nombre = (tareaMap['nombre'] ?? tareaMap['titulo'] ?? '').toString();
-        if (nombre.isNotEmpty) mapaTitulos[nombre.toLowerCase()] = tareaMap;
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && mounted) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
       }
-    }
-
-    for (int i = 0; i < subtareas.length; i++) {
-      final sub = subtareas[i];
-      if (sub is! Map) continue;
-      final titulo = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
-      final tareaServidor = mapaTitulos[titulo.toLowerCase()];
-
-      if (tareaServidor != null) {
-        sub['id'] = tareaServidor['id'] ?? sub['id'];
-        sub['completada'] = tareaServidor['completada'] == true || (tareaServidor['estado'] ?? '').toString().toUpperCase() == 'COMPLETADA';
-      }
-    }
-
-    _actualizarListasEstado();
+    });
   }
 
-  void _actualizarListasEstado() {
-    tareasCompletadas = List.generate(
-      subtareas.length,
-      (index) {
-        final sub = subtareas[index];
-        if (sub is Map && sub.containsKey('completada')) {
-          return sub['completada'] == true;
+  void _extraerListasDetalle() {
+    consejos = (guiaActual['consejos'] as List?) ?? [];
+    recursos = (guiaActual['recursos'] as List?) ?? [];
+    conceptosClave = (guiaActual['conceptos_clave'] as List?) ?? [];
+    preguntasRecall = (guiaActual['preguntas_recall'] as List?) ?? [];
+
+    fasesPasos = (guiaActual['pasos'] as List?) ?? [];
+    cargandoFases = List.generate(fasesPasos.length, (_) => false);
+  }
+
+  void _inicializarMensajesChat() {
+    final nombrePlan =
+        guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo o Tarea';
+    final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
+
+    _mensajes.clear();
+
+    String materialInicial =
+        "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
+
+    if (recursos.isNotEmpty) {
+      for (var i = 0; i < recursos.length; i++) {
+        final rec = recursos[i];
+        final nombreRec =
+            rec['nombre'] ?? rec['titulo'] ?? 'Material de apoyo ${i + 1}';
+        materialInicial += "• ${i + 1}. $nombreRec\n\n";
+      }
+    } else {
+      materialInicial +=
+          "• Ten listos tus apuntes, editor de código o libreta de notas antes de comenzar.\n\n";
+    }
+
+    if (consejos.isNotEmpty) {
+      materialInicial += "💡 Consejo general de Lumi:\n${consejos.first}";
+    }
+
+    _mensajes.add({
+      'esBot': true,
+      'texto': materialInicial,
+      'tipo': 'herramientas_iniciales',
+      'listaRecursos': recursos,
+    });
+
+    _mensajes.add({
+      'esBot': true,
+      'texto':
+          '¡Hola! Vamos a empezar a trabajar en tu "$nombrePlan".\n\nHe seleccionado el método **$metodoEstudio** porque es el que mejor se adapta a esta actividad. ¿Deseas mantenerlo o prefieres cambiarlo?',
+      'tipo': 'bienvenida',
+    });
+
+    bool hayFasesPendientes = false;
+
+    for (int i = 0; i < fasesPasos.length; i++) {
+      final fase = fasesPasos[i];
+
+      if (fase is Map) {
+        final subpasos = (fase['subpasos'] as List?) ?? [];
+
+        final todosCompletos =
+            subpasos.isNotEmpty &&
+            subpasos.every((sub) => sub['completado'] == true);
+        final faseCompletaDirecta = fase['completado'] == true;
+
+        if (todosCompletos || faseCompletaDirecta) {
+          _mensajes.add({
+            'esBot': true,
+            'texto':
+                '📋 PASO ${i + 1} DE ${fasesPasos.length}: ${fase['titulo'] ?? 'Paso'}\n\n✅ ¡Fase completada con anterioridad!',
+            'faseIndexChat': i,
+          });
+        } else {
+          _faseActualIndex = i;
+          hayFasesPendientes = true;
+          _agregarMensajeFase(i);
+          break;
         }
       }
     }
@@ -148,7 +211,41 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     }
   }
 
-  // 🔄 REINICIO TOTAL DEL PROGRESO
+  void _agregarMensajeFase(int index) {
+    if (index >= fasesPasos.length) return;
+
+    final fase = fasesPasos[index];
+    final tituloFase = fase['titulo'] ?? 'Paso ${index + 1}';
+    final descFase = fase['descripcion'] ?? '';
+    final consejoPaso = fase['consejo_paso'] ?? fase['consejo'] ?? '';
+    final duracion = fase['duracion_minutos'] ?? 20;
+
+    String mensajePaso =
+        '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
+        '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
+        '⏱️ Tiempo estimado de enfoque: $duracion minutos.';
+
+    if (consejoPaso.toString().isNotEmpty) {
+      mensajePaso += '\n\n💡 Tip clave para este paso:\n$consejoPaso';
+    }
+
+    _mensajes.add({
+      'esBot': true,
+      'texto': mensajePaso,
+      'faseIndexChat': index,
+    });
+  }
+
+  void _mostrarFasePaso(int index) {
+    if (index >= fasesPasos.length) return;
+
+    setState(() {
+      _agregarMensajeFase(index);
+    });
+
+    _scrollToBottom();
+  }
+
   Future<void> _reiniciarProgreso() async {
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
 
@@ -156,6 +253,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       if (fase is Map) {
         fase['completado'] = false;
         final subpasos = (fase['subpasos'] as List?) ?? [];
+
         for (var sub in subpasos) {
           if (sub is Map) sub['completado'] = false;
         }
@@ -169,64 +267,59 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       );
     }
 
+    if (!mounted) return;
+
     setState(() {
       _faseActualIndex = 0;
       _inicializarMensajesChat();
     });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🔄 ¡Progreso reiniciado! Volviste al Paso 1.'),
-          backgroundColor: Color(0xFF00F0FF),
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🔄 ¡Progreso reiniciado! Volviste al Paso 1.'),
+        backgroundColor: Color(0xFF00F0FF),
+      ),
+    );
+
+    _scrollToBottom();
   }
 
-  Future<void> _confirmarTarea(int index) async {
-    if (index >= subtareas.length || subtareas[index] is! Map) return;
+  Future<void> _actualizarSubpasoFase(
+    int faseIndex,
+    int subpasoIndex,
+    bool? val,
+  ) async {
+    if (faseIndex < fasesPasos.length) {
+      final fase = fasesPasos[faseIndex];
+      final subpasosList = (fase['subpasos'] as List?) ?? [];
 
-    final sub = subtareas[index];
-    final tareaId = sub['id'];
-
-    if (tareaId == null) {
-      final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
-      if (userId.isNotEmpty) {
-        final tareas = await ApiService.getPlanesEstudio(userId) ?? const [];
-        for (final tarea in tareas) {
-          if (tarea is Map) {
-            final nombre = (tarea['nombre'] ?? tarea['titulo'] ?? '').toString();
-            final tituloActual = (sub['titulo'] ?? sub['nombre'] ?? '').toString();
-            if (nombre.toLowerCase() == tituloActual.toLowerCase()) {
-              sub['id'] = tarea['id'];
-              break;
-            }
-          }
-        }
-      }
-
-      if (sub['id'] == null) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('La tarea no tiene id de base de datos.')),
-        );
-        return;
+      if (subpasoIndex < subpasosList.length) {
+        subpasosList[subpasoIndex]['completado'] = val ?? false;
       }
     }
 
+    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
+
+    if (planId != null) {
+      await ApiService.actualizarProgresoPlan(
+        planId: planId,
+        pasos: fasesPasos,
+      );
+    }
+
+    if (!mounted) return;
     setState(() {});
   }
 
-    final ok = await ApiService.completarTarea(
-      tareaId: sub['id'].toString(),
-      completada: true,
-    );
+  Future<void> _completarFasePaso(int faseIndex) async {
+    if (faseIndex >= fasesPasos.length) return;
 
     final fase = fasesPasos[faseIndex];
     final subpasosList = (fase['subpasos'] as List?) ?? [];
 
-    bool faltanSubpasos = subpasosList.any((sub) => sub['completado'] != true);
+    final faltanSubpasos =
+        subpasosList.any((sub) => sub['completado'] != true);
+
     if (faltanSubpasos && subpasosList.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -239,27 +332,149 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       return;
     }
 
-    final userId = (widget.userId ?? guiaActual['usuario_id'] ?? widget.guiaData['usuario_id'] ?? widget.guiaData['user_id'] ?? '').toString();
-    if (userId.isNotEmpty) {
-      await ApiService.syncTaskStats(userId);
+    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
+
+    setState(() => cargandoFases[faseIndex] = true);
+
+    fase['completado'] = true;
+
+    for (var sub in subpasosList) {
+      sub['completado'] = true;
+    }
+
+    if (planId != null) {
+      await ApiService.actualizarProgresoPlan(
+        planId: planId,
+        pasos: fasesPasos,
+      );
+    }
+
+    if (!mounted) return;
+
+    setState(() {
+      cargandoFases[faseIndex] = false;
+
+      _mensajes.add({
+        'esBot': true,
+        'texto': '✅ ¡Paso ${faseIndex + 1} completado y guardado con éxito!',
+      });
+
+      if (faseIndex + 1 < fasesPasos.length) {
+        _faseActualIndex = faseIndex + 1;
+        _agregarMensajeFase(_faseActualIndex);
+      } else {
+        _mensajes.add({
+          'esBot': true,
+          'texto':
+              '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
+        });
+      }
+    });
+
+    _scrollToBottom();
+  }
+
+  void _explicarFase(int index) {
+    if (index >= fasesPasos.length) return;
+
+    final fase = fasesPasos[index];
+    final tituloFase = fase['titulo'] ?? '';
+    final descFase = fase['descripcion'] ?? '';
+    final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
+
+    final nivel = (_nivelesExplicacionFase[index] ?? 0) + 1;
+    _nivelesExplicacionFase[index] = nivel;
+
+    String explicacionExtensa = "";
+
+    if (nivel == 1) {
+      explicacionExtensa =
+          '🧠 EXPLICACIÓN PROFUNDA (Paso ${index + 1}: $tituloFase)\n\n'
+          '1. Objetivo Metodológico ($metodoEstudio):\n'
+          'En este punto la meta es: $descFase.\n\n'
+          '2. Guía de Ejecución:\n'
+          '• Abre tu entorno de trabajo y céntrate solo en los subpasos indicados arriba.\n'
+          '• Ve marcando cada casilla a medida que los vayas ejecutando.';
+    } else {
+      explicacionExtensa =
+          '🔍 EXPLICACIÓN SENCILLA (Nivel $nivel - Paso ${index + 1})\n\n'
+          'Tranquil@, divide "$tituloFase" en pequeñas acciones de 10 minutos y completa los subpasos uno por uno.';
     }
 
     setState(() {
-      sub['completada'] = true;
-      tareasCompletadas[index] = true;
-      cargando[index] = false;
+      _mensajes.add({
+        'esBot': false,
+        'texto': '¿Me explicas mejor el Paso ${index + 1}?',
+      });
+
+      _mensajes.add({
+        'esBot': true,
+        'texto': explicacionExtensa,
+        'faseIndexChat': index,
+      });
     });
+
+    _scrollToBottom();
+  }
+
+  void _procesarOpcionRapida(String opcion) {
+    setState(() {
+      _mensajes.add({'esBot': false, 'texto': opcion});
+
+      final opLower = opcion.toLowerCase();
+      String respuestaBot = "";
+
+      if (opLower.contains('paso a paso')) {
+        _agregarMensajeFase(_faseActualIndex);
+      } else if (opLower.contains('explica que toca hacer')) {
+        _nivelExplicacionGeneral++;
+        respuestaBot =
+            '📌 EXPLICACIÓN GENERAL DEL TRABAJO\n\n'
+            'Este plan divide tu proyecto en fases independientes. Completa los subpasos de la tarjeta actual para avanzar a la siguiente.';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      } else if (opLower.contains('qué es este tema') ||
+          opLower.contains('que es este tema')) {
+        final titulo =
+            guiaActual['nombre'] ??
+            guiaActual['titulo'] ??
+            'el tema de tu tarea';
+
+        respuestaBot =
+            '📚 SOBRE EL TEMA: "$titulo"\n\nEsta actividad abarca conceptos fundamentales según la rúbrica.';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      } else if (opLower.contains('dame un consejo')) {
+        final consejo = consejos.isNotEmpty
+            ? consejos.first
+            : "Elimina distracciones por los próximos 25 minutos.";
+
+        respuestaBot = '💡 CONSEJO DE LUMI:\n$consejo';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      } else {
+        respuestaBot =
+            "Entendido. Selecciona una opción de abajo para continuar.";
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      }
+    });
+
+    _scrollToBottom();
   }
 
   void _abrirPantallaTecnicaDinamica() {
     final metodo = (guiaActual['metodo_estudio'] ?? 'Pomodoro')
         .toString()
         .toLowerCase();
-    final titulo = (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo')
-        .toString();
+
+    final titulo =
+        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+
     final conceptosIA = List<String>.from(
       conceptosClave.map((e) => e.toString()),
     );
+
     final preguntasIA = List<Map<String, dynamic>>.from(
       preguntasRecall.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
     );
@@ -297,28 +512,155 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PomodoroScreen(tituloTarea: titulo)),
+        MaterialPageRoute(
+          builder: (_) => PomodoroScreen(tituloTarea: titulo),
+        ),
+      );
+    }
+  }
+
+  Future<void> _cambiarMetodoEstudio() async {
+    final tituloPlan =
+        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+
+    final nuevoMetodo = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SeleccionarMetodoScreen(
+          tituloTarea: tituloPlan,
+          metodoRecomendado: guiaActual['metodo_estudio'] ?? 'Pomodoro',
+          onMetodoSeleccionado: (metodo) {},
+        ),
+      ),
+    );
+
+    if (nuevoMetodo == null || !mounted) return;
+
+    final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
+
+    final userId = _userId.isNotEmpty
+        ? _userId
+        : guiaActual['usuario_id']?.toString() ?? '';
+
+    if (planId == null || planId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: No se encontró el ID del plan'),
+          backgroundColor: Color(0xFFFF4444),
+        ),
+      );
+      return;
+    }
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Error: No se encontró el usuario. Cierra y vuelve a abrir el plan.',
+          ),
+          backgroundColor: Color(0xFFFF4444),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _cambiandoMetodo = true);
+
+    try {
+      final planRegenerado = await ApiService.regenerarPlanExistente(
+        planId: planId,
+        metodoEstudio: nuevoMetodo,
+        userId: userId,
+        titulo: guiaActual['nombre'] ?? guiaActual['titulo'] ?? tituloPlan,
+        descripcion: guiaActual['descripcion'] ?? '',
+        fechaEntrega: guiaActual['fecha_entrega'] ??
+            DateTime.now().add(const Duration(days: 3)).toIso8601String(),
+        dificultad: guiaActual['dificultad'] ?? 'Media',
+      );
+
+      if (!mounted) return;
+
+      if (planRegenerado != null) {
+        setState(() {
+          guiaActual = Map<String, dynamic>.from(planRegenerado);
+          guiaActual['metodo_estudio'] = nuevoMetodo;
+
+          if (guiaActual['usuario_id'] == null ||
+              guiaActual['usuario_id'].toString().isEmpty) {
+            guiaActual['usuario_id'] = userId;
+          }
+
+          _userId = userId;
+          _extraerListasDetalle();
+          _faseActualIndex = 0;
+          _inicializarMensajesChat();
+          _cambiandoMetodo = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('¡Método cambiado a $nuevoMetodo! 🚀'),
+            backgroundColor: const Color(0xFF4CAF50),
+          ),
+        );
+
+        _scrollToBottom();
+      } else {
+        setState(() => _cambiandoMetodo = false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Error: El servidor no respondió correctamente'),
+            backgroundColor: Color(0xFFFF4444),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() => _cambiandoMetodo = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cambiar método: $e'),
+          backgroundColor: const Color(0xFFFF4444),
+        ),
       );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tituloPrincipal = (guiaActual['nombre'] ?? guiaActual['titulo'] ?? widget.guiaData['nombre'] ?? widget.guiaData['titulo'] ?? 'Plan de estudio').toString();
+    final tituloPlan =
+        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0B1E),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        title: Text(
-          tituloPrincipal,
-          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-          overflow: TextOverflow.ellipsis,
+        backgroundColor: const Color(0xFF161331),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
+          onPressed: () => Navigator.pop(context),
         ),
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: Colors.white),
+        title: Row(
+          children: [
+            _buildAvatarLumi(radius: 16),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                tituloPlan,
+                style: const TextStyle(
+                  color: Color(0xFFBD00FF),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          // 🔄 BOTÓN DE REINICIAR PROGRESO
           IconButton(
             icon: const Icon(Icons.refresh, color: Color(0xFF00F0FF), size: 22),
             tooltip: 'Reiniciar pasos',
@@ -364,7 +706,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
               );
             },
           ),
-          // ⚡ BOTÓN DE MÉTODO DINÁMICO
           IconButton(
             icon: const Icon(
               Icons.flash_on,
@@ -379,185 +720,169 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           ? const Center(
               child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
             )
-          : Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                  color: const Color(0xFF13102A),
-                  child: const Text(
-                    'Consejo: Toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
-                    style: TextStyle(
-                      color: Color(0xFF9E9AC8),
-                      fontSize: 11,
-                      height: 1.3,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-
-                // Lista del Chat
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _mensajes.length,
-                    itemBuilder: (context, index) {
-                      final msg = _mensajes[index];
-                      final esBot = msg['esBot'] as bool;
-                      final esBienvenida = msg['tipo'] == 'bienvenida';
-                      final faseIndexChat = msg['faseIndexChat'];
-                      final listaRecursosMsg =
-                          (msg['listaRecursos'] as List?) ?? [];
-
-                      List<dynamic> subpasosDeEstaFase = [];
-                      bool faseCompletadaEstado = false;
-                      bool faseCargandoEstado = false;
-
-                      if (faseIndexChat != null &&
-                          faseIndexChat < fasesPasos.length) {
-                        final faseObj = fasesPasos[faseIndexChat];
-                        subpasosDeEstaFase =
-                            (faseObj['subpasos'] as List?) ?? [];
-                        faseCompletadaEstado = faseObj['completado'] == true;
-                        faseCargandoEstado = cargandoFases[faseIndexChat];
-                      }
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 20),
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1F1A3A),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: const Color(0xFFFF44AA).withValues(alpha: 0.5),
-                        ),
+          : _cambiandoMetodo
+              ? const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(color: Color(0xFFBD00FF)),
+                      SizedBox(height: 16),
+                      Text(
+                        'Cambiando método de estudio...\nEsto puede tardar unos segundos.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
                       ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              isCargando
-                                  ? const SizedBox(
-                                      width: 24,
-                                      height: 24,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : Icon(
-                                      isCompletada
-                                          ? Icons.check_circle_outline
-                                          : Icons.radio_button_unchecked,
-                                      color: isCompletada
-                                          ? Colors.greenAccent
-                                          : const Color(0xFFFF44AA),
-                                    ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Text(
-                                  sub['titulo'] ?? 'Subtarea',
-                                  style: const TextStyle(
-                                    color: Colors.cyanAccent,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, color: Colors.white38, size: 18),
-                                onPressed: () => _mostrarModalModificarTarea(index),
-                              ),
-                            ],
-                            Flexible(
-                              child: Column(
-                                crossAxisAlignment: esBot
-                                    ? CrossAxisAlignment.start
-                                    : CrossAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: esBot
-                                          ? const Color(0xFF1A1736)
-                                          : const Color(0xFF32285E),
-                                      borderRadius: BorderRadius.circular(16),
-                                      border: Border.all(
-                                        color: esBot
-                                            ? const Color(
-                                                0xFF4A3E8D,
-                                              ).withOpacity(0.4)
-                                            : const Color(0xFFBD00FF),
-                                      ),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          msg['texto'] ?? '',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 13.5,
-                                            height: 1.4,
+                    ],
+                  ),
+                )
+              : Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
+                      color: const Color(0xFF13102A),
+                      child: const Text(
+                        'Consejo: Toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
+                        style: TextStyle(
+                          color: Color(0xFF9E9AC8),
+                          fontSize: 11,
+                          height: 1.3,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+                        itemCount: _mensajes.length,
+                        itemBuilder: (context, index) {
+                          final msg = _mensajes[index];
+                          final esBot = msg['esBot'] as bool;
+                          final esBienvenida = msg['tipo'] == 'bienvenida';
+                          final faseIndexChat = msg['faseIndexChat'];
+                          final listaRecursosMsg =
+                              (msg['listaRecursos'] as List?) ?? [];
+
+                          List<dynamic> subpasosDeEstaFase = [];
+                          bool faseCompletadaEstado = false;
+                          bool faseCargandoEstado = false;
+
+                          if (faseIndexChat != null &&
+                              faseIndexChat < fasesPasos.length) {
+                            final faseObj = fasesPasos[faseIndexChat];
+                            subpasosDeEstaFase =
+                                (faseObj['subpasos'] as List?) ?? [];
+                            faseCompletadaEstado =
+                                faseObj['completado'] == true;
+                            faseCargandoEstado = cargandoFases[faseIndexChat];
+                          }
+
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: Row(
+                              mainAxisAlignment: esBot
+                                  ? MainAxisAlignment.start
+                                  : MainAxisAlignment.end,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (esBot) ...[
+                                  _buildAvatarLumi(radius: 16),
+                                  const SizedBox(width: 8),
+                                ],
+                                Flexible(
+                                  child: Column(
+                                    crossAxisAlignment: esBot
+                                        ? CrossAxisAlignment.start
+                                        : CrossAxisAlignment.end,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(14),
+                                        decoration: BoxDecoration(
+                                          color: esBot
+                                              ? const Color(0xFF1A1736)
+                                              : const Color(0xFF32285E),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: esBot
+                                                ? const Color(0xFF4A3E8D)
+                                                    .withOpacity(0.4)
+                                                : const Color(0xFFBD00FF),
                                           ),
                                         ),
-
-                                        // 🔗 Enlaces recomendados
-                                        if (listaRecursosMsg.isNotEmpty) ...[
-                                          const SizedBox(height: 12),
-                                          ...listaRecursosMsg.map((rec) {
-                                            final nombreRec =
-                                                rec['nombre'] ??
-                                                rec['titulo'] ??
-                                                'Enlace de apoyo';
-                                            final urlRec = rec['url'] ?? '';
-                                            if (urlRec.isEmpty)
-                                              return const SizedBox.shrink();
-
-                                            return Padding(
-                                              padding: const EdgeInsets.only(
-                                                bottom: 8,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              msg['texto'] ?? '',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 13.5,
+                                                height: 1.4,
                                               ),
-                                              child: InkWell(
-                                                onTap: () => _abrirUrl(urlRec),
-                                                child: Container(
+                                            ),
+                                            if (listaRecursosMsg.isNotEmpty) ...[
+                                              const SizedBox(height: 12),
+                                              ...listaRecursosMsg.map((rec) {
+                                                final nombreRec =
+                                                    rec['nombre'] ??
+                                                        rec['titulo'] ??
+                                                        'Enlace de apoyo';
+                                                final urlRec = rec['url'] ?? '';
+
+                                                if (urlRec.isEmpty) {
+                                                  return const SizedBox.shrink();
+                                                }
+
+                                                return Padding(
                                                   padding:
-                                                      const EdgeInsets.symmetric(
+                                                      const EdgeInsets.only(
+                                                    bottom: 8,
+                                                  ),
+                                                  child: InkWell(
+                                                    onTap: () =>
+                                                        _abrirUrl(urlRec),
+                                                    child: Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
                                                         horizontal: 10,
                                                         vertical: 8,
                                                       ),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(
-                                                      0xFF00F0FF,
-                                                    ).withOpacity(0.15),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          8,
-                                                        ),
-                                                    border: Border.all(
-                                                      color: const Color(
-                                                        0xFF00F0FF,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: Row(
-                                                    children: [
-                                                      const Icon(
-                                                        Icons.link,
-                                                        color: Color(
+                                                      decoration: BoxDecoration(
+                                                        color: const Color(
                                                           0xFF00F0FF,
+                                                        ).withOpacity(0.15),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        border: Border.all(
+                                                          color: const Color(
+                                                            0xFF00F0FF,
+                                                          ),
                                                         ),
-                                                        size: 16,
                                                       ),
-                                                      const SizedBox(width: 8),
-                                                      Expanded(
-                                                        child: Text(
-                                                          'Abrir: $nombreRec 🚀',
-                                                          style:
-                                                              const TextStyle(
+                                                      child: Row(
+                                                        children: [
+                                                          const Icon(
+                                                            Icons.link,
+                                                            color: Color(
+                                                              0xFF00F0FF,
+                                                            ),
+                                                            size: 16,
+                                                          ),
+                                                          const SizedBox(
+                                                            width: 8,
+                                                          ),
+                                                          Expanded(
+                                                            child: Text(
+                                                              'Abrir: $nombreRec 🚀',
+                                                              style:
+                                                                  const TextStyle(
                                                                 color: Color(
                                                                   0xFF00F0FF,
                                                                 ),
@@ -566,401 +891,292 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                                     FontWeight
                                                                         .bold,
                                                               ),
-                                                          overflow: TextOverflow
-                                                              .ellipsis,
-                                                        ),
+                                                              overflow:
+                                                                  TextOverflow
+                                                                      .ellipsis,
+                                                            ),
+                                                          ),
+                                                        ],
                                                       ),
-                                                    ],
+                                                    ),
                                                   ),
+                                                );
+                                              }),
+                                            ],
+                                            if (subpasosDeEstaFase.isNotEmpty &&
+                                                faseIndexChat != null) ...[
+                                              const SizedBox(height: 12),
+                                              const Divider(
+                                                color: Color(0xFF4A3E8D),
+                                                height: 1,
+                                              ),
+                                              const SizedBox(height: 8),
+                                              const Text(
+                                                '📌 Subpasos obligatorios para este paso:',
+                                                style: TextStyle(
+                                                  color: Color(0xFF00F0FF),
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                            );
-                                          }),
-                                        ],
+                                              const SizedBox(height: 4),
+                                              ...List.generate(
+                                                subpasosDeEstaFase.length,
+                                                (sIdx) {
+                                                  final subMap =
+                                                      subpasosDeEstaFase[sIdx];
+                                                  final subCompletado =
+                                                      subMap['completado'] ==
+                                                          true;
 
-                                        // 🟩 CHECKLIST DE SUBPASOS DE ESTA FASE
-                                        if (subpasosDeEstaFase.isNotEmpty &&
-                                            faseIndexChat != null) ...[
-                                          const SizedBox(height: 12),
-                                          const Divider(
-                                            color: Color(0xFF4A3E8D),
-                                            height: 1,
-                                          ),
-                                          const SizedBox(height: 8),
-                                          const Text(
-                                            '📌 Subpasos obligatorios para este paso:',
-                                            style: TextStyle(
-                                              color: Color(0xFF00F0FF),
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          ...List.generate(
-                                            subpasosDeEstaFase.length,
-                                            (sIdx) {
-                                              final subMap =
-                                                  subpasosDeEstaFase[sIdx];
-                                              bool subCompletado =
-                                                  subMap['completado'] == true;
-                                              return CheckboxListTile(
-                                                contentPadding: EdgeInsets.zero,
-                                                dense: true,
-                                                title: Text(
-                                                  subMap['texto'] ?? '',
-                                                  style: TextStyle(
-                                                    color: subCompletado
-                                                        ? Colors.white38
-                                                        : Colors.white,
-                                                    fontSize: 11.5,
-                                                    decoration: subCompletado
-                                                        ? TextDecoration
-                                                              .lineThrough
-                                                        : null,
-                                                  ),
-                                                ),
-                                                value: subCompletado,
-                                                activeColor: const Color(
-                                                  0xFFFF44AA,
-                                                ),
-                                                checkColor: Colors.black,
-                                                onChanged: faseCompletadaEstado
-                                                    ? null
-                                                    : (bool? val) {
-                                                        _actualizarSubpasoFase(
-                                                          faseIndexChat,
-                                                          sIdx,
-                                                          val,
-                                                        );
-                                                      },
-                                              );
-                                            },
-                                          ),
-                                        ],
-
-                                        // 🔘 BOTONES DE LA FASE (Explicar y Completar)
-                                        if (faseIndexChat != null &&
-                                            !faseCompletadaEstado) ...[
-                                          const SizedBox(height: 12),
-                                          Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              OutlinedButton.icon(
-                                                style: OutlinedButton.styleFrom(
-                                                  foregroundColor: const Color(
-                                                    0xFF00F0FF,
-                                                  ),
-                                                  side: const BorderSide(
-                                                    color: Color(0xFF00F0FF),
-                                                  ),
-                                                  padding:
-                                                      const EdgeInsets.symmetric(
+                                                  return CheckboxListTile(
+                                                    contentPadding:
+                                                        EdgeInsets.zero,
+                                                    dense: true,
+                                                    title: Text(
+                                                      subMap['texto'] ?? '',
+                                                      style: TextStyle(
+                                                        color: subCompletado
+                                                            ? Colors.white38
+                                                            : Colors.white,
+                                                        fontSize: 11.5,
+                                                        decoration:
+                                                            subCompletado
+                                                                ? TextDecoration
+                                                                    .lineThrough
+                                                                : null,
+                                                      ),
+                                                    ),
+                                                    value: subCompletado,
+                                                    activeColor: const Color(
+                                                      0xFFFF44AA,
+                                                    ),
+                                                    checkColor: Colors.black,
+                                                    onChanged:
+                                                        faseCompletadaEstado
+                                                            ? null
+                                                            : (bool? val) {
+                                                                _actualizarSubpasoFase(
+                                                                  faseIndexChat,
+                                                                  sIdx,
+                                                                  val,
+                                                                );
+                                                              },
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                            if (faseIndexChat != null &&
+                                                !faseCompletadaEstado) ...[
+                                              const SizedBox(height: 12),
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
+                                                children: [
+                                                  OutlinedButton.icon(
+                                                    style: OutlinedButton
+                                                        .styleFrom(
+                                                      foregroundColor:
+                                                          const Color(
+                                                        0xFF00F0FF,
+                                                      ),
+                                                      side: const BorderSide(
+                                                        color:
+                                                            Color(0xFF00F0FF),
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
                                                         horizontal: 10,
                                                         vertical: 6,
                                                       ),
-                                                ),
-                                                onPressed: () => _explicarFase(
-                                                  faseIndexChat,
-                                                ),
-                                                icon: const Icon(
-                                                  Icons.help_outline,
-                                                  size: 14,
-                                                ),
-                                                label: Text(
-                                                  'Explicar Paso ${faseIndexChat + 1}',
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
+                                                    ),
+                                                    onPressed: () =>
+                                                        _explicarFase(
+                                                      faseIndexChat,
+                                                    ),
+                                                    icon: const Icon(
+                                                      Icons.help_outline,
+                                                      size: 14,
+                                                    ),
+                                                    label: Text(
+                                                      'Explicar Paso ${faseIndexChat + 1}',
+                                                      style: const TextStyle(
+                                                        fontSize: 11,
+                                                      ),
+                                                    ),
                                                   ),
-                                                ),
-                                              ),
-                                              faseCargandoEstado
-                                                  ? const SizedBox(
-                                                      width: 20,
-                                                      height: 20,
-                                                      child:
-                                                          CircularProgressIndicator(
+                                                  faseCargandoEstado
+                                                      ? const SizedBox(
+                                                          width: 20,
+                                                          height: 20,
+                                                          child:
+                                                              CircularProgressIndicator(
                                                             strokeWidth: 2,
                                                             color: Color(
                                                               0xFFFF44AA,
                                                             ),
                                                           ),
-                                                    )
-                                                  : ElevatedButton.icon(
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor:
-                                                            const Color(
+                                                        )
+                                                      : ElevatedButton.icon(
+                                                          style: ElevatedButton
+                                                              .styleFrom(
+                                                            backgroundColor:
+                                                                const Color(
                                                               0xFFFF44AA,
                                                             ),
-                                                        foregroundColor:
-                                                            Colors.black,
-                                                        padding:
-                                                            const EdgeInsets.symmetric(
+                                                            foregroundColor:
+                                                                Colors.black,
+                                                            padding:
+                                                                const EdgeInsets
+                                                                    .symmetric(
                                                               horizontal: 10,
                                                               vertical: 6,
                                                             ),
-                                                      ),
-                                                      onPressed: () =>
-                                                          _completarFasePaso(
+                                                          ),
+                                                          onPressed: () =>
+                                                              _completarFasePaso(
                                                             faseIndexChat,
                                                           ),
-                                                      icon: const Icon(
-                                                        Icons
-                                                            .check_circle_outline,
-                                                        size: 14,
-                                                      ),
-                                                      label: Text(
-                                                        'Completar Paso ${faseIndexChat + 1}',
-                                                        style: const TextStyle(
-                                                          fontSize: 11,
-                                                          fontWeight:
-                                                              FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                            ],
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-
-                                  // Botón para cambiar método de estudio en bienvenida
-                                  // Botón para cambiar método de estudio en bienvenida
-                                  if (esBienvenida) ...[
-                                    const SizedBox(height: 10),
-                                    GestureDetector(
-                                      onTap: () async {
-                                        // 1. Abrimos la pantalla para seleccionar el nuevo método usando el que la IA asignó
-                                        final nuevoMetodo = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                            builder: (_) => SeleccionarMetodoScreen(
-                                              tituloTarea: tituloPlan,
-                                              metodoRecomendado:
-                                                  guiaActual['metodo_estudio'],
-                                              onMetodoSeleccionado: (metodo) {
-                                                setState(() {
-                                                  guiaActual['metodo_estudio'] =
-                                                      metodo;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        );
-
-                                        // 2. Si se seleccionó un método nuevo, actualizamos el backend, guardamos y regeneramos los pasos
-                                        // 2. Si se seleccionó un método nuevo, actualizamos el backend, guardamos y regeneramos los pasos
-                                        if (nuevoMetodo != null && mounted) {
-                                          setState(() => _isLoading = true);
-
-                                          final planId =
-                                              (guiaActual['id'] ??
-                                                      guiaActual['plan_id'])
-                                                  ?.toString();
-                                          final userIdRaw =
-                                              guiaActual['usuario_id'] ??
-                                              widget.guiaData['usuario_id'];
-                                          print(
-                                            "🔍 DEBUG USER_ID EN FLUTTER: $userIdRaw",
-                                          ); // Para ver qué trae realmente
-
-                                          final userId =
-                                              userIdRaw?.toString() ?? '';
-
-                                          if (userId.isEmpty || userId == '1') {
-                                            print(
-                                              "⚠️ CUIDADO: El ID de usuario está vacío o es '1'",
-                                            );
-                                          }
-
-                                          if (planId != null) {
-                                            final planRegenerado =
-                                                await ApiService.regenerarPlanExistente(
-                                                  planId: planId,
-                                                  metodoEstudio: nuevoMetodo,
-                                                  userId: userId,
-                                                  titulo: tituloPlan,
-                                                  descripcion:
-                                                      guiaActual['descripcion'] ??
-                                                      '',
-                                                  fechaEntrega:
-                                                      guiaActual['fecha_entrega'] ??
-                                                      DateTime.now()
-                                                          .add(
-                                                            const Duration(
-                                                              days: 3,
+                                                          icon: const Icon(
+                                                            Icons
+                                                                .check_circle_outline,
+                                                            size: 14,
+                                                          ),
+                                                          label: Text(
+                                                            'Completar Paso ${faseIndexChat + 1}',
+                                                            style:
+                                                                const TextStyle(
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
                                                             ),
-                                                          )
-                                                          .toIso8601String(),
-                                                  dificultad:
-                                                      guiaActual['dificultad'] ??
-                                                      'Media',
-                                                );
-
-                                            if (planRegenerado != null &&
-                                                mounted) {
-                                              setState(() {
-                                                // Reemplazamos la guía actual con el mapa que devolvió el backend (que ya trae los nuevos pasos del método)
-                                                guiaActual =
-                                                    Map<String, dynamic>.from(
-                                                      planRegenerado,
-                                                    );
-                                                guiaActual['metodo_estudio'] =
-                                                    nuevoMetodo;
-
-                                                // Extraemos las nuevas listas y reiniciamos el chat con los pasos del nuevo método
-                                                _extraerListasDetalle();
-                                                _faseActualIndex =
-                                                    0; // Volvemos al inicio del nuevo plan
-                                                _inicializarMensajesChat();
-                                                _isLoading = false;
-
-                                                _mensajes.add({
-                                                  'esBot': true,
-                                                  'texto':
-                                                      '🚀 ¡Listo! He cambiado tu plan al método **$nuevoMetodo**, regeneré tus pasos y se ha guardado en la base de datos.',
-                                                });
-                                              });
-
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                SnackBar(
-                                                  content: Text(
-                                                    '¡Cambiado a $nuevoMetodo y guardado con éxito! 🚀',
-                                                  ),
-                                                ),
-                                              );
-                                            } else {
-                                              setState(
-                                                () => _isLoading = false,
-                                              );
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      '⚠️ Error al comunicarse con el servidor para actualizar el método.',
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            }
-                                          } else {
-                                            setState(() => _isLoading = false);
-                                          }
-                                        }
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 14,
-                                          vertical: 10,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: const Color(0xFF261D4C),
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFFBD00FF),
-                                          ),
-                                        ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: const [
-                                            Icon(
-                                              Icons.settings_suggest,
-                                              color: Color(0xFF00F0FF),
-                                              size: 18,
-                                            ),
-                                            SizedBox(width: 8),
-                                            Text(
-                                              'Cambiar método de estudio',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.bold,
+                                                          ),
+                                                        ),
+                                                ],
                                               ),
-                                            ),
-                                            SizedBox(width: 8),
-                                            CircleAvatar(
-                                              radius: 10,
-                                              backgroundColor: Color(
-                                                0xFFBD00FF,
-                                              ),
-                                              child: Icon(
-                                                Icons.arrow_forward_ios,
-                                                color: Colors.white,
-                                                size: 10,
-                                              ),
-                                            ),
+                                            ],
                                           ],
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            if (!esBot) ...[
-                              const SizedBox(width: 8),
-                              const CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Color(0xFF2E7D32),
-                                child: Icon(
-                                  Icons.person,
-                                  color: Colors.white,
-                                  size: 18,
+                                      if (esBienvenida) ...[
+                                        const SizedBox(height: 10),
+                                        GestureDetector(
+                                          onTap: _cambiarMetodoEstudio,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF261D4C),
+                                              borderRadius:
+                                                  BorderRadius.circular(20),
+                                              border: Border.all(
+                                                color: const Color(0xFFBD00FF),
+                                              ),
+                                            ),
+                                            child: const Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                Icon(
+                                                  Icons.settings_suggest,
+                                                  color: Color(0xFF00F0FF),
+                                                  size: 18,
+                                                ),
+                                                SizedBox(width: 8),
+                                                Text(
+                                                  'Cambiar método de estudio',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 8),
+                                                CircleAvatar(
+                                                  radius: 10,
+                                                  backgroundColor:
+                                                      Color(0xFFBD00FF),
+                                                  child: Icon(
+                                                    Icons.arrow_forward_ios,
+                                                    color: Colors.white,
+                                                    size: 10,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                if (!esBot) ...[
+                                  const SizedBox(width: 8),
+                                  const CircleAvatar(
+                                    radius: 16,
+                                    backgroundColor: Color(0xFF2E7D32),
+                                    child: Icon(
+                                      Icons.person,
+                                      color: Colors.white,
+                                      size: 18,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    SafeArea(
+                      top: false,
+                      minimum: const EdgeInsets.only(bottom: 34),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                        color: const Color(0xFF0D0B1E),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Paso a Paso",
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Explica que toca hacer",
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "¿Qué es este tema?",
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Dame un consejo",
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Botones inferiores predeterminados
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  color: const Color(0xFF0D0B1E),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildBotonPredeterminado("Paso a Paso"),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildBotonPredeterminado(
-                              "Explica que toca hacer",
-                            ),
-                          ),
-                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildBotonPredeterminado(
-                              "¿Qué es este tema?",
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: _buildBotonPredeterminado("Dame un consejo"),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
     );
   }
 
@@ -996,12 +1212,17 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0xFF4A3E8D)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       ),
       onPressed: () => _procesarOpcionRapida(texto),
       child: Text(
         texto,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+        ),
         overflow: TextOverflow.ellipsis,
       ),
     );

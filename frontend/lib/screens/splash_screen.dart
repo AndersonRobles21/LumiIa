@@ -1,5 +1,9 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
+
+const Color kPurplePrimary = Color(0xFFB026FF);
+const Color kPurpleSecondary = Color(0xFF7B2FF7);
+const Color kPurpleAccent = Color(0xFFD87BFF);
+const Color kBackgroundDark = Color(0xFF03010A);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,19 +14,12 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  late AnimationController _bounceController;
-  late AnimationController _loadingController;
-  late AnimationController _fadeController;
-  late AnimationController _glowController;
-  late AnimationController _pulseController; // NUEVO: pulso de escala
-  late AnimationController _ringController; // NUEVO: anillo de energía
-
-  late Animation<double> _bounceAnimation;
-  late Animation<double> _loadingAnimation;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _glowAnimation;
-  late Animation<double> _pulseAnimation;
-  late Animation<double> _ringAnimation;
+  late final AnimationController _bounceController;
+  late final AnimationController _loadingController;
+  late final AnimationController _fadeController;
+  late final Animation<double> _bounceAnimation;
+  late final Animation<double> _loadingAnimation;
+  late final Animation<double> _fadeAnimation;
 
   @override
   void initState() {
@@ -33,8 +30,14 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 1800),
     );
 
-    _bounceAnimation = Tween<double>(begin: 0.0, end: -18.0).animate(
-      CurvedAnimation(parent: _bounceController, curve: Curves.easeInOut),
+    _bounceAnimation = Tween<double>(
+      begin: 0,
+      end: -12,
+    ).animate(
+      CurvedAnimation(
+        parent: _bounceController,
+        curve: Curves.easeInOut,
+      ),
     );
 
     _bounceController.repeat(reverse: true);
@@ -51,53 +54,25 @@ class _SplashScreenState extends State<SplashScreen>
 
     _fadeController.forward();
 
-    _glowController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2200),
-    );
-
-    _glowAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
-      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
-    );
-
-    _glowController.repeat(reverse: true);
-
-    // NUEVO: pulso sutil de escala, distinto del bounce
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-
-    _pulseController.repeat(reverse: true);
-
-    // NUEVO: anillo de energía girando lento detrás del robot
-    _ringController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 8000),
-    )..repeat();
-
-    _ringAnimation = Tween<double>(
-      begin: 0.0,
-      end: 2 * pi,
-    ).animate(_ringController);
-
     _loadingController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3600),
     );
 
-    _loadingAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _loadingController, curve: Curves.easeInOut),
+    _loadingAnimation = Tween<double>(
+      begin: 0,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _loadingController,
+        curve: Curves.easeInOut,
+      ),
     );
 
     _loadingController.forward();
 
     _loadingController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
+      if (status == AnimationStatus.completed && mounted) {
         Navigator.of(context).pushReplacementNamed('/login');
       }
     });
@@ -108,269 +83,117 @@ class _SplashScreenState extends State<SplashScreen>
     _bounceController.dispose();
     _loadingController.dispose();
     _fadeController.dispose();
-    _glowController.dispose();
-    _pulseController.dispose();
-    _ringController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF080D2B),
+      backgroundColor: kBackgroundDark,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
-          final isSmallHeight = height < 720;
-          final robotSize = min(width * 0.72, height * 0.36);
-          final horizontalPadding = max(24.0, width * 0.08);
-          final topSpacing = isSmallHeight ? height * 0.06 : height * 0.12;
-          final sectionSpacing = isSmallHeight ? 8.0 : 12.0;
-          final bottomSpacing = isSmallHeight ? 24.0 : 40.0;
+
+          final robotSize = width * 0.62;
 
           return Stack(
+            fit: StackFit.expand,
             children: [
-              const _BackgroundParticles(),
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: SafeArea(
-                  child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: constraints.maxHeight,
-                      ),
-                      child: IntrinsicHeight(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.max,
-                          children: [
-                            SizedBox(height: topSpacing),
+              Positioned.fill(
+                child: Image.asset(
+                  'logo/Fondo_splash.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const SizedBox.shrink();
+                  },
+                ),
+              ),
+              SafeArea(
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    child: Column(
+                      children: [
+                        SizedBox(height: height * 0.10),
 
-                            // Robot con anillo, glow, pulso y rebote
-                            AnimatedBuilder(
-                              animation: _bounceAnimation,
-                              builder: (context, child) {
-                                return Transform.translate(
-                                  offset: Offset(0, _bounceAnimation.value),
-                                  child: child,
-                                );
-                              },
-                              child: AnimatedBuilder(
-                                animation: Listenable.merge([
-                                  _glowAnimation,
-                                  _pulseAnimation,
-                                  _ringAnimation,
-                                ]),
-                                builder: (context, child) {
-                                  return ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: robotSize,
-                                      maxHeight: robotSize,
-                                    ),
-                                    child: SizedBox(
-                                      width: robotSize,
-                                      height: robotSize,
-                                      child: Stack(
-                                        alignment: Alignment.center,
-                                        children: [
-                                          // Anillo de energía rotando
-                                          Transform.rotate(
-                                            angle: _ringAnimation.value,
-                                            child: CustomPaint(
-                                              size: Size(
-                                                robotSize * 0.95,
-                                                robotSize * 0.95,
-                                              ),
-                                              painter: _EnergyRingPainter(
-                                                _glowAnimation.value,
-                                              ),
-                                            ),
-                                          ),
-                                          // Glow + robot con pulso
-                                          Transform.scale(
-                                            scale: _pulseAnimation.value,
-                                            child: Container(
-                                              width: robotSize * 0.85,
-                                              height: robotSize * 0.85,
-                                              decoration: BoxDecoration(
-                                                shape: BoxShape.circle,
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color:
-                                                        const Color(
-                                                          0xFF00D4FF,
-                                                        ).withOpacity(
-                                                          0.25 *
-                                                              _glowAnimation
-                                                                  .value,
-                                                        ),
-                                                    blurRadius: 100,
-                                                    spreadRadius: 40,
-                                                  ),
-                                                  BoxShadow(
-                                                    color:
-                                                        const Color(
-                                                          0xFF0066FF,
-                                                        ).withOpacity(
-                                                          0.18 *
-                                                              _glowAnimation
-                                                                  .value,
-                                                        ),
-                                                    blurRadius: 150,
-                                                    spreadRadius: 60,
-                                                  ),
-                                                ],
-                                              ),
-                                              child: Image.asset(
-                                                'logo/robot_IA.png',
-                                                fit: BoxFit.contain,
-                                                errorBuilder:
-                                                    (
-                                                      context,
-                                                      error,
-                                                      stackTrace,
-                                                    ) {
-                                                      return const _RobotFallback();
-                                                    },
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  );
-                                },
-                              ),
-                            ),
-
-                            SizedBox(height: sectionSpacing),
-
-                            // Nombre Lumi con efecto neon pulsante
-                            AnimatedBuilder(
-                              animation: _glowAnimation,
-                              builder: (context, child) {
-                                return Text(
-                                  'LUMI',
-                                  style: TextStyle(
-                                    fontSize: 64,
-                                    fontWeight: FontWeight.w300,
-                                    color: Colors.white,
-                                    letterSpacing: 4,
-                                    shadows: [
-                                      Shadow(
-                                        color: const Color(
-                                          0xFF00D4FF,
-                                        ).withOpacity(_glowAnimation.value),
-                                        blurRadius: 20,
-                                      ),
-                                      Shadow(
-                                        color: const Color(0xFF00D4FF)
-                                            .withOpacity(
-                                              _glowAnimation.value * 0.6,
-                                            ),
-                                        blurRadius: 40,
-                                      ),
-                                    ],
-                                  ),
-                                );
+                        AnimatedBuilder(
+                          animation: _bounceAnimation,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _bounceAnimation.value),
+                              child: child,
+                            );
+                          },
+                          child: SizedBox(
+                            width: robotSize,
+                            height: robotSize,
+                            child: Image.asset(
+                              'logo/lumisplash.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const SizedBox.shrink();
                               },
                             ),
-
-                            SizedBox(height: sectionSpacing),
-
-                            const Text(
-                              'BIENVENIDO AL FUTURO',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFFB0C4DE),
-                                letterSpacing: 3,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-
-                            const SizedBox(height: 4),
-
-                            const Text(
-                              'LA PROCASTINACIÓN TERMINA AQUÍ',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Color(0xFFB0C4DE),
-                                letterSpacing: 3,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-
-                            SizedBox(height: isSmallHeight ? 8 : 20),
-
-                            // Barra de loading con glow
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: horizontalPadding,
-                              ),
-                              child: Column(
-                                children: [
-                                  const Text(
-                                    'LOADING...',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF00D4FF),
-                                      letterSpacing: 3,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  AnimatedBuilder(
-                                    animation: _loadingAnimation,
-                                    builder: (context, child) {
-                                      return Stack(
-                                        children: [
-                                          Container(
-                                            height: 4,
-                                            width: double.infinity,
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF1A2550),
-                                              borderRadius:
-                                                  BorderRadius.circular(2),
-                                            ),
-                                          ),
-                                          FractionallySizedBox(
-                                            widthFactor:
-                                                _loadingAnimation.value,
-                                            child: Container(
-                                              height: 4,
-                                              decoration: BoxDecoration(
-                                                gradient: const LinearGradient(
-                                                  colors: [
-                                                    Color(0xFF0066FF),
-                                                    Color(0xFF00D4FF),
-                                                  ],
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(2),
-                                                boxShadow: [
-                                                  BoxShadow(
-                                                    color: const Color(
-                                                      0xFF00D4FF,
-                                                    ).withOpacity(0.8),
-                                                    blurRadius: 8,
-                                                    spreadRadius: 1,
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            SizedBox(height: bottomSpacing),
-                          ],
+                          ),
                         ),
-                      ),
+
+                        SizedBox(height: height * 0.16),
+
+                        const Text(
+                          'LUMI',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 4,
+                          ),
+                        ),
+
+                        const SizedBox(height: 6),
+
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: const TextSpan(
+                            style: TextStyle(
+                              fontSize: 11,
+                              letterSpacing: 1.1,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            children: [
+                              TextSpan(
+                                text: 'LA ',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              TextSpan(
+                                text: 'PROCRASTINACIÓN ',
+                                style: TextStyle(color: kPurpleAccent),
+                              ),
+                              TextSpan(
+                                text: 'TERMINA ',
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              TextSpan(
+                                text: 'AQUÍ',
+                                style: TextStyle(color: kPurpleAccent),
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        SizedBox(height: height * 0.045),
+
+                        const _InfoCard(),
+
+                        const Spacer(),
+
+                        Padding(
+                          padding: EdgeInsets.only(bottom: height * 0.08),
+                          child: _LoadingBar(animation: _loadingAnimation),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -383,132 +206,112 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-class _EnergyRingPainter extends CustomPainter {
-  final double glowValue;
-  _EnergyRingPainter(this.glowValue);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..shader = SweepGradient(
-        colors: [
-          const Color(0xFF00D4FF).withOpacity(0.0),
-          const Color(0xFF00D4FF).withOpacity(0.7 * glowValue),
-          const Color(0xFF0066FF).withOpacity(0.0),
-        ],
-        stops: const [0.0, 0.5, 1.0],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-
-    canvas.drawCircle(center, radius, paint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _EnergyRingPainter oldDelegate) =>
-      oldDelegate.glowValue != glowValue;
-}
-
-class _BackgroundParticles extends StatelessWidget {
-  const _BackgroundParticles();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _CircuitPainter(), size: Size.infinite);
-  }
-}
-
-class _CircuitPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF00D4FF).withOpacity(0.06)
-      ..strokeWidth = 1
-      ..style = PaintingStyle.stroke;
-
-    final dotPaint = Paint()
-      ..color = const Color(0xFF00D4FF).withOpacity(0.25)
-      ..style = PaintingStyle.fill;
-
-    final lines = [
-      [0.1, 0.15, 0.35, 0.15],
-      [0.35, 0.15, 0.35, 0.25],
-      [0.35, 0.25, 0.5, 0.25],
-      [0.7, 0.1, 0.7, 0.3],
-      [0.7, 0.3, 0.85, 0.3],
-      [0.05, 0.55, 0.2, 0.55],
-      [0.2, 0.55, 0.2, 0.65],
-      [0.8, 0.6, 0.95, 0.6],
-      [0.8, 0.45, 0.8, 0.6],
-    ];
-
-    for (final line in lines) {
-      canvas.drawLine(
-        Offset(size.width * line[0], size.height * line[1]),
-        Offset(size.width * line[2], size.height * line[3]),
-        paint,
-      );
-    }
-
-    final dots = [
-      [0.35, 0.15],
-      [0.35, 0.25],
-      [0.7, 0.3],
-      [0.2, 0.55],
-      [0.8, 0.6],
-    ];
-
-    for (final dot in dots) {
-      canvas.drawCircle(
-        Offset(size.width * dot[0], size.height * dot[1]),
-        2.5,
-        dotPaint,
-      );
-    }
-
-    final random = Random(42);
-    final starPaint = Paint()..style = PaintingStyle.fill;
-
-    for (int i = 0; i < 60; i++) {
-      final x = random.nextDouble() * size.width;
-      final y = random.nextDouble() * size.height;
-      final radius = random.nextDouble() * 1.5 + 0.5;
-      final opacity = random.nextDouble() * 0.5 + 0.1;
-      starPaint.color = Colors.white.withOpacity(opacity);
-      canvas.drawCircle(Offset(x, y), radius, starPaint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-class _RobotFallback extends StatelessWidget {
-  const _RobotFallback();
+class _InfoCard extends StatelessWidget {
+  const _InfoCard();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 200,
-      height: 200,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: 20,
+        vertical: 14,
+      ),
       decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            const Color(0xFF00D4FF).withOpacity(0.3),
-            const Color(0xFF080D2B).withOpacity(0.0),
-          ],
+        color: const Color(0xFF140D24).withOpacity(0.85),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: kPurpleSecondary.withOpacity(0.3),
         ),
       ),
-      child: const Icon(
-        Icons.smart_toy_rounded,
-        size: 120,
-        color: Color(0xFF00D4FF),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            Icons.school,
+            color: Colors.white70,
+            size: 32,
+          ),
+          const SizedBox(width: 16),
+          Flexible(
+            child: RichText(
+              text: const TextSpan(
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  height: 1.3,
+                  fontWeight: FontWeight.w400,
+                ),
+                children: [
+                  TextSpan(text: 'Tu compañero inteligente\npara aprender '),
+                  TextSpan(
+                    text: 'sin límites',
+                    style: TextStyle(
+                      color: kPurpleAccent,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _LoadingBar extends StatelessWidget {
+  final Animation<double> animation;
+
+  const _LoadingBar({required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const Text(
+          'CARGANDO...',
+          style: TextStyle(
+            fontSize: 10,
+            color: kPurpleAccent,
+            letterSpacing: 2,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 8),
+        AnimatedBuilder(
+          animation: animation,
+          builder: (context, child) {
+            return Container(
+              height: 6,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: const Color(0xFF120826),
+                borderRadius: BorderRadius.circular(3),
+              ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: animation.value,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [
+                          kPurpleSecondary,
+                          kPurplePrimary,
+                          kPurpleAccent,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
     );
   }
 }

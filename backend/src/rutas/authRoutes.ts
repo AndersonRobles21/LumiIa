@@ -1,4 +1,4 @@
-  //authRoutes.ts
+//authRoutes.ts
   import { Router, Request, Response } from "express";
   import { pool } from "../config/db";
 
@@ -216,83 +216,72 @@
   ============================================================
   */
   router.post("/estadisticas/:userId/racha", async (req: Request, res: Response): Promise<any> => {
-    try {
-      const { userId } = req.params;
-
-      await pool.query(
-        "INSERT INTO estadisticas (usuario_id, racha, tareas_completadas, horas_estudio) VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING",
-        [userId]
-      );
-
-router.post("/estadisticas/:userId/tareas", async (req: Request, res: Response): Promise<any> => {
   try {
     const { userId } = req.params;
 
-    const resultado = await pool.query(
-      `
-      SELECT
-        COUNT(*) AS total_tareas,
-        COUNT(*) FILTER (WHERE t.completada = true) AS tareas_completadas
-      FROM tareas t
-      JOIN actividades a ON a.id = t.actividad_id
-      JOIN planes_estudio p ON p.id = a.plan_id
-      WHERE p.usuario_id = $1
-      `,
+    await pool.query(
+      "INSERT INTO estadisticas (usuario_id, racha, tareas_completadas, horas_estudio) VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING",
       [userId]
     );
 
-    const totalTareas = Number(resultado.rows[0]?.total_tareas ?? 0);
-    const tareasCompletadas = Number(resultado.rows[0]?.tareas_completadas ?? 0);
+    const resultado = await pool.query(
+      "SELECT racha, ultima_racha_fecha FROM estadisticas WHERE usuario_id = $1",
+      [userId]
+    );
+
+    const stats = resultado.rows[0];
+
+    const formatearFechaLocal = (fecha: Date) => {
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, "0");
+      const day = String(fecha.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const hoy = new Date();
+    const hoyFecha = formatearFechaLocal(hoy);
+
+    if (stats.ultima_racha_fecha) {
+      const ultimaFecha = formatearFechaLocal(new Date(stats.ultima_racha_fecha));
+
+      if (ultimaFecha === hoyFecha) {
+        return res.status(200).json({
+          mensaje: "Ya marcaste hoy",
+          racha: Number(stats.racha) || 0,
+        });
+      }
+    }
+
+    let nuevaRacha = 1;
+
+    if (stats.ultima_racha_fecha) {
+      const ultimaFecha = formatearFechaLocal(new Date(stats.ultima_racha_fecha));
+
+      const ayer = new Date(hoy);
+      ayer.setDate(hoy.getDate() - 1);
+      const ayerFecha = formatearFechaLocal(ayer);
+
+      nuevaRacha =
+        ultimaFecha === ayerFecha
+          ? (Number(stats.racha) || 0) + 1
+          : 1;
+    }
 
     await pool.query(
-      `
-      INSERT INTO estadisticas (usuario_id, tareas_completadas, racha, horas_estudio)
-      VALUES ($1, $2, 0, 0)
-      ON CONFLICT (usuario_id) DO UPDATE SET tareas_completadas = EXCLUDED.tareas_completadas
-      `,
-      [userId, tareasCompletadas]
+      "UPDATE estadisticas SET racha = $1, ultima_racha_fecha = $2 WHERE usuario_id = $3",
+      [nuevaRacha, hoyFecha, userId]
     );
 
     return res.status(200).json({
-      ok: true,
-      total_tareas: totalTareas,
-      tareas_completadas: tareasCompletadas,
-      tareas_pendientes: Math.max(totalTareas - tareasCompletadas, 0),
+      mensaje: "Racha actualizada",
+      racha: nuevaRacha,
     });
   } catch (error: any) {
-    console.error("❌ Error en POST /estadisticas/:userId/tareas:", error);
-    return res.status(500).json({ mensaje: "Error al sincronizar estadísticas de tareas" });
+    console.error("❌ Error en POST /estadisticas/racha:", error);
+    return res.status(500).json({
+      mensaje: "Error al actualizar racha",
+    });
   }
 });
-
-/*
-REGISTRAR RACHA HOY
-POST /api/auth/estadisticas/:userId/racha
-
-      const hoy = new Date();
-      const diaDelAnio = Math.floor(
-        (hoy.getTime() - new Date(hoy.getFullYear(), 0, 0).getTime()) / 86400000
-      );
-      const ultimoDiaMarcado = Number(stats.horas_estudio) || 0;
-
-      if (ultimoDiaMarcado === diaDelAnio) {
-        return res.status(200).json({ mensaje: "Ya marcaste hoy", racha: stats.racha });
-      }
-
-      const nuevaRacha = ultimoDiaMarcado === diaDelAnio - 1
-        ? Number(stats.racha) + 1
-        : 1;
-
-      await pool.query(
-        "UPDATE estadisticas SET racha = $1, horas_estudio = $2 WHERE usuario_id = $3",
-        [nuevaRacha, diaDelAnio, userId]
-      );
-
-      return res.status(200).json({ mensaje: "Racha actualizada", racha: nuevaRacha });
-    } catch (error: any) {
-      console.error("❌ Error en POST /estadisticas/racha:", error);
-      return res.status(500).json({ mensaje: "Error al actualizar racha" });
-    }
-  });
 
   export default router;

@@ -54,6 +54,7 @@ export async function generarPlan(req: Request, res: Response) {
     const diasRestantes = Math.max(1, Math.ceil((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)));
     const minutosDisponibles = diasRestantes * horasDisponibles * 60;
 
+
     // Generar Plan con IA
     const planIA = await generarPlanIA({
       titulo: nombre,
@@ -155,6 +156,60 @@ export async function actualizarProgreso(req: Request, res: Response) {
     return res.status(200).json({ ok: true, mensaje: "Progreso actualizado" });
   } catch (error: any) {
     return res.status(500).json({ ok: false, mensaje: error.message });
+  }
+}
+
+// eliminar un plan específico
+export async function eliminarPlan(req: Request, res: Response) {
+  const client = await pool.connect();
+  
+  try {
+    const { planId } = req.params;
+
+    await client.query('BEGIN');
+
+    // 1. Eliminar de historial_ia
+    await client.query('DELETE FROM historial_ia WHERE plan_id = $1', [planId]);
+
+    // 2. Eliminar de planes_ia
+    await client.query('DELETE FROM planes_ia WHERE plan_id = $1', [planId]);
+
+    // 3. Eliminar actividades y tareas asociadas
+    await client.query(`
+      DELETE FROM tareas 
+      WHERE actividad_id IN (
+        SELECT id FROM actividades WHERE plan_id = $1
+      )
+    `, [planId]);
+
+    await client.query('DELETE FROM actividades WHERE plan_id = $1', [planId]);
+
+    // 4. Finalmente eliminar el plan principal
+    const result = await client.query('DELETE FROM planes_estudio WHERE id = $1 RETURNING id', [planId]);
+
+    await client.query('COMMIT');
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({
+        ok: false,
+        mensaje: 'Plan no encontrado',
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      mensaje: 'Plan eliminado correctamente',
+    });
+  } catch (error: any) {
+    await client.query('ROLLBACK');
+    console.error('Error eliminando plan:', error);
+    return res.status(500).json({
+      ok: false,
+      mensaje: 'Error al eliminar el plan',
+      detalle: error.message,
+    });
+  } finally {
+    client.release();
   }
 }
 
@@ -318,7 +373,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       ]
     );
 
-    const planActualizado = {
+const planActualizado = {
       id: planId,
       nombre: nombre,
       descripcion: descripcion,

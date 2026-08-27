@@ -1,4 +1,3 @@
-// histprial.routes.ts
 import { Router } from "express";
 import { getHistorial } from "../controllers/historial.controller";
 
