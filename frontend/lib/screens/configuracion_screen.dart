@@ -139,7 +139,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+            colors: [Color.fromARGB(255, 5, 8, 36), Color(0xFF16003A), Color(0xFF080010)],
           ),
         ),
         child: SafeArea(

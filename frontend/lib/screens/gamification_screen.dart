@@ -357,13 +357,13 @@ class _GamificationScreenState extends State<GamificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0B2E),
+      backgroundColor:  const Color(0xFF0D0B1E),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF1B1748), Color(0xFF0E0B2E)],
+            colors: [Color.fromARGB(255, 7, 5, 25), Color(0xFF0E0B2E)],
           ),
         ),
         child: SafeArea(
@@ -373,7 +373,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 )
               : RefreshIndicator(
                   color: const Color(0xFF8B6BFF),
-                  backgroundColor: const Color(0xFF1B1748),
+                  backgroundColor: const Color.fromARGB(255, 18, 14, 58),
                   onRefresh: _cargarDatos,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -648,7 +648,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF241D5E), Color(0xFF1B1748)],
+          colors: [Color.fromARGB(255, 12, 7, 46), Color(0xFF1B1748)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
