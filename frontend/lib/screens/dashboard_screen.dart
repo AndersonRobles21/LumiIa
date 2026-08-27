@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '/services/api_service.dart';
 import 'agregar_tarea_screen.dart';
-import 'app_language.dart';
 import 'app_bottom_navbar.dart';
 import 'guia_detalle_screen.dart';
 
@@ -20,8 +19,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-
- bool _isStreakDialogOpen = false;
+  bool _isStreakDialogOpen = false;
   int activeTab = 0;
   bool isLoading = true;
 
@@ -48,41 +46,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _loadDashboardData() async {
-    setState(() => isLoading = true);
+    if (mounted) {
+      setState(() => isLoading = true);
+    }
 
     final prefs = await SharedPreferences.getInstance();
 
-    // Cargar nombre del usuario desde el perfil
     final profileData = await ApiService.getProfile(widget.userId);
     if (profileData != null) {
       userName = profileData['nombre'] ?? 'Laura';
     }
 
-    // Cargar planes de IA activos (no completados)
     await _loadActivePlans();
-
-    // Actualizar racha automáticamente (solo una vez al día)
     await _updateStreakAutomatically(prefs);
 
+    if (!mounted) return;
+
     setState(() => isLoading = false);
-
-    // Mostrar bottom sheet de racha solo si no se ha mostrado hoy
-    final lastShownDate = prefs.getString('last_streak_dialog_${widget.userId}');
-    final today = DateTime.now().toIso8601String().split('T')[0];
-
-    if (lastShownDate != today) {
-      await prefs.setString('last_streak_dialog_${widget.userId}', today);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showStreakDialog();
-      });
-    }
   }
 
   Future<void> _loadActivePlans() async {
-    // Obtener planes de IA del historial
     final historialData = await ApiService.obtenerHistorial(widget.userId);
 
     if (historialData == null || historialData.isEmpty) {
+      if (!mounted) return;
       setState(() => plans = []);
       return;
     }
@@ -99,7 +86,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final nombre = plan['nombre'] ?? plan['titulo'] ?? 'Sin título';
       final descripcion = plan['descripcion'] ?? 'Plan de estudio';
 
-      // OBTENER EL PLAN COMPLETO PARA TENER LOS PASOS ACTUALIZADOS
       final planCompleto = await ApiService.obtenerPlan(planId);
 
       double progress = 0.0;
@@ -109,6 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           planCompleto['pasos'] != null &&
           planCompleto['pasos'] is List) {
         final pasos = planCompleto['pasos'] as List;
+
         if (pasos.isNotEmpty) {
           int totalSubpasos = 0;
           int subpasosCompletados = 0;
@@ -130,7 +117,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
 
-      // NUEVA LÓGICA: Solo ocultar si está al 100% Y han pasado 5 horas
       if (allCompleted) {
         final completedKey = 'plan_completed_time_$planId';
         final completedTimeStr = prefs.getString(completedKey);
@@ -147,20 +133,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       } else {
         final completedKey = 'plan_completed_time_$planId';
+
         if (prefs.containsKey(completedKey)) {
           await prefs.remove(completedKey);
         }
       }
 
-      loadedPlans.add(StudyPlan(
-        id: planId,
-        title: nombre,
-        subtitle: descripcion,
-        progress: progress,
-        completed: allCompleted,
-      ));
+      loadedPlans.add(
+        StudyPlan(
+          id: planId,
+          title: nombre.toString(),
+          subtitle: descripcion.toString(),
+          progress: progress,
+          completed: allCompleted,
+        ),
+      );
     }
 
+    if (!mounted) return;
     setState(() => plans = loadedPlans);
   }
 
@@ -168,7 +158,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final today = DateTime.now();
     final todayString = today.toIso8601String().split('T')[0];
 
-    final lastUpdateDate = prefs.getString('last_streak_update_${widget.userId}');
+    final lastUpdateDate =
+        prefs.getString('last_streak_update_${widget.userId}');
 
     if (lastUpdateDate == todayString) {
       await _loadStreakFromServer();
@@ -179,37 +170,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final success = await ApiService.registrarRachaHoy(widget.userId);
 
     if (success) {
-      await prefs.setString('last_streak_update_${widget.userId}', todayString);
-      await _loadStreakFromServer();
-
-      final todayIndex = today.weekday - 1;
-      setState(() {
-        completedDays[todayIndex] = true;
-      });
-
       await prefs.setString(
-        'streak_days_${widget.userId}',
-        jsonEncode(completedDays),
+        'last_streak_update_${widget.userId}',
+        todayString,
       );
-      await _verificarYMostrarStreakDiario(prefs);
     }
+
+    await _loadStreakFromServer();
+    await _verificarYMostrarStreakDiario(prefs);
   }
 
   Future<void> _loadStreakFromServer() async {
     final stats = await ApiService.getEstadisticas(widget.userId);
 
-    if (stats != null) {
-      final racha = stats['racha'] ?? 0;
+    if (stats == null) return;
 
-      setState(() {
-        activeStreak = racha is int ? racha : int.tryParse(racha.toString()) ?? 0;
-      });
+    final racha = stats['racha'] ?? 0;
+    final parsedRacha = racha is int ? racha : int.tryParse(racha.toString()) ?? 0;
 
-      _updateCompletedDaysFromStreak(activeStreak);
-    }
+    if (!mounted) return;
+
+    setState(() {
+      activeStreak = parsedRacha;
+      _updateCompletedDaysFromStreakWithoutSetState(parsedRacha);
+    });
   }
 
-  void _updateCompletedDaysFromStreak(int streak) {
+  void _updateCompletedDaysFromStreakWithoutSetState(int streak) {
     final today = DateTime.now();
     final todayIndex = today.weekday - 1;
 
@@ -218,18 +205,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     for (int i = 0; i < streak && i <= todayIndex; i++) {
       completedDays[todayIndex - i] = true;
     }
-
-    setState(() {});
   }
 
-  // ──────────────────────────────────────────────
-  // STREAK BOTTOM SHEET — aparece solo una vez/día
-  // Solo muestra la parte de la racha (pestaña pequeña),
-  // NO duplica el header/saludo/plan del dashboard.
-  // ──────────────────────────────────────────────
   void _showStreakDialog() {
-    // Si ya está abierto, no hacemos nada para evitar que se vea doble
-    if (_isStreakDialogOpen) return;
+    if (_isStreakDialogOpen || !mounted) return;
 
     setState(() {
       _isStreakDialogOpen = true;
@@ -246,7 +225,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return _buildStreakBottomSheet(sheetContext);
       },
     ).whenComplete(() {
-      // Cuando se cierre el modal, liberamos la bandera
       if (mounted) {
         setState(() {
           _isStreakDialogOpen = false;
@@ -254,19 +232,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     });
   }
- Future<void> _verificarYMostrarStreakDiario(SharedPreferences prefs) async {
-    // Si ya está abierto en pantalla, salimos de una vez
+
+  Future<void> _verificarYMostrarStreakDiario(SharedPreferences prefs) async {
     if (_isStreakDialogOpen) return;
 
     final todayString = DateTime.now().toIso8601String().split('T')[0];
-    final lastShownDate = prefs.getString('last_streak_dialog_shown_${widget.userId}');
+    final lastShownDate =
+        prefs.getString('last_streak_dialog_shown_${widget.userId}');
 
     if (lastShownDate != todayString) {
       await Future.delayed(const Duration(milliseconds: 300));
-      
+
       if (mounted && !_isStreakDialogOpen) {
-        // Guardamos la fecha de inmediato para bloquear cualquier intento paralelo
-        await prefs.setString('last_streak_dialog_shown_${widget.userId}', todayString);
+        await prefs.setString(
+          'last_streak_dialog_shown_${widget.userId}',
+          todayString,
+        );
         _showStreakDialog();
       }
     }
@@ -282,7 +263,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Manija (drag handle) ──
           Container(
             width: 40,
             height: 4,
@@ -291,10 +271,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-
           const SizedBox(height: 18),
-
-          // ── Llama de fuego ──
           Image.asset(
             'logo/racha.png',
             height: 80,
@@ -305,10 +282,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(fontSize: 64),
             ),
           ),
-
           const SizedBox(height: 8),
-
-          // ── Conteo de racha ──
           Text(
             '$activeStreak Racha activa !',
             style: const TextStyle(
@@ -326,16 +300,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
               textAlign: TextAlign.center,
             ),
           ),
-
           const SizedBox(height: 18),
-
-          // ── Días de la semana ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(weekDays.length, (index) {
                 final isCompleted = completedDays[index];
+
                 return Column(
                   children: [
                     Text(
@@ -381,10 +353,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
             ),
           ),
-
           const SizedBox(height: 22),
-
-          // ── Botón Seguir Aprendiendo ──
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: SizedBox(
@@ -423,6 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     );
+
     await _loadActivePlans();
   }
 
@@ -431,6 +401,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (planData == null) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('No se pudo cargar el plan seleccionado.'),
@@ -523,6 +494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await _loadActivePlans();
       } else {
         if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('No se pudo eliminar el plan'),
@@ -532,6 +504,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Error al eliminar el plan'),
@@ -561,7 +534,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     )
                   : RefreshIndicator(
                       color: const Color(0xFFD942FF),
-                      onRefresh: _loadActivePlans,
+                      onRefresh: _loadDashboardData,
                       child: _buildDashboard(),
                     ),
             ),
@@ -653,8 +626,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: const [
+          const Row(
+            children: [
               Expanded(
                 child: Divider(
                   color: Colors.white,
@@ -733,9 +706,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           const SizedBox(height: 10),
           if (plans.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: Text(
+            Container(
+              height: 56,
+              width: double.infinity,
+              alignment: Alignment.centerLeft,
+              child: const Text(
                 'No tienes planes activos. ¡Crea uno nuevo!',
                 style: TextStyle(color: Color(0xFFAAA2C9), fontSize: 9),
               ),

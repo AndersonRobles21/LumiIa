@@ -216,44 +216,72 @@
   ============================================================
   */
   router.post("/estadisticas/:userId/racha", async (req: Request, res: Response): Promise<any> => {
-    try {
-      const { userId } = req.params;
+  try {
+    const { userId } = req.params;
 
-      await pool.query(
-        "INSERT INTO estadisticas (usuario_id, racha, tareas_completadas, horas_estudio) VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING",
-        [userId]
-      );
+    await pool.query(
+      "INSERT INTO estadisticas (usuario_id, racha, tareas_completadas, horas_estudio) VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING",
+      [userId]
+    );
 
-      const resultado = await pool.query(
-        "SELECT racha, horas_estudio FROM estadisticas WHERE usuario_id = $1",
-        [userId]
-      );
-      const stats = resultado.rows[0];
+    const resultado = await pool.query(
+      "SELECT racha, ultima_racha_fecha FROM estadisticas WHERE usuario_id = $1",
+      [userId]
+    );
 
-      const hoy = new Date();
-      const diaDelAnio = Math.floor(
-        (hoy.getTime() - new Date(hoy.getFullYear(), 0, 0).getTime()) / 86400000
-      );
-      const ultimoDiaMarcado = Number(stats.horas_estudio) || 0;
+    const stats = resultado.rows[0];
 
-      if (ultimoDiaMarcado === diaDelAnio) {
-        return res.status(200).json({ mensaje: "Ya marcaste hoy", racha: stats.racha });
+    const formatearFechaLocal = (fecha: Date) => {
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, "0");
+      const day = String(fecha.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const hoy = new Date();
+    const hoyFecha = formatearFechaLocal(hoy);
+
+    if (stats.ultima_racha_fecha) {
+      const ultimaFecha = formatearFechaLocal(new Date(stats.ultima_racha_fecha));
+
+      if (ultimaFecha === hoyFecha) {
+        return res.status(200).json({
+          mensaje: "Ya marcaste hoy",
+          racha: Number(stats.racha) || 0,
+        });
       }
-
-      const nuevaRacha = ultimoDiaMarcado === diaDelAnio - 1
-        ? Number(stats.racha) + 1
-        : 1;
-
-      await pool.query(
-        "UPDATE estadisticas SET racha = $1, horas_estudio = $2 WHERE usuario_id = $3",
-        [nuevaRacha, diaDelAnio, userId]
-      );
-
-      return res.status(200).json({ mensaje: "Racha actualizada", racha: nuevaRacha });
-    } catch (error: any) {
-      console.error("❌ Error en POST /estadisticas/racha:", error);
-      return res.status(500).json({ mensaje: "Error al actualizar racha" });
     }
-  });
+
+    let nuevaRacha = 1;
+
+    if (stats.ultima_racha_fecha) {
+      const ultimaFecha = formatearFechaLocal(new Date(stats.ultima_racha_fecha));
+
+      const ayer = new Date(hoy);
+      ayer.setDate(hoy.getDate() - 1);
+      const ayerFecha = formatearFechaLocal(ayer);
+
+      nuevaRacha =
+        ultimaFecha === ayerFecha
+          ? (Number(stats.racha) || 0) + 1
+          : 1;
+    }
+
+    await pool.query(
+      "UPDATE estadisticas SET racha = $1, ultima_racha_fecha = $2 WHERE usuario_id = $3",
+      [nuevaRacha, hoyFecha, userId]
+    );
+
+    return res.status(200).json({
+      mensaje: "Racha actualizada",
+      racha: nuevaRacha,
+    });
+  } catch (error: any) {
+    console.error("❌ Error en POST /estadisticas/racha:", error);
+    return res.status(500).json({
+      mensaje: "Error al actualizar racha",
+    });
+  }
+});
 
   export default router;

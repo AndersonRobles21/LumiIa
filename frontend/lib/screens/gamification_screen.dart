@@ -7,15 +7,13 @@ const String kTrofeoAsset = 'logo/trofeo.png';
 
 class GamificationScreen extends StatefulWidget {
   final String userId;
+
   const GamificationScreen({super.key, required this.userId});
 
   @override
   State<GamificationScreen> createState() => _GamificationScreenState();
 }
 
-/// -----------------------------------------------------------------------------
-/// MODELO DE LOGRO
-/// -----------------------------------------------------------------------------
 class _Logro {
   final String id;
   final String titulo;
@@ -77,7 +75,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
       final historial = resultados[1] as List<dynamic>?;
       final tareasRaw = resultados[2] as List<dynamic>?;
 
-      // Cálculo de tareas completadas desde la lista real
       final tareasLista = (tareasRaw ?? [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
@@ -88,9 +85,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
         return t['completada'] == true || estado == 'COMPLETADA';
       }).length;
 
-      final tareasCompletadas = stats != null && stats['tareas_completadas'] != null
-          ? ((stats['tareas_completadas'] as num).toInt())
-          : completadasCalculadas;
+      final tareasCompletadas =
+          stats != null && stats['tareas_completadas'] != null
+              ? ((stats['tareas_completadas'] as num).toInt())
+              : completadasCalculadas;
 
       final racha = stats != null && stats['racha'] != null
           ? ((stats['racha'] as num).toInt())
@@ -110,13 +108,16 @@ class _GamificationScreenState extends State<GamificationScreen> {
       );
 
       final totalDesbloqueados = logros.where((l) => l.desbloqueado).length;
+      final xpTotal = (tareasCompletadas * 20) +
+          (racha * 15) +
+          (totalPlanes * 25) +
+          (totalDesbloqueados * 35);
 
-      // Cálculo de XP y Nivel con datos reales
-      final xpTotal = (tareasCompletadas * 20) + (racha * 15) + (totalPlanes * 25) + (totalDesbloqueados * 35);
       final nivel = (xpTotal ~/ 100) + 1;
       final xpActual = xpTotal % 100;
 
       if (!mounted) return;
+
       setState(() {
         _tareasCompletadas = tareasCompletadas;
         _racha = racha;
@@ -133,7 +134,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
       });
     } catch (e) {
       debugPrint('Error en GamificationScreen: $e');
+
       if (!mounted) return;
+
       setState(() {
         _logros = _generarLogros(tareas: 0, racha: 0, planes: 0, horas: 0);
         _seleccionado = _logros.isNotEmpty ? _logros.first : null;
@@ -142,11 +145,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
     }
   }
 
-  /// -----------------------------------------------------------------------
-  /// Genera las insignias con cálculo dinámico a partir de la base de datos:
-  /// Racha: 3 días (Llama encendida), 10 días (Constancia diez), 30 días (Mes imparable).
-  /// Noche de estudio: luna_estrellas.png (+25 XP).
-  /// -----------------------------------------------------------------------
   List<_Logro> _generarLogros({
     required int tareas,
     required int racha,
@@ -157,7 +155,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'primer_paso',
         titulo: 'Primer paso',
-        descripcion: 'Completaste tu primer trabajo, es un gran avance en tu aprendizaje.',
+        descripcion:
+            'Completaste tu primer trabajo, es un gran avance en tu aprendizaje.',
         iconAsset: 'logo/logros/estrella_azul.png',
         rewardXp: 50,
         desbloqueado: tareas >= 1,
@@ -168,7 +167,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'estrella_emergente',
         titulo: 'Estrella emergente',
-        descripcion: 'Completaste al menos 5 tareas exitosamente en la plataforma.',
+        descripcion:
+            'Completaste al menos 5 tareas exitosamente en la plataforma.',
         iconAsset: 'logo/logros/estrella_verde.png',
         rewardXp: 50,
         desbloqueado: tareas >= 5,
@@ -179,7 +179,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'primer_podio',
         titulo: 'Primer podio',
-        descripcion: 'Finalizaste o creaste tu primer plan o módulo completo de estudio.',
+        descripcion:
+            'Finalizaste o creaste tu primer plan o módulo completo de estudio.',
         iconAsset: 'logo/logros/trofeo_bronce.png',
         rewardXp: 75,
         desbloqueado: planes >= 1,
@@ -201,7 +202,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'noche_estudio',
         titulo: 'Noche de estudio',
-        descripcion: 'Completaste una sesión de estudio bajo el cielo estrellado.',
+        descripcion:
+            'Completaste una sesión de estudio bajo el cielo estrellado.',
         iconAsset: 'logo/luna_estrellas.png',
         rewardXp: 25,
         desbloqueado: tareas >= 1 || horas >= 1,
@@ -212,7 +214,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'llama_encendida',
         titulo: 'Llama encendida',
-        descripcion: 'Alcanzaste una racha activa de al menos 3 días consecutivos de estudio.',
+        descripcion:
+            'Alcanzaste una racha activa de al menos 3 días consecutivos de estudio.',
         iconAsset: 'logo/logros/fuego.png',
         rewardXp: 50,
         desbloqueado: racha >= 3,
@@ -223,7 +226,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'constancia_diez',
         titulo: 'Constancia diez',
-        descripcion: 'Mantuviste tu constancia y entregas a tiempo durante 10 días seguidos.',
+        descripcion:
+            'Mantuviste tu constancia y entregas a tiempo durante 10 días seguidos.',
         iconAsset: 'logo/logros/calendario_10.png',
         rewardXp: 90,
         desbloqueado: racha >= 10,
@@ -234,7 +238,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'mes_imparable',
         titulo: 'Mes imparable',
-        descripcion: 'Mantuviste una racha de estudio activa durante 30 días consecutivos (1 mes).',
+        descripcion:
+            'Mantuviste una racha de estudio activa durante 30 días consecutivos.',
         iconAsset: 'logo/logros/reloj_7.png',
         rewardXp: 100,
         desbloqueado: racha >= 30,
@@ -245,7 +250,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'buho_nocturno',
         titulo: 'Búho nocturno',
-        descripcion: 'Dedicaste tiempo y completaste actividades de estudio nocturnas.',
+        descripcion:
+            'Dedicaste tiempo y completaste actividades de estudio nocturnas.',
         iconAsset: 'logo/logros/buho_noturno.png',
         rewardXp: 50,
         desbloqueado: tareas >= 2 || horas >= 1,
@@ -256,7 +262,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'modo_enfocado',
         titulo: 'Modo enfocado',
-        descripcion: 'Completaste sesiones de estudio concentrado y técnicas avanzadas.',
+        descripcion:
+            'Completaste sesiones de estudio concentrado y técnicas avanzadas.',
         iconAsset: 'logo/logros/rayo.png',
         rewardXp: 60,
         desbloqueado: horas >= 1 || tareas >= 2,
@@ -267,7 +274,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'excelencia_academica',
         titulo: 'Excelencia académica',
-        descripcion: 'Completaste 8 tareas académicas demostrando gran disciplina.',
+        descripcion:
+            'Completaste 8 tareas académicas demostrando gran disciplina.',
         iconAsset: 'logo/logros/medalla_oro.png',
         rewardXp: 60,
         desbloqueado: tareas >= 8,
@@ -278,7 +286,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'en_el_blanco',
         titulo: 'En el blanco',
-        descripcion: 'Cumpliste con más de 10 objetivos de estudio y tareas completadas.',
+        descripcion:
+            'Cumpliste con más de 10 objetivos de estudio y tareas completadas.',
         iconAsset: 'logo/logros/puntero.png',
         rewardXp: 70,
         desbloqueado: tareas >= 10,
@@ -289,7 +298,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'mente_maestra',
         titulo: 'Mente maestra',
-        descripcion: 'Demostraste un dominio avanzado finalizando 15 tareas en Lumi.',
+        descripcion:
+            'Demostraste un dominio avanzado finalizando 15 tareas en Lumi.',
         iconAsset: 'logo/logros/cerebro.png',
         rewardXp: 75,
         desbloqueado: tareas >= 15,
@@ -300,7 +310,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'explorador_digital',
         titulo: 'Explorador digital',
-        descripcion: 'Generaste y utilizaste múltiples planes de estudio interactivos.',
+        descripcion:
+            'Generaste y utilizaste múltiples planes de estudio interactivos.',
         iconAsset: 'logo/logros/mundo.png',
         rewardXp: 60,
         desbloqueado: planes >= 2,
@@ -311,7 +322,8 @@ class _GamificationScreenState extends State<GamificationScreen> {
       _Logro(
         id: 'desafio_superado',
         titulo: 'Desafío superado',
-        descripcion: 'Superaste un gran reto completando más de 20 tareas en tu trayecto.',
+        descripcion:
+            'Superaste un gran reto completando más de 20 tareas en tu trayecto.',
         iconAsset: 'logo/logros/espadas.png',
         rewardXp: 100,
         desbloqueado: tareas >= 20,
@@ -322,11 +334,13 @@ class _GamificationScreenState extends State<GamificationScreen> {
     ];
 
     final desbloqueadosPrevios = base.where((l) => l.desbloqueado).length;
+
     base.add(
       _Logro(
         id: 'rey_aprendizaje',
         titulo: 'Rey del aprendizaje',
-        descripcion: 'Desbloqueaste 10 o más insignias y dominaste tus metas de estudio.',
+        descripcion:
+            'Desbloqueaste 10 o más insignias y dominaste tus metas de estudio.',
         iconAsset: 'logo/logros/corona.png',
         rewardXp: 120,
         desbloqueado: desbloqueadosPrevios >= 10,
@@ -357,7 +371,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:  const Color(0xFF0D0B1E),
+      backgroundColor: const Color(0xFF0D0B1E),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -377,7 +391,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   onRefresh: _cargarDatos,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 28),
+                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 48),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -387,7 +401,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
                         const SizedBox(height: 24),
                         _buildLogrosHeader(),
                         const SizedBox(height: 14),
-                        // TARJETA DESTACADA COMPLETA (Sin lista lateral)
                         if (_seleccionado != null)
                           _buildFeaturedCard(_seleccionado!),
                         const SizedBox(height: 26),
@@ -411,9 +424,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // ENCABEZADO
-  // ---------------------------------------------------------------------------
   Widget _buildHeader(BuildContext context) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -454,12 +464,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // TARJETAS DE RACHA Y NIVEL
-  // FIX OVERFLOW: los textos dinámicos ahora van envueltos en Flexible con
-  // overflow: ellipsis, así el Row nunca se desborda aunque el número o el
-  // nombre de nivel sean más largos de lo esperado en pantallas angostas.
-  // ---------------------------------------------------------------------------
   Widget _buildStatsRow() {
     return Row(
       children: [
@@ -495,17 +499,24 @@ class _GamificationScreenState extends State<GamificationScreen> {
                         child: Text(
                           _racha == 1 ? 'día' : 'días',
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                const Text('Racha actual', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const Text(
+                  'Racha actual',
+                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFF3DDC84).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(20),
@@ -557,7 +568,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   _nombreNivel(_nivel),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 12,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 ClipRRect(
@@ -574,7 +588,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   '$_xpActual/$_xpSiguienteNivel XP',
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
-                  style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                  ),
                 ),
               ],
             ),
@@ -584,11 +601,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // ENCABEZADO "LOGROS"
-  // ---------------------------------------------------------------------------
   Widget _buildLogrosHeader() {
     final desbloqueados = _logros.where((l) => l.desbloqueado).length;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -635,12 +650,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // TARJETA DESTACADA (OCUPA TODO EL ANCHO)
-  // FIX OVERFLOW: los dos "pills" ahora van envueltos en Flexible dentro del
-  // Row, así si la fecha/etiqueta es más larga de lo normal, se recorta con
-  // "..." en vez de desbordar la tarjeta.
-  // ---------------------------------------------------------------------------
   Widget _buildFeaturedCard(_Logro l) {
     return Container(
       key: ValueKey('featured_${l.id}'),
@@ -721,9 +730,13 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 children: [
                   Flexible(
                     child: _Pill(
-                      icon: l.desbloqueado ? Icons.check_circle : Icons.lock_outline,
+                      icon: l.desbloqueado
+                          ? Icons.check_circle
+                          : Icons.lock_outline,
                       label: l.desbloqueado ? 'Desbloqueado' : 'Bloqueado',
-                      color: l.desbloqueado ? const Color(0xFF3DDC84) : Colors.white38,
+                      color: l.desbloqueado
+                          ? const Color(0xFF3DDC84)
+                          : Colors.white38,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -739,7 +752,13 @@ class _GamificationScreenState extends State<GamificationScreen> {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Progreso', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
+                child: Text(
+                  'Progreso',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                  ),
+                ),
               ),
               const SizedBox(height: 4),
               ClipRRect(
@@ -749,7 +768,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   minHeight: 7,
                   backgroundColor: Colors.white12,
                   valueColor: AlwaysStoppedAnimation(
-                    l.desbloqueado ? const Color(0xFF3DDC84) : const Color(0xFF9A8BFF),
+                    l.desbloqueado
+                        ? const Color(0xFF3DDC84)
+                        : const Color(0xFF9A8BFF),
                   ),
                 ),
               ),
@@ -758,13 +779,22 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 alignment: Alignment.centerRight,
                 child: Text(
                   '${l.progreso}/${l.meta}',
-                  style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 10.5),
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.55),
+                    fontSize: 10.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 10),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Recompensa', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
+                child: Text(
+                  'Recompensa',
+                  style: TextStyle(
+                    color: Colors.white.withOpacity(0.6),
+                    fontSize: 11,
+                  ),
+                ),
               ),
               const SizedBox(height: 4),
               Row(
@@ -772,17 +802,31 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.star, color: Color(0xFFFFC24B), size: 16),
+                      const Icon(
+                        Icons.star,
+                        color: Color(0xFFFFC24B),
+                        size: 16,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '+${l.rewardXp} XP',
-                        style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w700),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ],
                   ),
                   Text(
-                    l.desbloqueado ? '100%' : '${(l.progresoNormalizado * 100).round()}%',
-                    style: const TextStyle(color: Color(0xFFFFC24B), fontSize: 13.5, fontWeight: FontWeight.w700),
+                    l.desbloqueado
+                        ? '100%'
+                        : '${(l.progresoNormalizado * 100).round()}%',
+                    style: const TextStyle(
+                      color: Color(0xFFFFC24B),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ],
               ),
@@ -793,9 +837,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // GRID CON TODAS LAS INSIGNIAS
-  // ---------------------------------------------------------------------------
   Widget _buildLogrosGrid() {
     return GridView.builder(
       key: const PageStorageKey('gamification_grid'),
@@ -803,26 +844,30 @@ class _GamificationScreenState extends State<GamificationScreen> {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 4,
-        mainAxisSpacing: 14,
+        mainAxisSpacing: 18,
         crossAxisSpacing: 10,
-        childAspectRatio: 0.78,
+        mainAxisExtent: 126,
       ),
       itemCount: _logros.length,
       itemBuilder: (context, index) {
         final l = _logros[index];
         final isSelected = l.id == _seleccionado?.id;
+
         return InkWell(
           key: ValueKey('grid_${l.id}'),
           borderRadius: BorderRadius.circular(12),
           onTap: () => _seleccionar(l),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: isSelected ? const Color(0xFF9A8BFF) : Colors.transparent,
+                    color: isSelected
+                        ? const Color(0xFF9A8BFF)
+                        : Colors.transparent,
                     width: 2.2,
                   ),
                   boxShadow: isSelected
@@ -830,30 +875,33 @@ class _GamificationScreenState extends State<GamificationScreen> {
                           BoxShadow(
                             color: const Color(0xFF8B6BFF).withOpacity(0.35),
                             blurRadius: 10,
-                          )
+                          ),
                         ]
                       : null,
                 ),
                 child: _AssetOrFallback(
                   asset: l.iconAsset,
-                  size: 56,
+                  size: 54,
                   fallbackIcon: Icons.emoji_events,
                   fallbackColor: const Color(0xFFFFC24B),
                   dim: !l.desbloqueado,
                   showLock: !l.desbloqueado,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                l.titulo,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: l.desbloqueado ? Colors.white : Colors.white38,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  height: 1.15,
+              const SizedBox(height: 7),
+              SizedBox(
+                height: 36,
+                child: Text(
+                  l.titulo,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: l.desbloqueado ? Colors.white : Colors.white38,
+                    fontSize: 10.2,
+                    fontWeight: FontWeight.w600,
+                    height: 1.15,
+                  ),
                 ),
               ),
             ],
@@ -864,11 +912,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
   }
 }
 
-/// -----------------------------------------------------------------------------
-/// WIDGETS AUXILIARES
-/// -----------------------------------------------------------------------------
 class _StatCard extends StatelessWidget {
   final Widget child;
+
   const _StatCard({required this.child});
 
   @override
@@ -889,7 +935,12 @@ class _Pill extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  const _Pill({required this.icon, required this.label, required this.color});
+
+  const _Pill({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -908,7 +959,11 @@ class _Pill extends StatelessWidget {
             child: Text(
               label,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: color, fontSize: 10.5, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: color,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],
@@ -941,16 +996,38 @@ class _AssetOrFallback extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
-      errorBuilder: (context, error, stackTrace) => Icon(fallbackIcon, size: size * 0.8, color: fallbackColor),
+      errorBuilder: (context, error, stackTrace) {
+        return Icon(
+          fallbackIcon,
+          size: size * 0.8,
+          color: fallbackColor,
+        );
+      },
     );
 
     if (dim) {
       image = ColorFiltered(
         colorFilter: const ColorFilter.matrix(<double>[
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0.2126, 0.7152, 0.0722, 0, 0,
-          0, 0, 0, 0.55, 0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0.2126,
+          0.7152,
+          0.0722,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0.55,
+          0,
         ]),
         child: Opacity(opacity: 0.55, child: image),
       );
@@ -965,9 +1042,16 @@ class _AssetOrFallback extends StatelessWidget {
         Container(
           width: size,
           height: size,
-          decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.black.withOpacity(0.15)),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Colors.black.withOpacity(0.15),
+          ),
         ),
-        Icon(Icons.lock, size: size * 0.32, color: Colors.white70),
+        Icon(
+          Icons.lock,
+          size: size * 0.32,
+          color: Colors.white70,
+        ),
       ],
     );
   }

@@ -18,7 +18,8 @@ class GuiaDetalleScreen extends StatefulWidget {
 
 class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   bool _isLoading = true;
-  bool _cambiandoMetodo = false; // ← NUEVO: loading solo para cambio de método
+  bool _cambiandoMetodo = false;
+
   Map<String, dynamic> guiaActual = {};
   List<dynamic> fasesPasos = [];
   List<dynamic> consejos = [];
@@ -35,33 +36,35 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   final List<Map<String, dynamic>> _mensajes = [];
   final ScrollController _scrollController = ScrollController();
 
-  // ← NUEVO: guardar el userId desde el inicio
   String _userId = '';
 
   String formatearTiempo(int minutos) {
     final horas = minutos ~/ 60;
     final minutosRestantes = minutos % 60;
+
     if (horas == 0) return "$minutosRestantes min";
     if (minutosRestantes == 0) return "$horas h";
+
     return "$horas h $minutosRestantes min";
   }
 
   Future<void> _abrirUrl(String urlString) async {
     if (urlString.trim().isEmpty) return;
+
     final Uri uri = Uri.parse(urlString.trim());
+
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No se pudo abrir el enlace: $urlString')),
-        );
-      }
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('No se pudo abrir el enlace: $urlString')),
+      );
     }
   }
 
   @override
   void initState() {
     super.initState();
-    // ← NUEVO: guardar userId desde widget.guiaData antes de cargar
     _userId = widget.guiaData['usuario_id']?.toString() ?? '';
     _cargarDetallePlan();
   }
@@ -77,31 +80,34 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
     if (planId != null) {
       final detalle = await ApiService.obtenerPlan(planId.toString());
+
       if (detalle != null && mounted) {
-        // ← NUEVO: guardar userId del backend si no lo teníamos
         if (_userId.isEmpty && detalle['usuario_id'] != null) {
           _userId = detalle['usuario_id'].toString();
         }
+
         setState(() {
           guiaActual = Map<String, dynamic>.from(detalle);
           _extraerListasDetalle();
           _inicializarMensajesChat();
           _isLoading = false;
         });
+
         _scrollToBottom();
         return;
       }
     }
 
-    if (mounted) {
-      setState(() {
-        guiaActual = Map<String, dynamic>.from(widget.guiaData);
-        _extraerListasDetalle();
-        _inicializarMensajesChat();
-        _isLoading = false;
-      });
-      _scrollToBottom();
-    }
+    if (!mounted) return;
+
+    setState(() {
+      guiaActual = Map<String, dynamic>.from(widget.guiaData);
+      _extraerListasDetalle();
+      _inicializarMensajesChat();
+      _isLoading = false;
+    });
+
+    _scrollToBottom();
   }
 
   void _scrollToBottom() {
@@ -133,27 +139,28 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
     _mensajes.clear();
 
-    String materialIncial =
+    String materialInicial =
         "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
+
     if (recursos.isNotEmpty) {
       for (var i = 0; i < recursos.length; i++) {
         final rec = recursos[i];
         final nombreRec =
             rec['nombre'] ?? rec['titulo'] ?? 'Material de apoyo ${i + 1}';
-        materialIncial += "• ${i + 1}. $nombreRec\n\n";
+        materialInicial += "• ${i + 1}. $nombreRec\n\n";
       }
     } else {
-      materialIncial +=
+      materialInicial +=
           "• Ten listos tus apuntes, editor de código o libreta de notas antes de comenzar.\n\n";
     }
 
     if (consejos.isNotEmpty) {
-      materialIncial += "💡 Consejo general de Lumi:\n${consejos.first}";
+      materialInicial += "💡 Consejo general de Lumi:\n${consejos.first}";
     }
 
     _mensajes.add({
       'esBot': true,
-      'texto': materialIncial,
+      'texto': materialInicial,
       'tipo': 'herramientas_iniciales',
       'listaRecursos': recursos,
     });
@@ -166,14 +173,17 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     });
 
     bool hayFasesPendientes = false;
+
     for (int i = 0; i < fasesPasos.length; i++) {
       final fase = fasesPasos[i];
+
       if (fase is Map) {
         final subpasos = (fase['subpasos'] as List?) ?? [];
-        bool todosCompletos =
+
+        final todosCompletos =
             subpasos.isNotEmpty &&
             subpasos.every((sub) => sub['completado'] == true);
-        bool faseCompletaDirecta = fase['completado'] == true;
+        final faseCompletaDirecta = fase['completado'] == true;
 
         if (todosCompletos || faseCompletaDirecta) {
           _mensajes.add({
@@ -185,7 +195,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         } else {
           _faseActualIndex = i;
           hayFasesPendientes = true;
-          _mostrarFasePaso(i);
+          _agregarMensajeFase(i);
           break;
         }
       }
@@ -199,6 +209,39 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
             '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
       });
     }
+  }
+
+  void _agregarMensajeFase(int index) {
+    if (index >= fasesPasos.length) return;
+
+    final fase = fasesPasos[index];
+    final tituloFase = fase['titulo'] ?? 'Paso ${index + 1}';
+    final descFase = fase['descripcion'] ?? '';
+    final consejoPaso = fase['consejo_paso'] ?? fase['consejo'] ?? '';
+    final duracion = fase['duracion_minutos'] ?? 20;
+
+    String mensajePaso =
+        '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
+        '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
+        '⏱️ Tiempo estimado de enfoque: $duracion minutos.';
+
+    if (consejoPaso.toString().isNotEmpty) {
+      mensajePaso += '\n\n💡 Tip clave para este paso:\n$consejoPaso';
+    }
+
+    _mensajes.add({
+      'esBot': true,
+      'texto': mensajePaso,
+      'faseIndexChat': index,
+    });
+  }
+
+  void _mostrarFasePaso(int index) {
+    if (index >= fasesPasos.length) return;
+
+    setState(() {
+      _agregarMensajeFase(index);
+    });
 
     _scrollToBottom();
   }
@@ -210,6 +253,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       if (fase is Map) {
         fase['completado'] = false;
         final subpasos = (fase['subpasos'] as List?) ?? [];
+
         for (var sub in subpasos) {
           if (sub is Map) sub['completado'] = false;
         }
@@ -223,19 +267,21 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       );
     }
 
+    if (!mounted) return;
+
     setState(() {
       _faseActualIndex = 0;
       _inicializarMensajesChat();
     });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('🔄 ¡Progreso reiniciado! Volviste al Paso 1.'),
-          backgroundColor: Color(0xFF00F0FF),
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('🔄 ¡Progreso reiniciado! Volviste al Paso 1.'),
+        backgroundColor: Color(0xFF00F0FF),
+      ),
+    );
+
+    _scrollToBottom();
   }
 
   Future<void> _actualizarSubpasoFase(
@@ -246,12 +292,14 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     if (faseIndex < fasesPasos.length) {
       final fase = fasesPasos[faseIndex];
       final subpasosList = (fase['subpasos'] as List?) ?? [];
+
       if (subpasoIndex < subpasosList.length) {
         subpasosList[subpasoIndex]['completado'] = val ?? false;
       }
     }
 
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
+
     if (planId != null) {
       await ApiService.actualizarProgresoPlan(
         planId: planId,
@@ -259,6 +307,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       );
     }
 
+    if (!mounted) return;
     setState(() {});
   }
 
@@ -268,7 +317,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     final fase = fasesPasos[faseIndex];
     final subpasosList = (fase['subpasos'] as List?) ?? [];
 
-    bool faltanSubpasos = subpasosList.any((sub) => sub['completado'] != true);
+    final faltanSubpasos =
+        subpasosList.any((sub) => sub['completado'] != true);
+
     if (faltanSubpasos && subpasosList.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -286,6 +337,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     setState(() => cargandoFases[faseIndex] = true);
 
     fase['completado'] = true;
+
     for (var sub in subpasosList) {
       sub['completado'] = true;
     }
@@ -309,7 +361,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
       if (faseIndex + 1 < fasesPasos.length) {
         _faseActualIndex = faseIndex + 1;
-        _mostrarFasePaso(_faseActualIndex);
+        _agregarMensajeFase(_faseActualIndex);
       } else {
         _mensajes.add({
           'esBot': true,
@@ -317,35 +369,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
               '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
         });
       }
-    });
-
-    _scrollToBottom();
-  }
-
-  void _mostrarFasePaso(int index) {
-    if (index >= fasesPasos.length) return;
-
-    final fase = fasesPasos[index];
-    final tituloFase = fase['titulo'] ?? 'Paso ${index + 1}';
-    final descFase = fase['descripcion'] ?? '';
-    final consejoPaso = fase['consejo_paso'] ?? fase['consejo'] ?? '';
-    final duracion = fase['duracion_minutos'] ?? 20;
-
-    String mensajePaso =
-        '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
-        '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
-        '⏱️ Tiempo estimado de enfoque: $duracion minutos.';
-
-    if (consejoPaso.toString().isNotEmpty) {
-      mensajePaso += '\n\n💡 Tip clave para este paso:\n$consejoPaso';
-    }
-
-    setState(() {
-      _mensajes.add({
-        'esBot': true,
-        'texto': mensajePaso,
-        'faseIndexChat': index,
-      });
     });
 
     _scrollToBottom();
@@ -402,32 +425,39 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
       String respuestaBot = "";
 
       if (opLower.contains('paso a paso')) {
-        _mostrarFasePaso(_faseActualIndex);
-        return;
+        _agregarMensajeFase(_faseActualIndex);
       } else if (opLower.contains('explica que toca hacer')) {
         _nivelExplicacionGeneral++;
         respuestaBot =
             '📌 EXPLICACIÓN GENERAL DEL TRABAJO\n\n'
             'Este plan divide tu proyecto en fases independientes. Completa los subpasos de la tarjeta actual para avanzar a la siguiente.';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
       } else if (opLower.contains('qué es este tema') ||
           opLower.contains('que es este tema')) {
         final titulo =
             guiaActual['nombre'] ??
             guiaActual['titulo'] ??
             'el tema de tu tarea';
+
         respuestaBot =
             '📚 SOBRE EL TEMA: "$titulo"\n\nEsta actividad abarca conceptos fundamentales según la rúbrica.';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
       } else if (opLower.contains('dame un consejo')) {
         final consejo = consejos.isNotEmpty
             ? consejos.first
             : "Elimina distracciones por los próximos 25 minutos.";
+
         respuestaBot = '💡 CONSEJO DE LUMI:\n$consejo';
+
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
       } else {
         respuestaBot =
             "Entendido. Selecciona una opción de abajo para continuar.";
-      }
 
-      _mensajes.add({'esBot': true, 'texto': respuestaBot});
+        _mensajes.add({'esBot': true, 'texto': respuestaBot});
+      }
     });
 
     _scrollToBottom();
@@ -437,11 +467,14 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     final metodo = (guiaActual['metodo_estudio'] ?? 'Pomodoro')
         .toString()
         .toLowerCase();
-    final titulo = (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo')
-        .toString();
+
+    final titulo =
+        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+
     final conceptosIA = List<String>.from(
       conceptosClave.map((e) => e.toString()),
     );
+
     final preguntasIA = List<Map<String, dynamic>>.from(
       preguntasRecall.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
     );
@@ -479,12 +512,13 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     } else {
       Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PomodoroScreen(tituloTarea: titulo)),
+        MaterialPageRoute(
+          builder: (_) => PomodoroScreen(tituloTarea: titulo),
+        ),
       );
     }
   }
 
-  // ← NUEVO: función separada para cambiar método
   Future<void> _cambiarMetodoEstudio() async {
     final tituloPlan =
         (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
@@ -504,12 +538,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
 
-    // ← CLAVE: usar _userId que guardamos al inicio
     final userId = _userId.isNotEmpty
         ? _userId
         : guiaActual['usuario_id']?.toString() ?? '';
-
-    print('🔍 Cambiar método - planId: $planId, userId: $userId, método: $nuevoMetodo');
 
     if (planId == null || planId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -524,7 +555,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Error: No se encontró el usuario. Cierra y vuelve a abrir el plan.'),
+          content: Text(
+            'Error: No se encontró el usuario. Cierra y vuelve a abrir el plan.',
+          ),
           backgroundColor: Color(0xFFFF4444),
         ),
       );
@@ -551,10 +584,12 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         setState(() {
           guiaActual = Map<String, dynamic>.from(planRegenerado);
           guiaActual['metodo_estudio'] = nuevoMetodo;
-          // ← Mantener el userId después de regenerar
-          if (guiaActual['usuario_id'] == null || guiaActual['usuario_id'].toString().isEmpty) {
+
+          if (guiaActual['usuario_id'] == null ||
+              guiaActual['usuario_id'].toString().isEmpty) {
             guiaActual['usuario_id'] = userId;
           }
+
           _userId = userId;
           _extraerListasDetalle();
           _faseActualIndex = 0;
@@ -568,8 +603,11 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
             backgroundColor: const Color(0xFF4CAF50),
           ),
         );
+
+        _scrollToBottom();
       } else {
         setState(() => _cambiandoMetodo = false);
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Error: El servidor no respondió correctamente'),
@@ -578,16 +616,16 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         );
       }
     } catch (e) {
-      print('❌ Error cambiando método: $e');
-      if (mounted) {
-        setState(() => _cambiandoMetodo = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cambiar método: $e'),
-            backgroundColor: const Color(0xFFFF4444),
-          ),
-        );
-      }
+      if (!mounted) return;
+
+      setState(() => _cambiandoMetodo = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al cambiar método: $e'),
+          backgroundColor: const Color(0xFFFF4444),
+        ),
+      );
     }
   }
 
@@ -716,11 +754,10 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                         textAlign: TextAlign.center,
                       ),
                     ),
-
                     Expanded(
                       child: ListView.builder(
                         controller: _scrollController,
-                        padding: const EdgeInsets.all(16),
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
                         itemCount: _mensajes.length,
                         itemBuilder: (context, index) {
                           final msg = _mensajes[index];
@@ -739,7 +776,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                             final faseObj = fasesPasos[faseIndexChat];
                             subpasosDeEstaFase =
                                 (faseObj['subpasos'] as List?) ?? [];
-                            faseCompletadaEstado = faseObj['completado'] == true;
+                            faseCompletadaEstado =
+                                faseObj['completado'] == true;
                             faseCargandoEstado = cargandoFases[faseIndexChat];
                           }
 
@@ -771,9 +809,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                               BorderRadius.circular(16),
                                           border: Border.all(
                                             color: esBot
-                                                ? const Color(
-                                                    0xFF4A3E8D,
-                                                  ).withOpacity(0.4)
+                                                ? const Color(0xFF4A3E8D)
+                                                    .withOpacity(0.4)
                                                 : const Color(0xFFBD00FF),
                                           ),
                                         ),
@@ -789,41 +826,40 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                 height: 1.4,
                                               ),
                                             ),
-
-                                            // Enlaces recomendados
                                             if (listaRecursosMsg.isNotEmpty) ...[
                                               const SizedBox(height: 12),
                                               ...listaRecursosMsg.map((rec) {
                                                 final nombreRec =
                                                     rec['nombre'] ??
-                                                    rec['titulo'] ??
-                                                    'Enlace de apoyo';
+                                                        rec['titulo'] ??
+                                                        'Enlace de apoyo';
                                                 final urlRec = rec['url'] ?? '';
-                                                if (urlRec.isEmpty)
+
+                                                if (urlRec.isEmpty) {
                                                   return const SizedBox.shrink();
+                                                }
 
                                                 return Padding(
                                                   padding:
                                                       const EdgeInsets.only(
-                                                        bottom: 8,
-                                                      ),
+                                                    bottom: 8,
+                                                  ),
                                                   child: InkWell(
                                                     onTap: () =>
                                                         _abrirUrl(urlRec),
                                                     child: Container(
-                                                      padding:
-                                                          const EdgeInsets.symmetric(
-                                                            horizontal: 10,
-                                                            vertical: 8,
-                                                          ),
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 8,
+                                                      ),
                                                       decoration: BoxDecoration(
                                                         color: const Color(
                                                           0xFF00F0FF,
                                                         ).withOpacity(0.15),
                                                         borderRadius:
-                                                            BorderRadius.circular(
-                                                              8,
-                                                            ),
+                                                            BorderRadius
+                                                                .circular(8),
                                                         border: Border.all(
                                                           color: const Color(
                                                             0xFF00F0FF,
@@ -847,14 +883,14 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                               'Abrir: $nombreRec 🚀',
                                                               style:
                                                                   const TextStyle(
-                                                                    color: Color(
-                                                                      0xFF00F0FF,
-                                                                    ),
-                                                                    fontSize: 12,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .bold,
-                                                                  ),
+                                                                color: Color(
+                                                                  0xFF00F0FF,
+                                                                ),
+                                                                fontSize: 12,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                              ),
                                                               overflow:
                                                                   TextOverflow
                                                                       .ellipsis,
@@ -867,8 +903,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                 );
                                               }),
                                             ],
-
-                                            // Checklist de subpasos
                                             if (subpasosDeEstaFase.isNotEmpty &&
                                                 faseIndexChat != null) ...[
                                               const SizedBox(height: 12),
@@ -891,9 +925,10 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                 (sIdx) {
                                                   final subMap =
                                                       subpasosDeEstaFase[sIdx];
-                                                  bool subCompletado =
+                                                  final subCompletado =
                                                       subMap['completado'] ==
-                                                      true;
+                                                          true;
+
                                                   return CheckboxListTile(
                                                     contentPadding:
                                                         EdgeInsets.zero,
@@ -907,9 +942,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                         fontSize: 11.5,
                                                         decoration:
                                                             subCompletado
-                                                            ? TextDecoration
-                                                                  .lineThrough
-                                                            : null,
+                                                                ? TextDecoration
+                                                                    .lineThrough
+                                                                : null,
                                                       ),
                                                     ),
                                                     value: subCompletado,
@@ -919,51 +954,47 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                     checkColor: Colors.black,
                                                     onChanged:
                                                         faseCompletadaEstado
-                                                        ? null
-                                                        : (bool? val) {
-                                                            _actualizarSubpasoFase(
-                                                              faseIndexChat,
-                                                              sIdx,
-                                                              val,
-                                                            );
-                                                          },
+                                                            ? null
+                                                            : (bool? val) {
+                                                                _actualizarSubpasoFase(
+                                                                  faseIndexChat,
+                                                                  sIdx,
+                                                                  val,
+                                                                );
+                                                              },
                                                   );
                                                 },
                                               ),
                                             ],
-
-                                            // Botones de la fase
                                             if (faseIndexChat != null &&
                                                 !faseCompletadaEstado) ...[
                                               const SizedBox(height: 12),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
+                                              Wrap(
+                                                spacing: 8,
+                                                runSpacing: 8,
                                                 children: [
                                                   OutlinedButton.icon(
-                                                    style:
-                                                        OutlinedButton.styleFrom(
-                                                          foregroundColor:
-                                                              const Color(
-                                                                0xFF00F0FF,
-                                                              ),
-                                                          side:
-                                                              const BorderSide(
-                                                                color: Color(
-                                                                  0xFF00F0FF,
-                                                                ),
-                                                              ),
-                                                          padding:
-                                                              const EdgeInsets.symmetric(
-                                                                horizontal: 10,
-                                                                vertical: 6,
-                                                              ),
-                                                        ),
+                                                    style: OutlinedButton
+                                                        .styleFrom(
+                                                      foregroundColor:
+                                                          const Color(
+                                                        0xFF00F0FF,
+                                                      ),
+                                                      side: const BorderSide(
+                                                        color:
+                                                            Color(0xFF00F0FF),
+                                                      ),
+                                                      padding:
+                                                          const EdgeInsets
+                                                              .symmetric(
+                                                        horizontal: 10,
+                                                        vertical: 6,
+                                                      ),
+                                                    ),
                                                     onPressed: () =>
                                                         _explicarFase(
-                                                          faseIndexChat,
-                                                        ),
+                                                      faseIndexChat,
+                                                    ),
                                                     icon: const Icon(
                                                       Icons.help_outline,
                                                       size: 14,
@@ -981,31 +1012,32 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                           height: 20,
                                                           child:
                                                               CircularProgressIndicator(
-                                                                strokeWidth: 2,
-                                                                color: Color(
-                                                                  0xFFFF44AA,
-                                                                ),
-                                                              ),
+                                                            strokeWidth: 2,
+                                                            color: Color(
+                                                              0xFFFF44AA,
+                                                            ),
+                                                          ),
                                                         )
                                                       : ElevatedButton.icon(
-                                                          style: ElevatedButton.styleFrom(
+                                                          style: ElevatedButton
+                                                              .styleFrom(
                                                             backgroundColor:
                                                                 const Color(
-                                                                  0xFFFF44AA,
-                                                                ),
+                                                              0xFFFF44AA,
+                                                            ),
                                                             foregroundColor:
                                                                 Colors.black,
                                                             padding:
-                                                                const EdgeInsets.symmetric(
-                                                                  horizontal:
-                                                                      10,
-                                                                  vertical: 6,
-                                                                ),
+                                                                const EdgeInsets
+                                                                    .symmetric(
+                                                              horizontal: 10,
+                                                              vertical: 6,
+                                                            ),
                                                           ),
                                                           onPressed: () =>
                                                               _completarFasePaso(
-                                                                faseIndexChat,
-                                                              ),
+                                                            faseIndexChat,
+                                                          ),
                                                           icon: const Icon(
                                                             Icons
                                                                 .check_circle_outline,
@@ -1015,11 +1047,11 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                             'Completar Paso ${faseIndexChat + 1}',
                                                             style:
                                                                 const TextStyle(
-                                                                  fontSize: 11,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
+                                                              fontSize: 11,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
                                                           ),
                                                         ),
                                                 ],
@@ -1028,8 +1060,6 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                           ],
                                         ),
                                       ),
-
-                                      // ← Botón cambiar método simplificado
                                       if (esBienvenida) ...[
                                         const SizedBox(height: 10),
                                         GestureDetector(
@@ -1047,9 +1077,9 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                 color: const Color(0xFFBD00FF),
                                               ),
                                             ),
-                                            child: Row(
+                                            child: const Row(
                                               mainAxisSize: MainAxisSize.min,
-                                              children: const [
+                                              children: [
                                                 Icon(
                                                   Icons.settings_suggest,
                                                   color: Color(0xFF00F0FF),
@@ -1067,9 +1097,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                                 SizedBox(width: 8),
                                                 CircleAvatar(
                                                   radius: 10,
-                                                  backgroundColor: Color(
-                                                    0xFFBD00FF,
-                                                  ),
+                                                  backgroundColor:
+                                                      Color(0xFFBD00FF),
                                                   child: Icon(
                                                     Icons.arrow_forward_ios,
                                                     color: Colors.white,
@@ -1102,43 +1131,48 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                         },
                       ),
                     ),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: const Color(0xFF0D0B1E),
-                      child: Column(
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child:
-                                    _buildBotonPredeterminado("Paso a Paso"),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildBotonPredeterminado(
-                                  "Explica que toca hacer",
+                    SafeArea(
+                      top: false,
+                      minimum: const EdgeInsets.only(bottom: 34),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+                        color: const Color(0xFF0D0B1E),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Paso a Paso",
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildBotonPredeterminado(
-                                  "¿Qué es este tema?",
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Explica que toca hacer",
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: _buildBotonPredeterminado(
-                                  "Dame un consejo",
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "¿Qué es este tema?",
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: _buildBotonPredeterminado(
+                                    "Dame un consejo",
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -1178,12 +1212,17 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: Color(0xFF4A3E8D)),
         ),
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       ),
       onPressed: () => _procesarOpcionRapida(texto),
       child: Text(
         texto,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        textAlign: TextAlign.center,
+        maxLines: 1,
+        style: const TextStyle(
+          fontSize: 11.5,
+          fontWeight: FontWeight.w500,
+        ),
         overflow: TextOverflow.ellipsis,
       ),
     );

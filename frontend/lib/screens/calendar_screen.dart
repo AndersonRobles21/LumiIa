@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '/services/api_service.dart';
 import 'gamification_screen.dart';
@@ -12,7 +11,11 @@ class CalendarScreen extends StatefulWidget {
   final String userId;
   final List<dynamic> tasks;
 
-  const CalendarScreen({super.key, required this.userId, required this.tasks});
+  const CalendarScreen({
+    super.key,
+    required this.userId,
+    required this.tasks,
+  });
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
@@ -48,20 +51,25 @@ class _CalendarScreenState extends State<CalendarScreen> {
     try {
       await initializeDateFormatting('es_ES', null);
     } catch (_) {}
+
     if (!mounted) return;
+
     setState(() => _localeReady = true);
     await _cargarTareas();
   }
 
   DateTime? _parsearFecha(dynamic fechaRaw) {
     if (fechaRaw == null) return null;
+
     if (fechaRaw is DateTime) {
       return DateTime.utc(fechaRaw.year, fechaRaw.month, fechaRaw.day);
     }
+
     final str = fechaRaw.toString().trim();
     if (str.isEmpty) return null;
 
     final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(str);
+
     if (match != null) {
       final year = int.parse(match.group(1)!);
       final month = int.parse(match.group(2)!);
@@ -77,7 +85,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  void _buildEventsFromList(List<dynamic> tasks) {
+  Map<DateTime, List<dynamic>> _crearMapaEventos(List<dynamic> tasks) {
     final events = <DateTime, List<dynamic>>{};
     final hoy = DateTime.now();
     final hoyNormalizado = DateTime.utc(hoy.year, hoy.month, hoy.day);
@@ -85,10 +93,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     for (final task in tasks) {
       if (task is! Map) continue;
 
-      final rawEntrega = task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+      final rawEntrega =
+          task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
       final fechaLimite = _parsearFecha(rawEntrega);
 
-      final rawCreacion = task['created_at'] ?? task['fecha_creacion'] ?? task['fechaCreacion'];
+      final rawCreacion =
+          task['created_at'] ?? task['fecha_creacion'] ?? task['fechaCreacion'];
       final fechaInicio = _parsearFecha(rawCreacion) ?? hoyNormalizado;
 
       if (fechaLimite == null) {
@@ -96,9 +106,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
         continue;
       }
 
-      DateTime inicioReal = fechaInicio.isAfter(fechaLimite) ? fechaLimite : fechaInicio;
+      DateTime cursor =
+          fechaInicio.isAfter(fechaLimite) ? fechaLimite : fechaInicio;
 
-      DateTime cursor = inicioReal;
       while (!cursor.isAfter(fechaLimite)) {
         final key = DateTime.utc(cursor.year, cursor.month, cursor.day);
         events.putIfAbsent(key, () => []).add(task);
@@ -106,45 +116,65 @@ class _CalendarScreenState extends State<CalendarScreen> {
       }
     }
 
-    if (mounted) {
-      setState(() => _eventsByDay = events);
-    }
+    return events;
+  }
+
+  void _buildEventsFromList(List<dynamic> tasks) {
+    final events = _crearMapaEventos(tasks);
+
+    if (!mounted) return;
+
+    setState(() {
+      _eventsByDay = events;
+    });
   }
 
   Future<void> _cargarTareas() async {
-    setState(() => _isLoading = true);
+    if (mounted) {
+      setState(() => _isLoading = true);
+    }
 
-    final tareasManuales = await ApiService.getPlanesEstudio(widget.userId) ?? [];
+    final tareasManuales =
+        await ApiService.getPlanesEstudio(widget.userId) ?? [];
     final historialIA = await ApiService.obtenerHistorial(widget.userId) ?? [];
     final historialConFecha = await _completarFechasHistorial(historialIA);
 
     if (!mounted) return;
 
-    final todasLasTareas = <dynamic>[...tareasManuales, ...historialConFecha];
+    final todasLasTareas = <dynamic>[
+      ...tareasManuales,
+      ...historialConFecha,
+    ];
+
+    final eventos = _crearMapaEventos(
+      todasLasTareas.isNotEmpty ? todasLasTareas : widget.tasks,
+    );
 
     setState(() {
+      _eventsByDay = eventos;
       _isLoading = false;
-      _buildEventsFromList(
-        todasLasTareas.isNotEmpty ? todasLasTareas : widget.tasks,
-      );
     });
 
     _seleccionarDiaInicial();
   }
 
-  Future<List<dynamic>> _completarFechasHistorial(List<dynamic> historial) async {
+  Future<List<dynamic>> _completarFechasHistorial(
+    List<dynamic> historial,
+  ) async {
     final resultado = <dynamic>[];
 
     for (final item in historial) {
       if (item is! Map) continue;
 
       final id = item['id']?.toString();
+
       if (id == null) {
         resultado.add(item);
         continue;
       }
 
       final planCompleto = await ApiService.obtenerPlan(id);
+
       if (planCompleto != null) {
         final combinado = Map<String, dynamic>.from(item)..addAll(planCompleto);
         resultado.add(combinado);
@@ -164,6 +194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _fijarDiaSeleccionado(DateTime dia) {
     if (!mounted) return;
+
     setState(() {
       _selectedDay = dia;
       _focusedDay = dia;
@@ -177,17 +208,39 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   String _formatDateHeader(DateTime day) {
     final meses = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
+
     return '${day.day} de ${meses[day.month - 1]} ${day.year}';
   }
 
   String _formatearFechaCorta(DateTime day) {
     final mesesCortos = [
-      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic',
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
     ];
+
     return '${day.day} de ${mesesCortos[day.month - 1]}';
   }
 
@@ -197,16 +250,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   String _tipoNombreTarea(Map task) {
-    final nombre = (task['nombre'] ?? task['titulo'] ?? '').toString().toLowerCase();
+    final nombre =
+        (task['nombre'] ?? task['titulo'] ?? '').toString().toLowerCase();
     final tipo = (task['tipo'] ?? '').toString();
 
     if (tipo == 'Examen' || tipo == 'Proyecto' || tipo == 'Trabajos') {
       return tipo;
     }
 
-    if (nombre.contains('examen') || nombre.contains('parcial') || nombre.contains('quiz')) {
+    if (nombre.contains('examen') ||
+        nombre.contains('parcial') ||
+        nombre.contains('quiz')) {
       return 'Examen';
-    } else if (nombre.contains('proyecto')) {
+    }
+
+    if (nombre.contains('proyecto')) {
       return 'Proyecto';
     }
 
@@ -226,12 +284,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Icon(icon, color: color, size: 12),
           const SizedBox(width: 4),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w700,
+          Flexible(
+            child: Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -272,7 +333,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1E1033),
                     borderRadius: BorderRadius.circular(20),
@@ -368,6 +430,45 @@ class _CalendarScreenState extends State<CalendarScreen> {
     );
   }
 
+  Widget _buildEventMarkers(DateTime date, List<dynamic> events) {
+    if (events.isEmpty) return const SizedBox.shrink();
+
+    final visibles = events.take(4).toList();
+
+    return SizedBox(
+      height: 8,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: visibles.map((event) {
+          Color dotColor = const Color(0xFF9D4EDD);
+
+          if (event is Map) {
+            final rawEntrega =
+                event['fecha_entrega'] ?? event['fechaEntrega'] ?? event['fecha'];
+            final fechaEntrega = _parsearFecha(rawEntrega);
+
+            final esEntregaExacta = fechaEntrega != null &&
+                date.year == fechaEntrega.year &&
+                date.month == fechaEntrega.month &&
+                date.day == fechaEntrega.day;
+
+            dotColor = esEntregaExacta ? kColorEntrega : _colorParaTarea(event);
+          }
+
+          return Container(
+            width: 5.5,
+            height: 5.5,
+            margin: const EdgeInsets.symmetric(horizontal: 1.4),
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (!_localeReady) {
@@ -379,12 +480,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    final selectedTasks = _selectedDay == null
-        ? const <dynamic>[]
-        : _getTasksForDay(_selectedDay!);
+    final selectedTasks =
+        _selectedDay == null ? const <dynamic>[] : _getTasksForDay(_selectedDay!);
 
-    final esHoy = _selectedDay != null &&
-        isSameDay(_selectedDay, DateTime.now());
+    final esHoy =
+        _selectedDay != null && isSameDay(_selectedDay, DateTime.now());
 
     return Scaffold(
       backgroundColor: const Color(0xFF03020A),
@@ -407,11 +507,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 onRefresh: _cargarTareas,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 110),
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 130),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // ENCABEZADO
                       const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -435,8 +534,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         ],
                       ),
                       const SizedBox(height: 20),
-
-                      // CALENDARIO + LEYENDA
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -458,12 +555,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   isSameDay(_selectedDay, day),
                               onDaySelected: (selectedDay, focusedDay) {
                                 setState(() {
-                                  _selectedDay = selectedDay;
+                                  _selectedDay = DateTime.utc(
+                                    selectedDay.year,
+                                    selectedDay.month,
+                                    selectedDay.day,
+                                  );
                                   _focusedDay = focusedDay;
                                 });
                               },
                               eventLoader: _getTasksForDay,
                               startingDayOfWeek: StartingDayOfWeek.monday,
+                              rowHeight: 58,
                               calendarStyle: CalendarStyle(
                                 outsideDaysVisible: true,
                                 outsideTextStyle: const TextStyle(
@@ -478,21 +580,21 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   color: Colors.white,
                                   fontSize: 14,
                                 ),
-                                selectedDecoration: BoxDecoration(
-                                  color: const Color(0xFF8A2BE2),
-                                  borderRadius: BorderRadius.circular(12),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0xFF8A2BE2),
-                                      blurRadius: 10,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                                todayDecoration: BoxDecoration(
-                                  color: const Color(0xFF3B1E6D).withOpacity(0.5),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
+selectedDecoration: const BoxDecoration(
+  color: Color(0xFF8A2BE2),
+  shape: BoxShape.circle,
+  boxShadow: [
+    BoxShadow(
+      color: Color(0xFF8A2BE2),
+      blurRadius: 10,
+      spreadRadius: 1,
+    ),
+  ],
+),
+todayDecoration: BoxDecoration(
+  color: const Color(0xFF3B1E6D).withOpacity(0.5),
+  shape: BoxShape.circle,
+),
                                 todayTextStyle: const TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -519,8 +621,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                   color: Colors.white,
                                   size: 28,
                                 ),
-                                headerPadding:
-                                    EdgeInsets.symmetric(vertical: 8),
+                                headerPadding: EdgeInsets.symmetric(vertical: 8),
                               ),
                               daysOfWeekStyle: const DaysOfWeekStyle(
                                 weekdayStyle: TextStyle(
@@ -536,61 +637,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ),
                               calendarBuilders: CalendarBuilders(
                                 markerBuilder: (context, date, events) {
-                                  if (events.isEmpty) return null;
                                   return Positioned(
-                                    bottom: 4,
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: events.take(4).map((e) {
-                                        if (e is! Map) {
-                                          return Container(
-                                            width: 5.5,
-                                            height: 5.5,
-                                            margin: const EdgeInsets.symmetric(
-                                                horizontal: 1),
-                                            decoration: const BoxDecoration(
-                                              color: Color(0xFF9D4EDD),
-                                              shape: BoxShape.circle,
-                                            ),
-                                          );
-                                        }
-
-                                        final rawEnt = e['fecha_entrega'] ??
-                                            e['fechaEntrega'] ??
-                                            e['fecha'];
-                                        final fEntrega = _parsearFecha(rawEnt);
-
-                                        final esEntregaExacta = fEntrega !=
-                                                null &&
-                                            date.year == fEntrega.year &&
-                                            date.month == fEntrega.month &&
-                                            date.day == fEntrega.day;
-
-                                        final dotColor = esEntregaExacta
-                                            ? kColorEntrega
-                                            : _colorParaTarea(e);
-
-                                        return Container(
-                                          width: esEntregaExacta ? 6.5 : 5.0,
-                                          height: esEntregaExacta ? 6.5 : 5.0,
-                                          margin: const EdgeInsets.symmetric(
-                                              horizontal: 1.2),
-                                          decoration: BoxDecoration(
-                                            color: dotColor,
-                                            shape: BoxShape.circle,
-                                            boxShadow: esEntregaExacta
-                                                ? [
-                                                    BoxShadow(
-                                                      color: kColorEntrega
-                                                          .withOpacity(0.6),
-                                                      blurRadius: 4,
-                                                    )
-                                                  ]
-                                                : null,
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
+                                    bottom: 6,
+                                    left: 0,
+                                    right: 0,
+                                    child: _buildEventMarkers(date, events),
                                   );
                                 },
                               ),
@@ -598,7 +649,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             const SizedBox(height: 12),
                             const Divider(color: Color(0xFF1E1038), height: 1),
                             const SizedBox(height: 12),
-                            // LEYENDA
                             Wrap(
                               alignment: WrapAlignment.spaceEvenly,
                               spacing: 14,
@@ -630,10 +680,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 20),
-
-                      // LISTA DE TRABAJOS DEL DÍA SELECCIONADO
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
@@ -648,8 +695,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            Wrap(
+                              alignment: WrapAlignment.spaceBetween,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 12,
+                              runSpacing: 10,
                               children: [
                                 Text(
                                   esHoy
@@ -687,7 +737,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
                               ],
                             ),
                             const SizedBox(height: 14),
-                            if (selectedTasks.isEmpty)
+                            if (_isLoading)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(vertical: 24),
+                                child: Center(
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF9D4EDD),
+                                  ),
+                                ),
+                              )
+                            else if (selectedTasks.isEmpty)
                               Padding(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 24),
@@ -702,6 +761,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       const SizedBox(height: 8),
                                       Text(
                                         'No hay trabajos programados para este día',
+                                        textAlign: TextAlign.center,
                                         style: TextStyle(
                                           color: Colors.white.withOpacity(0.5),
                                           fontSize: 13,
@@ -721,38 +781,33 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 itemBuilder: (context, index) {
                                   final t = selectedTasks[index];
                                   final map = t is Map ? t : {};
-                                  final titulo = map['nombre'] ??
-                                      map['titulo'] ??
-                                      'Sin título';
+                                  final titulo =
+                                      map['nombre'] ?? map['titulo'] ?? 'Sin título';
                                   final desc = map['descripcion'] ?? '';
-                                  final completada =
-                                      map['completada'] == true ||
-                                          (map['estado'] ?? '')
-                                                  .toString()
-                                                  .toUpperCase() ==
-                                              'COMPLETADA';
+                                  final completada = map['completada'] == true ||
+                                      (map['estado'] ?? '')
+                                              .toString()
+                                              .toUpperCase() ==
+                                          'COMPLETADA';
                                   final color = _colorParaTarea(map);
 
                                   final rawEntrega = map['fecha_entrega'] ??
                                       map['fechaEntrega'] ??
                                       map['fecha'];
-                                  final fechaEntrega =
-                                      _parsearFecha(rawEntrega);
+                                  final fechaEntrega = _parsearFecha(rawEntrega);
 
                                   final esDiaDeEntrega = fechaEntrega != null &&
                                       _selectedDay != null &&
-                                      _selectedDay!.year ==
-                                          fechaEntrega.year &&
-                                      _selectedDay!.month ==
-                                          fechaEntrega.month &&
+                                      _selectedDay!.year == fechaEntrega.year &&
+                                      _selectedDay!.month == fechaEntrega.month &&
                                       _selectedDay!.day == fechaEntrega.day;
 
-                                  final diasRestantes = (fechaEntrega != null &&
-                                          _selectedDay != null)
-                                      ? fechaEntrega
-                                          .difference(_selectedDay!)
-                                          .inDays
-                                      : 0;
+                                  final diasRestantes =
+                                      (fechaEntrega != null && _selectedDay != null)
+                                          ? fechaEntrega
+                                              .difference(_selectedDay!)
+                                              .inDays
+                                          : 0;
 
                                   return Container(
                                     padding: const EdgeInsets.all(14),
@@ -790,7 +845,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                                     CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    titulo,
+                                                    titulo.toString(),
+                                                    maxLines: 2,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                     style: TextStyle(
                                                       color: Colors.white,
                                                       fontSize: 14.5,
@@ -802,10 +860,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                                           : null,
                                                     ),
                                                   ),
-                                                  if (desc.isNotEmpty) ...[
+                                                  if (desc.toString().isNotEmpty) ...[
                                                     const SizedBox(height: 3),
                                                     Text(
-                                                      desc,
+                                                      desc.toString(),
                                                       maxLines: 1,
                                                       overflow:
                                                           TextOverflow.ellipsis,
@@ -828,7 +886,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           ],
                                         ),
                                         const SizedBox(height: 10),
-                                        Row(
+                                        Wrap(
+                                          spacing: 8,
+                                          runSpacing: 8,
                                           children: [
                                             if (completada)
                                               _buildStatusBadge(
@@ -838,14 +898,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                               )
                                             else if (esDiaDeEntrega)
                                               _buildStatusBadge(
-                                                '🎯 ¡Fecha de entrega hoy!',
+                                                'Fecha de entrega hoy',
                                                 kColorEntrega,
                                                 Icons.alarm,
                                               )
                                             else if (diasRestantes > 0 &&
                                                 fechaEntrega != null)
                                               _buildStatusBadge(
-                                                '⏳ Pendiente (Entrega: ${_formatearFechaCorta(fechaEntrega)})',
+                                                'Pendiente: ${_formatearFechaCorta(fechaEntrega)}',
                                                 color,
                                                 Icons.schedule,
                                               )
@@ -865,17 +925,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ],
                         ),
                       ),
-
                       const SizedBox(height: 22),
-
-                      // CARD DE GAMIFICACIÓN
                       _buildGamificationCard(context),
                     ],
                   ),
                 ),
               ),
             ),
-            AppBottomNavbar(userId: widget.userId, currentIndex: 1),
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+                top: false,
+                minimum: const EdgeInsets.only(bottom: 8),
+                child: AppBottomNavbar(
+                  userId: widget.userId,
+                  currentIndex: 1,
+                ),
+              ),
+            ),
           ],
         ),
       ),
