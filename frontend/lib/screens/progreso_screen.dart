@@ -7,6 +7,7 @@ const String kLumiProgresoAsset = 'logo/Lumi_progreso.png';
 
 class ProgresoScreen extends StatefulWidget {
   final String userId;
+
   const ProgresoScreen({super.key, required this.userId});
 
   @override
@@ -17,6 +18,7 @@ class _Categoria {
   final String nombre;
   final double porcentaje;
   final Color color;
+
   const _Categoria(this.nombre, this.porcentaje, this.color);
 }
 
@@ -32,11 +34,23 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
   double _mejorHoras = 0.0;
 
   static const List<String> _diasSemana = [
-    'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom',
+    'Lun',
+    'Mar',
+    'Mié',
+    'Jue',
+    'Vie',
+    'Sáb',
+    'Dom',
   ];
 
   static const List<String> _diasCompletos = [
-    'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo',
+    'Lunes',
+    'Martes',
+    'Miércoles',
+    'Jueves',
+    'Viernes',
+    'Sábado',
+    'Domingo',
   ];
 
   List<_Categoria> _distribucion = const [
@@ -60,10 +74,15 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     final ahora = DateTime.now();
     final inicioSemana = ahora.subtract(Duration(days: ahora.weekday - 1));
     final fechaNormalizada = DateTime(fecha.year, fecha.month, fecha.day);
-    final inicioNormalizado = DateTime(inicioSemana.year, inicioSemana.month, inicioSemana.day);
+    final inicioNormalizado = DateTime(
+      inicioSemana.year,
+      inicioSemana.month,
+      inicioSemana.day,
+    );
     final finNormalizado = inicioNormalizado.add(const Duration(days: 7));
 
-    return (fechaNormalizada.isAtSameMomentAs(inicioNormalizado) || fechaNormalizada.isAfter(inicioNormalizado)) &&
+    return (fechaNormalizada.isAtSameMomentAs(inicioNormalizado) ||
+            fechaNormalizada.isAfter(inicioNormalizado)) &&
         fechaNormalizada.isBefore(finNormalizado);
   }
 
@@ -87,7 +106,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       final List<double> horasPorDia = List.filled(7, 0.0);
       final ahora = DateTime.now();
 
-      // 1. PROCESAR TAREAS MANUALES
       final tareas = (tareasRaw ?? [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
@@ -95,11 +113,18 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
 
       for (final t in tareas) {
         final estaComp = _estaCompletada(t);
+
         if (estaComp) {
           completadas++;
           totalHorasReales += 1.0;
-          final raw = t['fecha_entrega'] ?? t['fecha'] ?? t['fecha_creacion'] ?? t['created_at'];
+
+          final raw = t['fecha_entrega'] ??
+              t['fecha'] ??
+              t['fecha_creacion'] ??
+              t['created_at'];
+
           final fecha = DateTime.tryParse('$raw');
+
           if (fecha != null && _esDeEstaSemana(fecha)) {
             final idx = (fecha.weekday - 1).clamp(0, 6);
             horasPorDia[idx] += 1.0;
@@ -109,32 +134,43 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         }
       }
 
-      // 2. PROCESAR PLANES Y TRABAJOS DE IA
       for (final h in (historialRaw ?? [])) {
         if (h is! Map) continue;
+
         final planId = h['id']?.toString();
         if (planId == null) continue;
 
-        final tiempoEstimadoMin = (h['tiempo_estimado_total'] as num?)?.toInt() ?? 60;
-        final duracionHoras = double.parse((tiempoEstimadoMin / 60.0).toStringAsFixed(1));
+        final tiempoEstimadoMin =
+            (h['tiempo_estimado_total'] as num?)?.toInt() ?? 60;
+
+        final duracionHoras = double.parse(
+          (tiempoEstimadoMin / 60.0).toStringAsFixed(1),
+        );
 
         final estado = (h['estado'] ?? '').toString().toUpperCase();
         bool planTerminado = estado == 'COMPLETADO' || estado == 'FINALIZADO';
 
-        // Consultar progreso de pasos del plan
         final planCompleto = await ApiService.obtenerPlan(planId);
+
         if (planCompleto != null && planCompleto['pasos'] is List) {
           final pasos = planCompleto['pasos'] as List;
+
           if (pasos.isNotEmpty) {
             int totalSub = 0;
             int compSub = 0;
+
             for (var p in pasos) {
               if (p['subpasos'] is List) {
                 final subList = p['subpasos'] as List;
                 totalSub += subList.length;
-                compSub += subList.where((s) => s['completado'] == true || s['completado'] == 1).length;
+                compSub += subList
+                    .where(
+                      (s) => s['completado'] == true || s['completado'] == 1,
+                    )
+                    .length;
               }
             }
+
             if (totalSub > 0) {
               planTerminado = (compSub / totalSub) >= 1.0;
             }
@@ -144,8 +180,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         if (planTerminado) {
           completadas++;
           totalHorasReales += duracionHoras;
+
           final rawFecha = h['fecha_creacion'] ?? h['fecha_entrega'];
           final fecha = DateTime.tryParse('$rawFecha');
+
           if (fecha != null && _esDeEstaSemana(fecha)) {
             final idx = (fecha.weekday - 1).clamp(0, 6);
             horasPorDia[idx] += duracionHoras;
@@ -160,16 +198,18 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
 
       final racha = (stats?['racha'] as num?)?.toInt() ?? 0;
 
-      // Si no hay horas calculadas, usar valor lógico
       final horasFinales = totalHorasReales > 0
           ? double.parse(totalHorasReales.toStringAsFixed(1))
-          : (completadas > 0 ? double.parse((completadas * 1.5).toStringAsFixed(1)) : 0.0);
+          : (completadas > 0
+              ? double.parse((completadas * 1.5).toStringAsFixed(1))
+              : 0.0);
 
-      // Encontrar el día más activo
       double maxHoras = 0.0;
       int mejorDiaIndex = -1;
+
       for (int i = 0; i < horasPorDia.length; i++) {
         horasPorDia[i] = double.parse(horasPorDia[i].toStringAsFixed(1));
+
         if (horasPorDia[i] > maxHoras) {
           maxHoras = horasPorDia[i];
           mejorDiaIndex = i;
@@ -177,35 +217,59 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       }
 
       final totalItems = completadas + faltantes;
+
       final distribucion = <_Categoria>[
-        _Categoria('Estudio profundo', totalItems > 0 ? 55 : 50, const Color(0xFF007EFF)),
-        _Categoria('Repasos y tareas', completadas > 0 ? 30 : 35, const Color(0xFF7000FF)),
-        _Categoria('Práctica y Pomodoro', 15, const Color(0xFFFF2A85)),
+        _Categoria(
+          'Estudio profundo',
+          totalItems > 0 ? 55 : 50,
+          const Color(0xFF007EFF),
+        ),
+        _Categoria(
+          'Repasos y tareas',
+          completadas > 0 ? 30 : 35,
+          const Color(0xFF7000FF),
+        ),
+        const _Categoria(
+          'Práctica y Pomodoro',
+          15,
+          Color(0xFFFF2A85),
+        ),
       ];
 
       if (!mounted) return;
+
       setState(() {
         _horasEstudio = horasFinales;
         _tareasCompletadas = completadas;
         _tareasFaltantes = faltantes;
         _racha = racha;
         _horasPorDia = horasPorDia;
-        _mejorDia = (mejorDiaIndex >= 0 && maxHoras > 0) ? _diasCompletos[mejorDiaIndex] : '';
+        _mejorDia = (mejorDiaIndex >= 0 && maxHoras > 0)
+            ? _diasCompletos[mejorDiaIndex]
+            : '';
         _mejorHoras = maxHoras;
         _distribucion = distribucion;
         _isLoading = false;
       });
     } catch (e) {
       debugPrint('Error en ProgresoScreen: $e');
+
       if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }
 
   String _formatearHoras(double horas) {
-    if (horas == 0) return '0';
-    if (horas == horas.roundToDouble()) return horas.toInt().toString();
-    return horas.toStringAsFixed(1);
+    if (horas <= 0) return '0';
+
+    final totalMinutos = (horas * 60).round();
+    final h = totalMinutos ~/ 60;
+    final min = totalMinutos % 60;
+
+    if (h == 0) return '$min min';
+    if (min == 0) return '$h h';
+
+    return '$h h $min min';
   }
 
   @override
@@ -263,9 +327,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // ENCABEZADO
-  // ---------------------------------------------------------------------------
   Widget _buildHeader() {
     return const Padding(
       padding: EdgeInsets.only(top: 4, bottom: 4),
@@ -281,9 +342,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // GRID SUPERIOR
-  // ---------------------------------------------------------------------------
   Widget _buildTopSectionGrid() {
     return IntrinsicHeight(
       child: Row(
@@ -330,7 +388,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     BoxShadow(
                       color: const Color(0xFF5A32C8).withOpacity(0.4),
                       blurRadius: 10,
-                    )
+                    ),
                   ],
                 ),
                 child: const Icon(Icons.check, color: Colors.white, size: 20),
@@ -392,18 +450,29 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     BoxShadow(
                       color: const Color(0xFF5A32C8).withOpacity(0.4),
                       blurRadius: 10,
-                    )
+                    ),
                   ],
                 ),
-                child: const Icon(Icons.timer_outlined, color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.timer_outlined,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 14),
-              Text(
-                _formatearHoras(_horasEstudio),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 34,
-                  fontWeight: FontWeight.bold,
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    _formatearHoras(_horasEstudio),
+                    maxLines: 1,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -452,9 +521,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // TARJETA TAREAS FALTANTES (CON LUMI_PROGRESO.PNG Y DISEÑO EXACTO)
-  // ---------------------------------------------------------------------------
   Widget _buildCardFaltantes() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -482,7 +548,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     BoxShadow(
                       color: const Color(0xFF9333EA).withOpacity(0.4),
                       blurRadius: 10,
-                    )
+                    ),
                   ],
                 ),
                 child: const Icon(Icons.close, color: Colors.white, size: 20),
@@ -538,9 +604,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // GRÁFICA DE BARRAS (Días de la semana Lun-Dom con horas reales)
-  // ---------------------------------------------------------------------------
   Widget _buildGraficaCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -552,28 +615,18 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tiempo de estudio',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(height: 2),
-                  Text(
-                    'Horas dedicadas por día',
-                    style: TextStyle(color: Color(0xFF867DAE), fontSize: 11),
-                  ),
-                ],
-              ),
-            ],
+          const Text(
+            'Tiempo de estudio',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 2),
+          const Text(
+            'Horas dedicadas por día',
+            style: TextStyle(color: Color(0xFF867DAE), fontSize: 11),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -598,27 +651,32 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 children: [
                   const Icon(Icons.star, color: Color(0xFFFFC24B), size: 16),
                   const SizedBox(width: 8),
-                  RichText(
-                    text: TextSpan(
-                      style: const TextStyle(color: Color(0xFFB4ACDE), fontSize: 11),
-                      children: [
-                        const TextSpan(text: 'Tu día más activo fue '),
-                        TextSpan(
-                          text: _mejorDia,
-                          style: const TextStyle(
-                            color: Color(0xFF007EFF),
-                            fontWeight: FontWeight.bold,
-                          ),
+                  Expanded(
+                    child: RichText(
+                      text: TextSpan(
+                        style: const TextStyle(
+                          color: Color(0xFFB4ACDE),
+                          fontSize: 11,
                         ),
-                        TextSpan(
-                          text: ' con ${_formatearHoras(_mejorHoras)} horas ',
-                          style: const TextStyle(
-                            color: Color(0xFF7000FF),
-                            fontWeight: FontWeight.bold,
+                        children: [
+                          const TextSpan(text: 'Tu día más activo fue '),
+                          TextSpan(
+                            text: _mejorDia,
+                            style: const TextStyle(
+                              color: Color(0xFF007EFF),
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
-                        ),
-                        const TextSpan(text: 'de estudio.'),
-                      ],
+                          TextSpan(
+                            text:
+                                ' con ${_formatearHoras(_mejorHoras)} de estudio.',
+                            style: const TextStyle(
+                              color: Color(0xFF7000FF),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -629,9 +687,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // GRÁFICA DE DONA (Distribución)
-  // ---------------------------------------------------------------------------
   Widget _buildDistribucionCard() {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -720,6 +775,19 @@ class _BarChartPainter extends CustomPainter {
     required this.etiquetas,
   });
 
+  String _labelHoras(double valor) {
+    if (valor <= 0) return '0';
+
+    final totalMinutos = (valor * 60).round();
+    final h = totalMinutos ~/ 60;
+    final min = totalMinutos % 60;
+
+    if (h == 0) return '${min}m';
+    if (min == 0) return '${h}h';
+
+    return '${h}h ${min}m';
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     const ejeAncho = 20.0;
@@ -729,7 +797,10 @@ class _BarChartPainter extends CustomPainter {
 
     final maxValor = valores.isEmpty
         ? 6.0
-        : (valores.reduce((a, b) => a > b ? a : b)).clamp(4.0, double.infinity);
+        : (valores.reduce((a, b) => a > b ? a : b)).clamp(
+            4.0,
+            double.infinity,
+          );
 
     final topeEje = maxValor.ceilToDouble();
     const pasos = 4;
@@ -740,6 +811,7 @@ class _BarChartPainter extends CustomPainter {
 
     for (int i = 0; i <= pasos; i++) {
       final y = chartHeight - (chartHeight / pasos) * i;
+
       canvas.drawLine(
         Offset(ejeAncho, y),
         Offset(size.width, y),
@@ -747,6 +819,7 @@ class _BarChartPainter extends CustomPainter {
       );
 
       final label = (topeEje / pasos * i).round().toString();
+
       final tp = TextPainter(
         text: TextSpan(
           text: label,
@@ -754,6 +827,7 @@ class _BarChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
+
       tp.paint(canvas, Offset(0, y - tp.height / 2));
     }
 
@@ -767,6 +841,7 @@ class _BarChartPainter extends CustomPainter {
       final cx = ejeAncho + slotWidth * i + slotWidth / 2;
 
       final isBlueGradient = i == 0 || i == 2 || i == 4;
+
       final colors = isBlueGradient
           ? [const Color(0xFF3570FF), const Color(0xFF7000FF)]
           : [const Color(0xFFB82AFF), const Color(0xFF5A18C9)];
@@ -786,21 +861,19 @@ class _BarChartPainter extends CustomPainter {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: colors,
-          ).createShader(Rect.fromLTWH(
-            cx - barWidth / 2,
-            chartHeight - alturaBarra,
-            barWidth,
-            alturaBarra,
-          ));
+          ).createShader(
+            Rect.fromLTWH(
+              cx - barWidth / 2,
+              chartHeight - alturaBarra,
+              barWidth,
+              alturaBarra,
+            ),
+          );
 
         canvas.drawRRect(rect, paint);
       }
 
-      final valLabel = valor > 0
-          ? (valor == valor.roundToDouble()
-              ? '${valor.toInt()} h'
-              : '${valor.toStringAsFixed(1)} h')
-          : '0';
+      final valLabel = _labelHoras(valor);
 
       final valTp = TextPainter(
         text: TextSpan(
@@ -813,9 +886,13 @@ class _BarChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
+
       valTp.paint(
         canvas,
-        Offset(cx - valTp.width / 2, math.max(0, chartHeight - alturaBarra - 16)),
+        Offset(
+          cx - valTp.width / 2,
+          math.max(0, chartHeight - alturaBarra - 16),
+        ),
       );
 
       final tp = TextPainter(
@@ -829,13 +906,15 @@ class _BarChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
+
       tp.paint(canvas, Offset(cx - tp.width / 2, chartHeight + 6));
     }
   }
 
   @override
-  bool shouldRepaint(covariant _BarChartPainter oldDelegate) =>
-      oldDelegate.valores != valores;
+  bool shouldRepaint(covariant _BarChartPainter oldDelegate) {
+    return oldDelegate.valores != valores;
+  }
 }
 
 class _DonutChartPainter extends CustomPainter {

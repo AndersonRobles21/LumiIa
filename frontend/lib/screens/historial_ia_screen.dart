@@ -178,7 +178,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                 left: 16.0,
                 right: 16.0,
                 top: 16.0,
-                bottom: 90.0, // Espacio para la barra de navegación
+                bottom: 130.0, // Espacio para la barra de navegación
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,8 +343,17 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
               ),
             ),
           ),
-          // Barra de navegación inferior
-          AppBottomNavbar(userId: widget.userId, currentIndex: 2),
+          Align(
+              alignment: Alignment.bottomCenter,
+              child: SafeArea(
+              top: false,
+              minimum: const EdgeInsets.only(bottom: 8),
+              child: AppBottomNavbar(
+              userId: widget.userId,
+              currentIndex: 2,
+              ),
+            ),
+        ),
         ],
       ),
     );

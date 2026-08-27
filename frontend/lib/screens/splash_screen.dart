@@ -1,9 +1,8 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 
-const Color kPurplePrimary = Color(0xFFB026FF); 
-const Color kPurpleSecondary = Color(0xFF7B2FF7); 
-const Color kPurpleAccent = Color(0xFFD87BFF); 
+const Color kPurplePrimary = Color(0xFFB026FF);
+const Color kPurpleSecondary = Color(0xFF7B2FF7);
+const Color kPurpleAccent = Color(0xFFD87BFF);
 const Color kBackgroundDark = Color(0xFF03010A);
 
 class SplashScreen extends StatefulWidget {
@@ -101,7 +100,6 @@ class _SplashScreenState extends State<SplashScreen>
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Fondo de pantalla
               Positioned.fill(
                 child: Image.asset(
                   'logo/Fondo_splash.png',
@@ -112,7 +110,6 @@ class _SplashScreenState extends State<SplashScreen>
                   },
                 ),
               ),
-
               SafeArea(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
@@ -120,10 +117,8 @@ class _SplashScreenState extends State<SplashScreen>
                     padding: const EdgeInsets.symmetric(horizontal: 28),
                     child: Column(
                       children: [
-                        // Espacio superior para bajar el robot al centro del halo luminoso
                         SizedBox(height: height * 0.10),
 
-                        // Robot flotante
                         AnimatedBuilder(
                           animation: _bounceAnimation,
                           builder: (context, child) {
@@ -145,9 +140,8 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        SizedBox(height: height * 0.16),
 
-                        // Título LUMI
                         const Text(
                           'LUMI',
                           style: TextStyle(
@@ -160,7 +154,6 @@ class _SplashScreenState extends State<SplashScreen>
 
                         const SizedBox(height: 6),
 
-                        // Eslogan
                         RichText(
                           textAlign: TextAlign.center,
                           text: const TextSpan(
@@ -190,15 +183,12 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: height * 0.045),
 
-                        // Tarjeta Info
                         const _InfoCard(),
 
-                        // Espaciador flexible para empujar la barra de carga hacia la distancia ideal
                         const Spacer(),
 
-                        // Barra de Carga elevada del borde inferior
                         Padding(
                           padding: EdgeInsets.only(bottom: height * 0.08),
                           child: _LoadingBar(animation: _loadingAnimation),
