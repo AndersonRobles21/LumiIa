@@ -20,6 +20,8 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+
+ bool _isStreakDialogOpen = false;
   int activeTab = 0;
   bool isLoading = true;
 
@@ -170,6 +172,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (lastUpdateDate == todayString) {
       await _loadStreakFromServer();
+      await _verificarYMostrarStreakDiario(prefs);
       return;
     }
 
@@ -188,6 +191,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'streak_days_${widget.userId}',
         jsonEncode(completedDays),
       );
+      await _verificarYMostrarStreakDiario(prefs);
     }
   }
 
@@ -224,6 +228,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // NO duplica el header/saludo/plan del dashboard.
   // ──────────────────────────────────────────────
   void _showStreakDialog() {
+    // Si ya está abierto, no hacemos nada para evitar que se vea doble
+    if (_isStreakDialogOpen) return;
+
+    setState(() {
+      _isStreakDialogOpen = true;
+    });
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -234,7 +245,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (BuildContext sheetContext) {
         return _buildStreakBottomSheet(sheetContext);
       },
-    );
+    ).whenComplete(() {
+      // Cuando se cierre el modal, liberamos la bandera
+      if (mounted) {
+        setState(() {
+          _isStreakDialogOpen = false;
+        });
+      }
+    });
+  }
+ Future<void> _verificarYMostrarStreakDiario(SharedPreferences prefs) async {
+    // Si ya está abierto en pantalla, salimos de una vez
+    if (_isStreakDialogOpen) return;
+
+    final todayString = DateTime.now().toIso8601String().split('T')[0];
+    final lastShownDate = prefs.getString('last_streak_dialog_shown_${widget.userId}');
+
+    if (lastShownDate != todayString) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      
+      if (mounted && !_isStreakDialogOpen) {
+        // Guardamos la fecha de inmediato para bloquear cualquier intento paralelo
+        await prefs.setString('last_streak_dialog_shown_${widget.userId}', todayString);
+        _showStreakDialog();
+      }
+    }
   }
 
   Widget _buildStreakBottomSheet(BuildContext sheetContext) {
