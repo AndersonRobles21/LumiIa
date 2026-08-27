@@ -42,13 +42,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordController.text;
     final confirmPassword = _confirmPasswordController.text;
 
-    if (!email.contains('@') || !email.contains('.')) {
-      _mostrarError('El correo no tiene un formato válido.');
+    // Validación estricta de correo real
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+    if (!emailRegex.hasMatch(email)) {
+      _mostrarError('Por favor, ingresa un correo electrónico real y válido.');
       return;
     }
 
-    if (password.length < 6) {
-      _mostrarError('La contraseña debe tener al menos 6 caracteres.');
+    // Validación de contraseña segura (Mínimo 8 caracteres, 1 mayúscula, 1 minúscula y 1 número)
+    final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
+    if (!passwordRegex.hasMatch(password)) {
+      _mostrarError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.');
       return;
     }
 
@@ -60,7 +64,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // PASO 1: Registro real en Supabase Auth para poblar auth.users y generar el UUID real
+      // PASO 1: Registro real en Supabase Auth
       final AuthResponse response = await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
@@ -73,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // PASO 2: Estructura exacta con las columnas de tu tabla pública
       final Map<String, dynamic> publicProfileData = {
-        "id": user.id, // El UUID oficial que ya existe en auth.users y cumple la FK
+        "id": user.id, 
         "nombre": _nombreController.text.trim(),
         "apellido": _apellidoController.text.trim().isEmpty
             ? null
@@ -81,7 +85,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         "rol_id": null,
       };
 
-      // PASO 3: Mandamos el perfil público a tu Node.js con tu pg Pool
+      // PASO 3: Mandamos el perfil público a tu Node.js
       bool success = await ApiService.register(publicProfileData);
 
       if (!mounted) return;
@@ -93,7 +97,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             backgroundColor: const Color(0xFF102CE4),
           ),
         );
-        Navigator.pop(context); // Regresa al Login limpiamente
+        Navigator.pop(context); // Regresa al Login
       } else {
         throw Exception('Autenticación creada, pero el servidor Node.js rechazó el perfil.');
       }
@@ -126,10 +130,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
+  // --- HEADER CON FLECHA DE VOLVER ---
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(0, 8, 0, 10),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 20),
+            onPressed: () => Navigator.pop(context),
+          ),
+          Expanded(
+            child: Text(
+              'Registra tu cuenta',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48), 
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813), // Diseño Cyberpunk LUMI
+      backgroundColor: const Color(0xFF0B0813), 
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -141,161 +172,177 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 10),
-                      Center(
-                        child: Text(
-                          'Registra tu cuenta',
-                          style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 26,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 35),
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 10.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const SizedBox(height: 15),
 
-                      // --- NOMBRE Y APELLIDO ---
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                            // --- NOMBRE Y APELLIDO ---
+                            Row(
                               children: [
-                                _buildInputLabel('Nombre'),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _nombreController,
-                                  style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                                  decoration: _buildInputDecoration('Tu nombre'),
-                                  validator: (value) => value == null || value.trim().isEmpty ? 'Nombre obligatorio' : null,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildInputLabel('Apellido'),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _apellidoController,
-                                  style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                                  decoration: _buildInputDecoration('Tu apellido'),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 18),
-
-                      // --- EMAIL ---
-                      _buildInputLabel('Email'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa tu email@'),
-                        validator: (value) => value == null || value.trim().isEmpty ? 'Correo obligatorio' : null,
-                      ),
-                      const SizedBox(height: 18),
-
-                      // --- CONTRASEÑA ---
-                      _buildInputLabel('Contraseña'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _passwordController,
-                        obscureText: _obscurePassword,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Ingresa una contraseña').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword ? Icons.lock_outline : Icons.lock_open,
-                              color: const Color(0xFF102CE4).withOpacity(0.7),
-                              size: 20,
-                            ),
-                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                          ),
-                        ),
-                        validator: (value) => value == null || value.isEmpty ? 'Contraseña obligatoria' : null,
-                      ),
-                      const SizedBox(height: 18),
-
-                      // --- CONFIRMAR CONTRASEÑA ---
-                      _buildInputLabel('Confirma tu contraseña'),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _confirmPasswordController,
-                        obscureText: _obscureConfirmPassword,
-                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-                        decoration: _buildInputDecoration('Repite la contraseña').copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscureConfirmPassword ? Icons.lock_outline : Icons.lock_open,
-                              color: const Color(0xFF102CE4).withOpacity(0.7),
-                              size: 20,
-                            ),
-                            onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value != _passwordController.text) return 'Las contraseñas no coinciden';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 35),
-
-                      // --- BOTÓN CREAR CUENTA ---
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
-                            ),
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _isLoading ? null : _crearCuenta, 
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                  )
-                                : Text(
-                                    'Crear cuenta',
-                                    style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildInputLabel('Nombre'),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _nombreController,
+                                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
+                                        decoration: _buildInputDecoration('Tu nombre'),
+                                        validator: (value) => value == null || value.trim().isEmpty ? 'Nombre obligatorio' : null,
+                                      ),
+                                    ],
                                   ),
-                          ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      _buildInputLabel('Apellido'),
+                                      const SizedBox(height: 8),
+                                      TextFormField(
+                                        controller: _apellidoController,
+                                        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
+                                        decoration: _buildInputDecoration('Tu apellido'),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+
+                            // --- EMAIL VÁLIDO ---
+                            _buildInputLabel('Email'),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _emailController,
+                              keyboardType: TextInputType.emailAddress,
+                              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
+                              decoration: _buildInputDecoration('ejemplo@correo.com'),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Correo obligatorio';
+                                }
+                                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                if (!emailRegex.hasMatch(value.trim())) {
+                                  return 'Ingresa un correo real y válido';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 18),
+
+                            // --- CONTRASEÑA SEGURA ---
+                            _buildInputLabel('Contraseña'),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _passwordController,
+                              obscureText: _obscurePassword,
+                              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
+                              decoration: _buildInputDecoration('Mín. 8 caract., Mayús, Minús y Núm').copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword ? Icons.lock_outline : Icons.lock_open,
+                                    color: const Color(0xFF102CE4).withOpacity(0.7),
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Contraseña obligatoria';
+                                }
+                                final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
+                                if (!passwordRegex.hasMatch(value)) {
+                                  return 'Mín. 8 carac., incluir mayús, minús y número';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 18),
+
+                            // --- CONFIRMAR CONTRASEÑA ---
+                            _buildInputLabel('Confirma tu contraseña'),
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: _confirmPasswordController,
+                              obscureText: _obscureConfirmPassword,
+                              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
+                              decoration: _buildInputDecoration('Repite la contraseña').copyWith(
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscureConfirmPassword ? Icons.lock_outline : Icons.lock_open,
+                                    color: const Color(0xFF102CE4).withOpacity(0.7),
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value != _passwordController.text) {
+                                  return 'Las contraseñas no coinciden';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 35),
+
+                            // --- BOTÓN CREAR CUENTA ---
+                            SizedBox(
+                              width: double.infinity,
+                              height: 54,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(20),
+                                  gradient: const LinearGradient(
+                                    colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                                  ),
+                                ),
+                                child: ElevatedButton(
+                                  onPressed: _isLoading ? null : _crearCuenta, 
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.transparent,
+                                    shadowColor: Colors.transparent,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  ),
+                                  child: _isLoading
+                                      ? const SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        )
+                                      : Text(
+                                          'Crear cuenta',
+                                          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                        ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 24),
-                    ],
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

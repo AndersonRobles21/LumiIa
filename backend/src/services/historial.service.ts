@@ -11,7 +11,14 @@ export async function obtenerHistorialIA(usuarioId: string) {
       pe.fecha_creacion,
       pi.metodo_estudio,
       pi.tiempo_estimado_total,
-      pi.resumen_final
+      pi.resumen_final,
+      (
+        SELECT (h.pregunta::json)->>'fecha_entrega'
+        FROM historial_ia h
+        WHERE h.plan_id = pe.id
+        ORDER BY h.fecha DESC
+        LIMIT 1
+      ) AS fecha_entrega
     FROM planes_estudio pe
     LEFT JOIN planes_ia pi
       ON pi.plan_id = pe.id
@@ -28,6 +35,7 @@ export async function obtenerPlanIA(planId: string) {
   const result = await pool.query(
     `SELECT 
         p.id,
+        p.usuario_id,
         p.nombre,
         p.descripcion,
         p.fecha_creacion,
@@ -39,7 +47,16 @@ export async function obtenerPlanIA(planId: string) {
         pia.resumen_final,
         pia.pasos,
         pia.conceptos_clave,
-        pia.preguntas_recall
+        pia.preguntas_recall,
+        pia.dificultad,
+        pia.fecha_generacion,
+        (
+          SELECT (h.pregunta::json)->>'fecha_entrega'
+          FROM historial_ia h
+          WHERE h.plan_id = p.id
+          ORDER BY h.fecha DESC
+          LIMIT 1
+        ) AS fecha_entrega
      FROM planes_estudio p
      INNER JOIN planes_ia pia ON pia.plan_id = p.id
      WHERE p.id = $1`,
@@ -51,11 +68,14 @@ export async function obtenerPlanIA(planId: string) {
   const row = result.rows[0];
   return {
     id: row.id,
+    usuario_id: row.usuario_id,
     nombre: row.nombre,
     descripcion: row.descripcion,
     metodo_estudio: row.metodo_estudio,
     justificacion: row.justificacion,
     tiempo_estimado_total: row.tiempo_estimado_total,
+    dificultad: row.dificultad || 'Media',
+    fecha_entrega: row.fecha_entrega || row.fecha_generacion || new Date().toISOString(),
     consejos: typeof row.consejos === 'string' ? JSON.parse(row.consejos) : row.consejos,
     recursos: typeof row.recursos === 'string' ? JSON.parse(row.recursos) : row.recursos,
     resumen_final: row.resumen_final,

@@ -10,7 +10,7 @@ void main() async {
   try {
     await Supabase.initialize(
       url: 'https://lsbnizzypdmnvppatzxp.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxzYm5penp5cGRtbnZwcGF0enhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExOTE1MTEsImV4cCI6MjA5Njc2NzUxMX0.BSPlhX0JOwUWTYoSmzcse3MAIANgu5UniSNxm6Qjr0U', // pega tu llave completa aquí
+      anonKey: 'sb_publishable_KK0lsvy3EBB8WuHVg2zOiA_WOeJs6RZ', // pega tu llave completa aquí
     );
     print("✅ Supabase inicializado correctamente.");
   } catch (e) {

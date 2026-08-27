@@ -1,4 +1,3 @@
-//historial.controller.ts
 import { Request, Response } from "express";
 import { obtenerHistorialIA, obtenerPlanIA } from "../services/historial.service";
 import { pool } from "../config/db";
@@ -46,7 +45,6 @@ export async function getPlan(req: Request, res: Response) {
   }
 }
 
-// 📌 NUEVO: Endpoint para guardar el estado de los checkboxes (pasos/subpasos) en tiempo real
 export async function actualizarProgresoPlan(req: Request, res: Response) {
   try {
     const { planId } = req.params;

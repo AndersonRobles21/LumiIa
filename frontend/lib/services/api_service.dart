@@ -1,12 +1,16 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'dart:io';
 
 class ApiService {
   static String get _backendHost {
     if (kIsWeb) return 'http://localhost:3000';
-    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+
+    // Celular físico conectado por USB:
+    // ejecutar antes: adb reverse tcp:3000 tcp:3000
+    if (Platform.isAndroid) return 'http://localhost:3000';
+
     return 'http://localhost:3000';
   }
 
@@ -14,16 +18,12 @@ class ApiService {
   static String get adminBaseUrl => '$_backendHost/api/admin';
   static String get tareasBaseUrl => '$_backendHost/api/tareas';
   static String get iaBaseUrl => '$_backendHost/api/ia';
+  static String get progresoBaseUrl => '$_backendHost/api/progreso';
 
-  /*
-  ============================
-  GET PROFILE
-  ============================
-  */
   static Future<Map<String, dynamic>?> getProfile(String userId) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/profile/$userId'));
-      if (response.statusCode != 200) return null;
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } catch (e) {
       print('Error en ApiService getProfile: $e');
@@ -37,6 +37,7 @@ class ApiService {
         Uri.parse('$baseUrl/estadisticas/$userId/tareas'),
         headers: {'Content-Type': 'application/json'},
       );
+
       if (response.statusCode != 200 || response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } catch (e) {
@@ -45,11 +46,6 @@ class ApiService {
     }
   }
 
-  /*
-  ============================
-  UPDATE PROFILE
-  ============================
-  */
   static Future<Map<String, dynamic>?> updateProfile({
     required String userId,
     required String nombre,
@@ -74,17 +70,15 @@ class ApiService {
           'horario': horario,
         }),
       );
-      return response.statusCode == 200 ? jsonDecode(response.body) : null;
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
     } catch (e) {
+      print('Error en ApiService updateProfile: $e');
       return null;
     }
   }
 
-  /*
-  ============================
-  REQUEST PASSWORD RESET
-  ============================
-  */
   static Future<Map<String, dynamic>?> requestPasswordReset(
     String correo,
   ) async {
@@ -94,18 +88,15 @@ class ApiService {
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'correo': correo}),
       );
-      if (response.statusCode != 200) return null;
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } catch (e) {
+      print('Error en ApiService requestPasswordReset: $e');
       return null;
     }
   }
 
-  /*
-  ============================
-  RESET PASSWORD
-  ============================
-  */
   static Future<bool> resetPassword(
     String correo,
     String password,
@@ -121,17 +112,14 @@ class ApiService {
           'code': code,
         }),
       );
+
       return response.statusCode == 200;
     } catch (e) {
+      print('Error en ApiService resetPassword: $e');
       return false;
     }
   }
 
-  /*
-  ============================
-  LOGIN
-  ============================
-  */
   static Future<Map<String, dynamic>> login({required String userId}) async {
     try {
       final response = await http.post(
@@ -160,11 +148,6 @@ class ApiService {
     }
   }
 
-  /*
-  ============================
-  REGISTER
-  ============================
-  */
   static Future<bool> register(Map<String, dynamic> userData) async {
     try {
       final response = await http.post(
@@ -190,23 +173,19 @@ class ApiService {
       return true;
     } on FormatException catch (_) {
       throw Exception(
-        'Respuesta inválida del servidor (No se pudo procesar el JSON).',
+        'Respuesta inválida del servidor. No se pudo procesar el JSON.',
       );
     } catch (e) {
       rethrow;
     }
   }
 
-  /*
-  ============================
-  GET ESTADÍSTICAS (racha, tareas completadas)
-  ============================
-  */
   static Future<Map<String, dynamic>?> getEstadisticas(String userId) async {
     try {
       final response = await http.get(
         Uri.parse('$baseUrl/estadisticas/$userId'),
       );
+
       if (response.statusCode != 200 || response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } catch (e) {
@@ -215,84 +194,13 @@ class ApiService {
     }
   }
 
-  /*
-  ============================
-  ADMIN: check
-  ============================
-  */
-  static Future<bool> adminCheck(String userId) async {
-    try {
-      final response = await http.get(Uri.parse('$adminBaseUrl/check'), headers: {'x-user-id': userId});
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminOverview(String userId) async {
-    try {
-      final response = await http.get(Uri.parse('$adminBaseUrl/overview'), headers: {'x-user-id': userId});
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminListUsers(String userId, {String? search, int page = 1, int limit = 25}) async {
-    try {
-      final uri = Uri.parse('$adminBaseUrl/users').replace(queryParameters: {
-        if (search != null && search.isNotEmpty) 'search': search,
-        'page': page.toString(),
-        'limit': limit.toString(),
-      });
-      final response = await http.get(uri, headers: {'x-user-id': userId});
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminGetUser(String userId, String targetId) async {
-    try {
-      final response = await http.get(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId});
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      return null;
-    }
-  }
-
-  static Future<bool> adminUpdateUser(String userId, String targetId, Map<String, dynamic> payload) async {
-    try {
-      final response = await http.put(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId, 'Content-Type': 'application/json'}, body: jsonEncode(payload));
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  static Future<bool> adminDeleteUser(String userId, String targetId) async {
-    try {
-      final response = await http.delete(Uri.parse('$adminBaseUrl/users/$targetId'), headers: {'x-user-id': userId});
-      return response.statusCode == 200;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  /*
-  ============================
-  REGISTRAR RACHA HOY
-  ============================
-  */
   static Future<bool> registrarRachaHoy(String userId) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/estadisticas/$userId/racha'),
         headers: {'Content-Type': 'application/json'},
       );
+
       return response.statusCode == 200;
     } catch (e) {
       print('Error en ApiService registrarRachaHoy: $e');
@@ -300,11 +208,114 @@ class ApiService {
     }
   }
 
-  /*
-  ============================
-  GET PLANES DE ESTUDIO (tareas pendientes reales del usuario)
-  ============================
-  */
+  static Future<bool> adminCheck(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$adminBaseUrl/check'),
+        headers: {'x-user-id': userId},
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService adminCheck: $e');
+      return false;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminOverview(String userId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$adminBaseUrl/overview'),
+        headers: {'x-user-id': userId},
+      );
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error en ApiService adminOverview: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminListUsers(
+    String userId, {
+    String? search,
+    int page = 1,
+    int limit = 25,
+  }) async {
+    try {
+      final uri = Uri.parse('$adminBaseUrl/users').replace(
+        queryParameters: {
+          if (search != null && search.isNotEmpty) 'search': search,
+          'page': page.toString(),
+          'limit': limit.toString(),
+        },
+      );
+
+      final response = await http.get(uri, headers: {'x-user-id': userId});
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error en ApiService adminListUsers: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> adminGetUser(
+    String userId,
+    String targetId,
+  ) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$adminBaseUrl/users/$targetId'),
+        headers: {'x-user-id': userId},
+      );
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      return jsonDecode(response.body);
+    } catch (e) {
+      print('Error en ApiService adminGetUser: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> adminUpdateUser(
+    String userId,
+    String targetId,
+    Map<String, dynamic> payload,
+  ) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$adminBaseUrl/users/$targetId'),
+        headers: {
+          'x-user-id': userId,
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(payload),
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService adminUpdateUser: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> adminDeleteUser(String userId, String targetId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$adminBaseUrl/users/$targetId'),
+        headers: {'x-user-id': userId},
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService adminDeleteUser: $e');
+      return false;
+    }
+  }
+
   static Future<List<dynamic>?> getPlanesEstudio(String userId) async {
     try {
       final response = await http.get(Uri.parse('$tareasBaseUrl/$userId'));
@@ -321,7 +332,7 @@ class ApiService {
     }
   }
 
- static Future<Map<String, dynamic>?> generarPlanIA({
+  static Future<Map<String, dynamic>?> generarPlanIA({
     required String userId,
     required String titulo,
     required String descripcion,
@@ -357,13 +368,16 @@ class ApiService {
 
       return data;
     } catch (e) {
-      print("Error generarPlanIA: $e");
+      print('Error generarPlanIA: $e');
       return null;
     }
   }
+
   static Future<List<dynamic>?> obtenerHistorial(String usuarioId) async {
     try {
-      final response = await http.get(Uri.parse('$iaBaseUrl/historial/$usuarioId'));
+      final response = await http.get(
+        Uri.parse('$iaBaseUrl/historial/$usuarioId'),
+      );
 
       if (response.statusCode != 200 || response.body.isEmpty) return null;
 
@@ -391,37 +405,41 @@ class ApiService {
     }
   }
 
-  /*
-============================
-COMPLETAR TAREA
-============================
-*/
-static Future<bool> completarTarea({
-  required String tareaId,
-  required bool completada,
-}) async {
-  try {
-    final response = await http.put(
-      Uri.parse('$tareasBaseUrl/$tareaId/completar'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'completada': completada,
-      }),
-    );
+  static Future<bool> completarTarea({
+    required String tareaId,
+    required bool completada,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$tareasBaseUrl/$tareaId/completar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'completada': completada}),
+      );
 
-    return response.statusCode == 200;
-  } catch (e) {
-    print('Error completarTarea: $e');
-    return false;
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error completarTarea: $e');
+      return false;
+    }
   }
-}
-/*
-  ============================
-  ACTUALIZAR PROGRESO DEL PLAN (Pasos / Subpasos)
-  ============================
-  */
+
+  static Future<bool> eliminarPlan(String planId) async {
+    try {
+      final response = await http.delete(
+        Uri.parse('$iaBaseUrl/plan/$planId'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      if (response.statusCode == 200) return true;
+
+      print('Error eliminando plan: ${response.statusCode} - ${response.body}');
+      return false;
+    } catch (e) {
+      print('Error eliminando plan: $e');
+      return false;
+    }
+  }
+
   static Future<bool> actualizarProgresoPlan({
     required String planId,
     required List<dynamic> pasos,
@@ -429,12 +447,8 @@ static Future<bool> completarTarea({
     try {
       final response = await http.put(
         Uri.parse('$iaBaseUrl/plan/$planId/progreso'),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-          'pasos': pasos,
-        }),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'pasos': pasos}),
       );
 
       return response.statusCode == 200;
@@ -443,13 +457,14 @@ static Future<bool> completarTarea({
       return false;
     }
   }
+
   static Future<Map<String, dynamic>?> evaluarExplicacionFeynman({
     required String concepto,
     required String explicacion,
   }) async {
     try {
       final response = await http.post(
-        Uri.parse('$iaBaseUrl/feynman/evaluar'), // Apunta correctamente a /api/ia/feynman/evaluar
+        Uri.parse('$iaBaseUrl/feynman/evaluar'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'concepto': concepto,
@@ -460,45 +475,98 @@ static Future<bool> completarTarea({
       if (response.statusCode == 200 && response.body.isNotEmpty) {
         return jsonDecode(response.body);
       }
+
       return null;
     } catch (e) {
       print('Error evaluando Feynman: $e');
       return null;
     }
   }
-  // Añade esta función en tu ApiService de Flutter:
-static Future<Map<String, dynamic>?> regenerarPlanExistente({
-  required String planId,
-  required String metodoEstudio,
-  required String userId,
-  required String titulo,
-  required String descripcion,
-  required String fechaEntrega,
-  required String dificultad,
-}) async {
-  try {
-    final response = await http.put(
-      Uri.parse('$iaBaseUrl/plan/$planId/metodo'),
-      headers: {'Content-Type': 'application/json' },
-      body: jsonEncode({
-        'metodo_estudio': metodoEstudio,
-        'usuario_id': userId,
-        'nombre': titulo,
-        'descripcion': descripcion,
-        'fecha_entrega': fechaEntrega,
-        'dificultad': dificultad,
-      }),
-    );
 
-    if (response.statusCode == 200 && response.body.isNotEmpty) {
-      final data = jsonDecode(response.body);
-      // Validamos si viene el plan directamente o dentro de un objeto
-      return data['plan'] ?? data;
+  static Future<Map<String, dynamic>?> regenerarPlanExistente({
+    required String planId,
+    required String metodoEstudio,
+    required String userId,
+    required String titulo,
+    required String descripcion,
+    required String fechaEntrega,
+    required String dificultad,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$iaBaseUrl/plan/$planId/metodo'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'metodo_estudio': metodoEstudio,
+          'usuario_id': userId,
+          'nombre': titulo,
+          'descripcion': descripcion,
+          'fecha_entrega': fechaEntrega,
+          'dificultad': dificultad,
+        }),
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        final data = jsonDecode(response.body);
+        return data['plan'] ?? data;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error al conectar con el servidor para cambiar método: $e');
+      return null;
     }
-    return null;
-  } catch (e) {
-    print('Error al conectar con el servidor para cambiar método: $e');
-    return null;
   }
-}
+
+  static Future<Map<String, dynamic>?> getProgreso(String userId) async {
+    try {
+      final response = await http.get(Uri.parse('$progresoBaseUrl/$userId'));
+
+      print('GET progreso: ${response.statusCode}');
+      print('BODY progreso: ${response.body}');
+
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) return data;
+      return null;
+    } catch (e) {
+      print('Error en ApiService getProgreso: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> registrarSesionEstudio({
+    required String userId,
+    required String categoria,
+    required int duracionMinutos,
+    String tipoOrigen = 'manual',
+    String? origenId,
+    DateTime? inicio,
+    DateTime? fin,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$progresoBaseUrl/sesion'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'usuario_id': userId,
+          'tipo_origen': tipoOrigen,
+          'origen_id': origenId,
+          'categoria': categoria,
+          'duracion_minutos': duracionMinutos,
+          'inicio': inicio?.toIso8601String(),
+          'fin': fin?.toIso8601String() ?? DateTime.now().toIso8601String(),
+        }),
+      );
+
+      print('POST sesion estudio: ${response.statusCode}');
+      print('BODY sesion estudio: ${response.body}');
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print('Error en ApiService registrarSesionEstudio: $e');
+      return false;
+    }
+  }
 }
