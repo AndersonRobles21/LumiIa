@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../utils/responsive.dart';
 
 /// Un bloque de contenido dentro de InfoScreen.
 /// Si [items] viene lleno, se pinta como una lista tipo FAQ (acordeón).
@@ -154,15 +155,15 @@ class InfoScreen extends StatelessWidget {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
+              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
               child: Column(
                 children: [
                   _buildHeader(context),
                   Expanded(
                     child: ListView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.paddingHorizontalRecomendado(context),
+                        vertical: Responsive.espacio(context),
                       ),
                       children: [
                         for (final section in sections) _buildSection(section),

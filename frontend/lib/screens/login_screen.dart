@@ -8,6 +8,7 @@ import '/screens/dashboard_screen.dart';
 import 'profile_screen.dart';
 import 'admin_panel_screen.dart';
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
 
 void main() {
   runApp(const IniciarSesion());
@@ -154,162 +155,342 @@ class _LoginScreenState extends State<LoginScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 10),
-                    Center(
-                      child: Image.asset(
-                        'logo/Lumi.png',
-                        width: 350,
-                        height: 180,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        'Iniciar Sesión',
-                        style: GoogleFonts.orbitron(
-                          color: Colors.white,
-                          fontSize: 30,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 32),
+              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
+              child: Builder(
+                builder: (context) {
+                  final isDesktop = Responsive.esEscritorio(context);
+                  // Modo escritorio: fila con formulario a la izquierda e imagen grande a la derecha
+                  if (isDesktop) {
+                    return SizedBox(
+                      height: Responsive.altoPantalla(context) * 0.8,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 5,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
+                              child: SingleChildScrollView(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 10),
+                                    Text(
+                                      'Iniciar Sesión',
+                                      style: GoogleFonts.orbitron(
+                                        color: Colors.white,
+                                        fontSize: 34,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(height: Responsive.espacio(context) * 4),
 
-                    Text(
-                      'Email',
-                      style: GoogleFonts.orbitron(
-                        color: const Color(0xFFE2E0EE),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      controller: _emailController,
-                      hint: 'Ingresa tu email@',
-                      keyboardType: TextInputType.emailAddress,
-                    ),
-                    const SizedBox(height: 20),
+                                    Text(
+                                      'Email',
+                                      style: GoogleFonts.orbitron(
+                                        color: const Color(0xFFE2E0EE),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(
+                                      controller: _emailController,
+                                      hint: 'Ingresa tu email@',
+                                      keyboardType: TextInputType.emailAddress,
+                                    ),
+                                    SizedBox(height: Responsive.espacio(context) * 2.5),
 
-                    Text(
-                      'Contraseña',
-                      style: GoogleFonts.orbitron(
-                        color: const Color(0xFFE2E0EE),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTextField(
-                      controller: _passwordController,
-                      hint: 'Ingresa tu contraseña',
-                      obscureText: _obscurePassword,
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                          color: const Color(0xFF102CE4).withOpacity(0.7),
-                          size: 20,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
+                                    Text(
+                                      'Contraseña',
+                                      style: GoogleFonts.orbitron(
+                                        color: const Color(0xFFE2E0EE),
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    _buildTextField(
+                                      controller: _passwordController,
+                                      hint: 'Ingresa tu contraseña',
+                                      obscureText: _obscurePassword,
+                                      suffixIcon: IconButton(
+                                        icon: Icon(
+                                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                                          color: const Color(0xFF102CE4).withOpacity(0.7),
+                                          size: 20,
+                                        ),
+                                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                      ),
+                                    ),
 
-                    if (_errorMessage != null) ...[
-                      const SizedBox(height: 14),
-                      _buildErrorContainer(_errorMessage!),
-                    ],
+                                    if (_errorMessage != null) ...[
+                                      const SizedBox(height: 14),
+                                      _buildErrorContainer(_errorMessage!),
+                                    ],
 
-                    const SizedBox(height: 32),
+                                    SizedBox(height: Responsive.espacio(context) * 4),
 
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
-                          ),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _login,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                                )
-                              : Text(
-                                  'Iniciar Sesión',
-                                  style: GoogleFonts.orbitron(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                    SizedBox(
+                                      width: Responsive.anchoBoton(context),
+                                      height: Responsive.altoBoton(context),
+                                      child: DecoratedBox(
+                                        decoration: BoxDecoration(
+                                          gradient: const LinearGradient(
+                                            colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                                          ),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: ElevatedButton(
+                                          onPressed: _isLoading ? null : _login,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.transparent,
+                                            shadowColor: Colors.transparent,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                          ),
+                                          child: _isLoading
+                                              ? SizedBox(
+                                                  width: Responsive.tamanioSubtitulo(context),
+                                                  height: Responsive.tamanioSubtitulo(context),
+                                                  child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                                )
+                                              : Text(
+                                                  'Iniciar Sesión',
+                                                  style: GoogleFonts.orbitron(
+                                                    color: Colors.white,
+                                                    fontSize: Responsive.tamanioTexto(context),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    SizedBox(height: Responsive.espacio(context) * 3),
+
+                                    TextButton(
+                                      onPressed: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
+                                        );
+                                      },
+                                      style: TextButton.styleFrom(foregroundColor: const Color(0xFFB0AEC4)),
+                                      child: Text(
+                                        '¿Olvidaste tu contraseña?',
+                                        style: GoogleFonts.orbitron(
+                                          fontSize: Responsive.tamanioTexto(context),
+                                          decoration: TextDecoration.underline,
+                                        ),
+                                      ),
+                                    ),
+
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '¿No tienes una cuenta? ',
+                                          style: GoogleFonts.orbitron(color: Colors.grey, fontSize: Responsive.tamanioTexto(context) - 2),
+                                        ),
+                                        GestureDetector(
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                            );
+                                          },
+                                          child: Text(
+                                            'Regístrate',
+                                            style: GoogleFonts.orbitron(
+                                              color: const Color(0xFF102CE4),
+                                              fontSize: Responsive.tamanioTexto(context) - 2,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                        ),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 6,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
+                              child: Center(
+                                child: Image.asset(
+                                  'logo/Lumi.png',
+                                  width: Responsive.anchoPantalla(context) * 0.45,
+                                  height: Responsive.altoPantalla(context) * 0.7,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 24),
+                    );
+                  }
 
-                    Center(
-                      child: TextButton(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
-                          );
-                        },
-                        style: TextButton.styleFrom(foregroundColor: const Color(0xFFB0AEC4)),
-                        child: Text(
-                          '¿Olvidaste tu contraseña?',
-                          style: GoogleFonts.orbitron(
-                            fontSize: 13,
-                            decoration: TextDecoration.underline,
+                  // Modo móvil/tablet: diseño original en columna y scroll
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 10),
+                        Center(
+                          child: Image.asset(
+                            'logo/Lumi.png',
+                            width: Responsive.anchoPantalla(context) * 0.6,
+                            height: Responsive.altoPantalla(context) * 0.2,
+                            fit: BoxFit.contain,
                           ),
                         ),
-                      ),
-                    ),
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '¿No tienes una cuenta? ',
-                          style: GoogleFonts.orbitron(color: Colors.grey, fontSize: 12),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(builder: (context) => const RegisterScreen()),
-                            );
-                          },
+                        Center(
                           child: Text(
-                            'Regístrate',
+                            'Iniciar Sesión',
                             style: GoogleFonts.orbitron(
-                              color: const Color(0xFF102CE4),
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              fontSize: 30,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
+                        SizedBox(height: Responsive.espacio(context) * 4),
+
+                        Text(
+                          'Email',
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xFFE2E0EE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          controller: _emailController,
+                          hint: 'Ingresa tu email@',
+                          keyboardType: TextInputType.emailAddress,
+                        ),
+                        SizedBox(height: Responsive.espacio(context) * 2.5),
+
+                        Text(
+                          'Contraseña',
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xFFE2E0EE),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildTextField(
+                          controller: _passwordController,
+                          hint: 'Ingresa tu contraseña',
+                          obscureText: _obscurePassword,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: const Color(0xFF102CE4).withOpacity(0.7),
+                              size: 20,
+                            ),
+                            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                          ),
+                        ),
+
+                        if (_errorMessage != null) ...[
+                          const SizedBox(height: 14),
+                          _buildErrorContainer(_errorMessage!),
+                        ],
+
+                        SizedBox(height: Responsive.espacio(context) * 4),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: Responsive.altoBoton(context),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                              ),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: ElevatedButton(
+                              onPressed: _isLoading ? null : _login,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              child: _isLoading
+                                  ? SizedBox(
+                                      width: Responsive.tamanioSubtitulo(context),
+                                      height: Responsive.tamanioSubtitulo(context),
+                                      child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                    )
+                                  : Text(
+                                      'Iniciar Sesión',
+                                      style: GoogleFonts.orbitron(
+                                        color: Colors.white,
+                                        fontSize: Responsive.tamanioTexto(context),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: Responsive.espacio(context) * 3),
+
+                        Center(
+                          child: TextButton(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
+                              );
+                            },
+                            style: TextButton.styleFrom(foregroundColor: const Color(0xFFB0AEC4)),
+                            child: Text(
+                              '¿Olvidaste tu contraseña?',
+                              style: GoogleFonts.orbitron(
+                                  fontSize: Responsive.tamanioTexto(context),
+                                  decoration: TextDecoration.underline,
+                                ),
+                            ),
+                          ),
+                        ),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '¿No tienes una cuenta? ',
+                              style: GoogleFonts.orbitron(color: Colors.grey, fontSize: Responsive.tamanioTexto(context) - 2),
+                            ),
+                            GestureDetector(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                                );
+                              },
+                              child: Text(
+                                'Regístrate',
+                                style: GoogleFonts.orbitron(
+                                  color: const Color(0xFF102CE4),
+                                  fontSize: Responsive.tamanioTexto(context) - 2,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ),
           ),

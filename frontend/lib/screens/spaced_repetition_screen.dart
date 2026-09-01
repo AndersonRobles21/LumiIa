@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class SpacedRepetitionScreen extends StatefulWidget {
   final String tituloTarea;
@@ -53,36 +54,36 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
           icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Repetición Espaciada',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: Responsive.tamanioTitulo(context)),
         ),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context)),
         child: Column(
           children: [
             // Mascota con Banner
             Image.asset(
               'logo/spaced_repetition.png',
               width: double.infinity,
-              height: 110,
+              height: Responsive.altoPantalla(context) * 0.12,
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(15)),
-                child: const Text('✨ ¡Repasa para tu memoria! Lumi te mostrará los conceptos en el momento ideal.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                padding: EdgeInsets.all(Responsive.espacio(context)),
+                decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(Responsive.radioBorde(context))),
+                child: Text('✨ ¡Repasa para tu memoria! Lumi te mostrará los conceptos en el momento ideal.', style: TextStyle(color: Colors.white70, fontSize: Responsive.tamanioTexto(context))),
               ),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: Responsive.espacio(context)),
 
             // Banner del Repaso de hoy
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: EdgeInsets.all(Responsive.espacio(context) * 1.5),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B163B),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
               ),
               child: Row(
                 children: [
@@ -91,23 +92,23 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Repaso Activo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                      Text('Tienes $totalConceptos conceptos clave para repasar.', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      Text('Repaso Activo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: Responsive.tamanioSubtitulo(context))),
+                      Text('Tienes $totalConceptos conceptos clave para repasar.', style: TextStyle(color: Colors.white54, fontSize: Responsive.tamanioTexto(context))),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.espacio(context) * 2),
 
             // Tarjeta explicativa del concepto dinámico
             Expanded(
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(Responsive.espacio(context) * 2),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1B163B),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
                 ),
                 child: SingleChildScrollView(
                   child: Column(
@@ -129,26 +130,26 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                           Text('${_conceptoActualIndex + 1}/$totalConceptos', style: const TextStyle(color: Colors.white38, fontSize: 12)),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      SizedBox(height: Responsive.espacio(context) * 2),
                       Text(
                         conceptoActual,
-                        style: const TextStyle(color: Color(0xFF00F0FF), fontSize: 20, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: const Color(0xFF00F0FF), fontSize: Responsive.tamanioTitulo(context), fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 12),
+                      SizedBox(height: Responsive.espacio(context)),
                       Text(
                         'Reflexiona sobre este concepto vinculado a tu tarea "${widget.tituloTarea}". ¿Cómo lo explicarías o aplicarías en el desarrollo?',
-                        style: const TextStyle(color: Colors.white70, fontSize: 13.5, height: 1.5),
+                        style: TextStyle(color: Colors.white70, fontSize: Responsive.tamanioTexto(context), height: 1.5),
                       ),
                     ],
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.espacio(context) * 2),
 
             // Opciones de Dificultad para avanzar
-            const Text('¿Qué tan difícil es recordarlo?', style: TextStyle(color: Colors.white70, fontSize: 12)),
-            const SizedBox(height: 10),
+            Text('¿Qué tan difícil es recordarlo?', style: TextStyle(color: Colors.white70, fontSize: Responsive.tamanioTexto(context))),
+            SizedBox(height: Responsive.espacio(context)),
             Row(
               children: [
                 Expanded(child: _buildBotonDificultad('Difícil', Colors.redAccent, Icons.sentiment_very_dissatisfied)),
@@ -158,7 +159,7 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                 Expanded(child: _buildBotonDificultad('Fácil', Colors.greenAccent, Icons.sentiment_satisfied)),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: Responsive.espacio(context) * 2),
           ],
         ),
       ),
@@ -170,17 +171,17 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
       onTap: () => _siguienteConcepto(texto),
       borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: Responsive.espacio(context) * 1.5),
         decoration: BoxDecoration(
           color: const Color(0xFF1B163B),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
           border: Border.all(color: color.withOpacity(0.5)),
         ),
         child: Column(
           children: [
-            Icon(icono, color: color, size: 20),
-            const SizedBox(height: 4),
-            Text(texto, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+            Icon(icono, color: color, size: Responsive.tamanioSubtitulo(context)),
+            SizedBox(height: Responsive.espacio(context) / 2),
+            Text(texto, style: TextStyle(color: color, fontSize: Responsive.tamanioTexto(context) - 2, fontWeight: FontWeight.bold)),
           ],
         ),
       ),

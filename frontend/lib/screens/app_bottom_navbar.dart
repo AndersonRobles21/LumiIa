@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '/services/api_service.dart';
 import 'dashboard_screen.dart';
 import 'calendar_screen.dart';
@@ -73,11 +74,11 @@ class AppBottomNavbar extends StatelessWidget {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Container(
-        height: 60,
-        margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        height: Responsive.altoBoton(context) + 12,
+        margin: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context)),
         decoration: BoxDecoration(
           color: const Color(0xFF1B1437),
-          borderRadius: BorderRadius.circular(30),
+          borderRadius: BorderRadius.circular(Responsive.radioBorde(context) * 2),
           boxShadow: const [
             BoxShadow(
               color: Colors.black54,
@@ -110,11 +111,11 @@ class AppBottomNavbar extends StatelessWidget {
       onTap: () => _goTo(context, index),
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(Responsive.espacio(context)),
         child: Icon(
           icon,
           color: active ? const Color(0xFFFF44AA) : Colors.white38,
-          size: 24,
+          size: Responsive.tamanioSubtitulo(context),
         ),
       ),
     );

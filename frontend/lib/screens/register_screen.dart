@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart'; 
 import 'package:frontend/services/api_service.dart'; 
+import '../utils/responsive.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({Key? key}) : super(key: key);
@@ -178,16 +179,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 430),
+                    constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 10.0),
+                      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 1.5),
                       child: Form(
                         key: _formKey,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const SizedBox(height: 15),
+                            SizedBox(height: Responsive.espacio(context) * 2),
 
                             // --- NOMBRE Y APELLIDO ---
                             Row(
@@ -207,7 +208,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(width: 16),
+                                SizedBox(width: Responsive.espacio(context) * 2),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +225,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 18),
+                            SizedBox(height: Responsive.espacio(context) * 1.5),
 
                             // --- EMAIL VÁLIDO ---
                             _buildInputLabel('Email'),
@@ -245,7 +246,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 18),
+                            SizedBox(height: Responsive.espacio(context) * 1.5),
 
                             // --- CONTRASEÑA SEGURA ---
                             _buildInputLabel('Contraseña'),
@@ -275,7 +276,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 18),
+                            SizedBox(height: Responsive.espacio(context) * 1.5),
 
                             // --- CONFIRMAR CONTRASEÑA ---
                             _buildInputLabel('Confirma tu contraseña'),
@@ -301,12 +302,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 return null;
                               },
                             ),
-                            const SizedBox(height: 35),
+                            SizedBox(height: Responsive.espacio(context) * 3),
 
                             // --- BOTÓN CREAR CUENTA ---
                             SizedBox(
                               width: double.infinity,
-                              height: 54,
+                              height: Responsive.altoBoton(context),
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(20),
@@ -329,12 +330,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                         )
                                       : Text(
                                           'Crear cuenta',
-                                          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                          style: GoogleFonts.orbitron(color: Colors.white, fontSize: Responsive.tamanioTexto(context), fontWeight: FontWeight.bold),
                                         ),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 24),
+                            SizedBox(height: Responsive.espacio(context) * 3),
                           ],
                         ),
                       ),
@@ -350,13 +351,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildInputLabel(String labelText) {
-    return Text(labelText, style: GoogleFonts.orbitron(color: const Color(0xFFE2E0EE), fontSize: 13, fontWeight: FontWeight.w500));
+    return Text(labelText, style: GoogleFonts.orbitron(color: const Color(0xFFE2E0EE), fontSize: Responsive.tamanioSubtitulo(context), fontWeight: FontWeight.w500));
   }
 
   InputDecoration _buildInputDecoration(String hintText) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
+      hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: Responsive.tamanioTexto(context) - 2),
       filled: true,
       fillColor: const Color(0xFF301642).withOpacity(0.5),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
