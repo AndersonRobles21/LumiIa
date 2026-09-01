@@ -5,6 +5,7 @@ import 'app_language.dart';
 import 'biometric_service.dart';
 import 'login_screen.dart'; 
 import 'info_screen.dart';
+import '../utils/responsive.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   const ConfiguracionScreen({super.key});
@@ -145,15 +146,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
+              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
               child: Column(
                 children: [
                   _buildHeader(context, lang),
                   Expanded(
                     child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.paddingHorizontalRecomendado(context),
+                        vertical: Responsive.espacio(context),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,7 +307,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   // --- Header con flecha de volver ---
   Widget _buildHeader(BuildContext context, AppLanguage lang) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+      padding: EdgeInsets.fromLTRB(8, 8, 8, 4),
       child: Row(
         children: [
           IconButton(
@@ -355,7 +356,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context) / 2, vertical: Responsive.espacio(context) * 0.75),
       decoration: BoxDecoration(
         color: cardColor.withOpacity(0.75),
         borderRadius: BorderRadius.circular(16),
@@ -364,10 +365,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       child: SwitchListTile(
         contentPadding: EdgeInsets.zero,
         secondary: loading
-            ? const SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(
+            ? SizedBox(
+                width: Responsive.tamanioSubtitulo(context),
+                height: Responsive.tamanioSubtitulo(context),
+                child: const CircularProgressIndicator(
                   strokeWidth: 2,
                   color: accentPink,
                 ),
@@ -375,16 +376,16 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             : Icon(icon, color: accentPink.withOpacity(0.9)),
         title: Text(
           title,
-          style: GoogleFonts.orbitron(
+            style: GoogleFonts.orbitron(
             color: Colors.white,
-            fontSize: 13.5,
+            fontSize: Responsive.tamanioSubtitulo(context),
             fontWeight: FontWeight.w500,
           ),
         ),
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: GoogleFonts.orbitron(color: textGrey, fontSize: 10.5),
+                style: GoogleFonts.orbitron(color: textGrey, fontSize: Responsive.tamanioTexto(context) - 2),
               )
             : null,
         value: value,
@@ -413,7 +414,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           title,
           style: GoogleFonts.orbitron(
             color: Colors.white,
-            fontSize: 13.5,
+            fontSize: Responsive.tamanioSubtitulo(context),
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -425,7 +426,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 padding: const EdgeInsets.only(right: 6),
                 child: Text(
                   trailingText,
-                  style: GoogleFonts.orbitron(color: textGrey, fontSize: 12),
+                  style: GoogleFonts.orbitron(color: textGrey, fontSize: Responsive.tamanioTexto(context) - 2),
                 ),
               ),
             const Icon(Icons.chevron_right, color: textGrey),
@@ -440,7 +441,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   Widget _buildLogoutButton(BuildContext context, AppLanguage lang) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: Responsive.altoBoton(context),
       child: OutlinedButton.icon(
         onPressed: _cerrandoSesion
             ? null
@@ -448,7 +449,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: dangerColor, width: 1.3),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
           ),
         ),
         icon: _cerrandoSesion
@@ -465,7 +466,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           _text('Cerrar sesión', 'Log out'),
           style: GoogleFonts.orbitron(
             color: dangerColor,
-            fontSize: 14,
+            fontSize: Responsive.tamanioTexto(context),
             fontWeight: FontWeight.bold,
           ),
         ),

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'app_language.dart';
+import '../utils/responsive.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -569,12 +570,51 @@ class _ProfileScreenState extends State<ProfileScreen>
       }
     }
 
+    final isDesktop = Responsive.esEscritorio(context);
+    final avatarRadius = isDesktop ? 80.0 : 50.0;
+    final imageSize = isDesktop ? 160.0 : 100.0;
+
+    // Adjust inner avatar child sizes if image widgets are used
+    if (_imageFile != null) {
+      avatarChild = ClipRRect(
+        borderRadius: BorderRadius.circular(avatarRadius),
+        child: Image.file(
+          _imageFile!,
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (_base64Image != null && _base64Image!.trim().isNotEmpty) {
+      try {
+        String cleanBase64 = _base64Image!.trim();
+        if (cleanBase64.contains(',')) {
+          cleanBase64 = cleanBase64.split(',').last;
+        }
+
+        avatarChild = ClipRRect(
+          borderRadius: BorderRadius.circular(avatarRadius),
+          child: Image.memory(
+            base64Decode(cleanBase64),
+            width: imageSize,
+            height: imageSize,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Icon(Icons.broken_image, size: imageSize * 0.5, color: Colors.white54);
+            },
+          ),
+        );
+      } catch (e) {
+        avatarChild = Icon(Icons.person, size: avatarRadius * 0.6, color: Colors.white30);
+      }
+    }
+
     return GestureDetector(
       onTap: _seleccionarNuevaImagen,
       child: Stack(
         children: [
           CircleAvatar(
-            radius: 50,
+            radius: avatarRadius,
             backgroundColor: const Color(0xFF2A1F5A),
             child: avatarChild,
           ),
@@ -582,14 +622,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             bottom: 0,
             right: 0,
             child: Container(
-              padding: const EdgeInsets.all(6),
+              padding: EdgeInsets.all(isDesktop ? 8 : 6),
               decoration: const BoxDecoration(
                 color: Color(0xFFFF44AA),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.camera_alt,
-                size: 16,
+                size: isDesktop ? 18 : 16,
                 color: Colors.white,
               ),
             ),
@@ -735,155 +775,239 @@ class _ProfileScreenState extends State<ProfileScreen>
                         Expanded(
                           child: Center(
                             child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 430),
-                              child: SingleChildScrollView(
-                                padding: const EdgeInsets.only(
-                                  left: 28.0,
-                                  right: 28.0,
-                                  bottom: 90.0,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(height: 8),
-                                    Center(child: _buildAvatar()),
-                                    const SizedBox(height: 24),
-
-                                    Text(
-                                      tr('Nombre', 'First Name'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _nameController,
-                                      tr(
-                                        'Ingresa tu nombre',
-                                        'Enter your first name',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-
-                                    Text(
-                                      tr('Apellido', 'Last Name'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _apellidoController,
-                                      tr(
-                                        'Ingresa tu apellido',
-                                        'Enter your last name',
-                                      ),
-                                    ),
-                                    const SizedBox(height: 14),
-
-                                    Text(
-                                      tr('Objetivo de Estudio', 'Study Goal'),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    _buildInputField(
-                                      _objetivoController,
-                                      tr(
-                                        "Ej: Certificarme como programadora",
-                                        "Ex: Get certified as a developer",
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-
-                                    Text(
-                                      '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    Slider(
-                                      value: _nivelProcrastinacion.toDouble(),
-                                      min: 1,
-                                      max: 10,
-                                      divisions: 9,
-                                      activeColor: const Color(0xFFFF44AA),
-                                      inactiveColor: const Color(0xFF1F1B2E),
-                                      onChanged: (value) => setState(
-                                        () => _nivelProcrastinacion = value
-                                            .toInt(),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 16),
-
-                                    Text(
-                                      tr(
-                                        'HORARIO DISPONIBLE',
-                                        'AVAILABLE SCHEDULE',
-                                      ),
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.5,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 12),
-
-                                    _buildGridSchedule(),
-
-                                    const SizedBox(height: 36),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      height: 52,
-                                      child: DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          gradient: const LinearGradient(
-                                            colors: [
-                                              Color(0xFFCC00CC),
-                                              Color(0xFFFF44AA),
+                              constraints: BoxConstraints(maxWidth: Responsive.esEscritorio(context) ? 1100 : 600),
+                              child: Builder(
+                                builder: (ctx) {
+                                  final isDesktop = Responsive.esEscritorio(ctx);
+                                  if (isDesktop) {
+                                    // Desktop: avatar and name on left, rest of profile on right
+                                    return Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        // Left column: avatar and basic name info
+                                        Container(
+                                          width: 320,
+                                          padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(ctx)),
+                                          child: Column(
+                                            children: [
+                                              const SizedBox(height: 8),
+                                              _buildAvatar(),
+                                              SizedBox(height: Responsive.espacio(ctx) * 1.5),
+                                              Text(
+                                                tr('Nombre', 'First Name'),
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: Responsive.tamanioTexto(ctx),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              SizedBox(height: Responsive.espacio(ctx) / 2),
+                                              _buildInputField(_nameController, tr('Ingresa tu nombre', 'Enter your first name')),
+                                              SizedBox(height: Responsive.espacio(ctx) * 1.25),
+                                              Text(
+                                                tr('Apellido', 'Last Name'),
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: Responsive.tamanioTexto(ctx),
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              SizedBox(height: Responsive.espacio(ctx) / 2),
+                                              _buildInputField(_apellidoController, tr('Ingresa tu apellido', 'Enter your last name')),
                                             ],
                                           ),
-                                          borderRadius: BorderRadius.circular(
-                                            30,
+                                        ),
+                                        const SizedBox(width: 18),
+                                        // Right column: rest of editable fields
+                                        Expanded(
+                                          child: SingleChildScrollView(
+                                            padding: EdgeInsets.only(right: Responsive.paddingHorizontalRecomendado(ctx), bottom: 90),
+                                            child: Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                SizedBox(height: 8),
+                                                Text(
+                                                  tr('Objetivo de Estudio', 'Study Goal'),
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                SizedBox(height: Responsive.espacio(ctx) / 2),
+                                                _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
+                                                SizedBox(height: Responsive.espacio(ctx) * 1.5),
+
+                                                Text(
+                                                  '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
+                                                ),
+                                                Slider(
+                                                  value: _nivelProcrastinacion.toDouble(),
+                                                  min: 1,
+                                                  max: 10,
+                                                  divisions: 9,
+                                                  activeColor: const Color(0xFFFF44AA),
+                                                  inactiveColor: const Color(0xFF1F1B2E),
+                                                  onChanged: (value) => setState(() => _nivelProcrastinacion = value.toInt()),
+                                                ),
+                                                SizedBox(height: Responsive.espacio(ctx) * 1.5),
+
+                                                Text(
+                                                  tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
+                                                    fontWeight: FontWeight.bold,
+                                                    letterSpacing: 1.5,
+                                                  ),
+                                                ),
+                                                SizedBox(height: Responsive.espacio(ctx)),
+                                                _buildGridSchedule(),
+                                                SizedBox(height: Responsive.espacio(ctx) * 2),
+                                                SizedBox(
+                                                  width: double.infinity,
+                                                  height: Responsive.altoBoton(ctx) + 8,
+                                                  child: DecoratedBox(
+                                                    decoration: BoxDecoration(
+                                                      gradient: const LinearGradient(
+                                                        colors: [Color(0xFFCC00CC), Color(0xFFFF44AA)],
+                                                      ),
+                                                      borderRadius: BorderRadius.circular(30),
+                                                    ),
+                                                    child: ElevatedButton(
+                                                      onPressed: _handleSend,
+                                                      style: ElevatedButton.styleFrom(
+                                                        backgroundColor: Colors.transparent,
+                                                        shadowColor: Colors.transparent,
+                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                                      ),
+                                                      child: Text(
+                                                        tr('Guardar Perfil', 'Save Profile'),
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: Responsive.tamanioTexto(ctx) + 2,
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                SizedBox(height: Responsive.espacio(ctx) * 2),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                        child: ElevatedButton(
-                                          onPressed: _handleSend,
-                                          style: ElevatedButton.styleFrom(
-                                            backgroundColor: Colors.transparent,
-                                            shadowColor: Colors.transparent,
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
+                                      ],
+                                    );
+                                  }
+
+                                  // Mobile / tablet: original column but responsive
+                                  return SingleChildScrollView(
+                                    padding: EdgeInsets.only(left: Responsive.paddingHorizontalRecomendado(ctx), right: Responsive.paddingHorizontalRecomendado(ctx), bottom: 90),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        SizedBox(height: 8),
+                                        Center(child: _buildAvatar()),
+                                        SizedBox(height: Responsive.espacio(ctx) * 3),
+
+                                        Text(
+                                          tr('Nombre', 'First Name'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.tamanioTexto(ctx),
+                                            fontWeight: FontWeight.bold,
                                           ),
-                                          child: Text(
-                                            tr(
-                                              'Guardar Perfil',
-                                              'Save Profile',
+                                        ),
+                                        SizedBox(height: Responsive.espacio(ctx) / 2),
+                                        _buildInputField(_nameController, tr('Ingresa tu nombre', 'Enter your first name')),
+                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
+
+                                        Text(
+                                          tr('Apellido', 'Last Name'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.tamanioTexto(ctx),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: Responsive.espacio(ctx) / 2),
+                                        _buildInputField(_apellidoController, tr('Ingresa tu apellido', 'Enter your last name')),
+                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
+
+                                        Text(
+                                          tr('Objetivo de Estudio', 'Study Goal'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.tamanioSubtitulo(ctx),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        SizedBox(height: Responsive.espacio(ctx) / 2),
+                                        _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
+                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
+
+                                        Text(
+                                          '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.tamanioSubtitulo(ctx),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        Slider(
+                                          value: _nivelProcrastinacion.toDouble(),
+                                          min: 1,
+                                          max: 10,
+                                          divisions: 9,
+                                          activeColor: const Color(0xFFFF44AA),
+                                          inactiveColor: const Color(0xFF1F1B2E),
+                                          onChanged: (value) => setState(() => _nivelProcrastinacion = value.toInt()),
+                                        ),
+
+                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
+                                        Text(
+                                          tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.tamanioSubtitulo(ctx),
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 1.5,
+                                          ),
+                                        ),
+                                        SizedBox(height: Responsive.espacio(ctx)),
+                                        _buildGridSchedule(),
+
+                                        SizedBox(height: Responsive.espacio(ctx) * 2.5),
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: Responsive.altoBoton(ctx) + 6,
+                                          child: DecoratedBox(
+                                            decoration: BoxDecoration(
+                                              gradient: const LinearGradient(colors: [Color(0xFFCC00CC), Color(0xFFFF44AA)]),
+                                              borderRadius: BorderRadius.circular(30),
                                             ),
-                                            style: const TextStyle(
-                                              color: Colors.white,
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.bold,
+                                            child: ElevatedButton(
+                                              onPressed: _handleSend,
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: Colors.transparent,
+                                                shadowColor: Colors.transparent,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                                              ),
+                                              child: Text(tr('Guardar Perfil', 'Save Profile'), style: TextStyle(color: Colors.white, fontSize: Responsive.tamanioTexto(ctx) + 1, fontWeight: FontWeight.bold)),
                                             ),
                                           ),
                                         ),
-                                      ),
+                                        SizedBox(height: Responsive.espacio(ctx) * 3),
+                                      ],
                                     ),
-                                    const SizedBox(height: 32),
-                                  ],
-                                ),
+                                  );
+                                },
                               ),
                             ),
                           ),
