@@ -269,7 +269,7 @@
 
     await pool.query(
       "UPDATE estadisticas SET racha = $1, ultima_racha_fecha = $2 WHERE usuario_id = $3",
-      [nuevaRacha, hoyFecha, userId]
+     [nuevaRacha, hoyFecha, userId]
     );
 
     return res.status(200).json({
