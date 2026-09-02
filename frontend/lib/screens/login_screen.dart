@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,7 +5,6 @@ import 'package:frontend/screens/olvidar_contraseña.dart';
 import 'register_screen.dart';
 import '/screens/dashboard_screen.dart';
 import 'profile_screen.dart';
-import 'admin_panel_screen.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
 
@@ -82,22 +80,17 @@ class _LoginScreenState extends State<LoginScreen> {
       // PASO 2: El userId viene directamente de Supabase Auth (UUID real)
       // Intentamos sincronizar con el backend Node, pero no bloqueamos el login si falla
       final String userId = user.id;
-      bool isAdmin = false;
+
       try {
         await ApiService.login(userId: userId);
       } catch (_) {
         // El backend es opcional para navegar; Supabase Auth es la fuente de verdad
       }
 
-      try {
-        isAdmin = await ApiService.adminCheck(userId);
-      } catch (_) {
-        isAdmin = false;
-      }
-
       if (!mounted) return;
       setState(() => _isLoading = false);
 
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('¡Bienvenido a Lumi!', style: GoogleFonts.orbitron()),
@@ -105,29 +98,33 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      if (isAdmin) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => AdminPanelScreen(userId: userId),
-          ),
-        );
-      } else {
-        final perfil = await ApiService.getProfile(userId);
-        final nombre = (perfil?['nombre'] ?? '').toString().trim();
-        final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
-        final horarios = perfil?['horarios'] as List?;
-        final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
+      final perfil = await ApiService.getProfile(userId);
+      if (!mounted) return;
 
-        Navigator.pushReplacement(
+      final bool esAdmin = (perfil?['es_admin'] ?? false) == true;
+      final nombre = (perfil?['nombre'] ?? '').toString().trim();
+      final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+      final horarios = perfil?['horarios'] as List?;
+      final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
+
+      if (!context.mounted) return;
+      if (esAdmin) {
+        Navigator.pushReplacementNamed(
           context,
-          MaterialPageRoute(
-            builder: (context) => perfilListo
-                ? DashboardScreen(userId: userId)
-                : ProfileScreen(userId: userId),
-          ),
+          '/admin-panel',
+          arguments: {'userId': userId},
         );
+        return;
       }
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => perfilListo
+              ? DashboardScreen(userId: userId)
+              : ProfileScreen(userId: userId),
+        ),
+      );
 
     } catch (e) {
       if (!mounted) return;
@@ -217,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       suffixIcon: IconButton(
                                         icon: Icon(
                                           _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                                          color: const Color(0xFF102CE4).withOpacity(0.7),
+                                          color: const Color(0xFF102CE4).withValues(alpha: 0.7),
                                           size: 20,
                                         ),
                                         onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -393,7 +390,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           suffixIcon: IconButton(
                             icon: Icon(
                               _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                              color: const Color(0xFF102CE4).withOpacity(0.7),
+                              color: const Color(0xFF102CE4).withValues(alpha: 0.7),
                               size: 20,
                             ),
                             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -515,7 +512,7 @@ class _LoginScreenState extends State<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
         filled: true,
-        fillColor: const Color(0xFF301642).withOpacity(0.5),
+        fillColor: const Color(0xFF301642).withValues(alpha: 0.5),
         suffixIcon: suffixIcon,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         enabledBorder: OutlineInputBorder(
