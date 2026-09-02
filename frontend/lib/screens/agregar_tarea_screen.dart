@@ -147,10 +147,16 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                           const SizedBox(height: 12),
                           // 🖼️ Nueva imagen 'logo/recordatorio.png'
                           SizedBox(
-                            width:
-                                MediaQuery.of(context).size.width *
-                                0.62, 
-                            height: 140, 
+                            width: Responsive.esEscritorio(context)
+                                ? 420
+                                : Responsive.esTablet(context)
+                                    ? 320
+                                    : MediaQuery.of(context).size.width * 0.6,
+                            height: Responsive.esEscritorio(context)
+                                ? 160
+                                : Responsive.esTablet(context)
+                                    ? 140
+                                    : 120,
                             child: Image.asset(
                               'logo/recordatorio.png',
                               fit: BoxFit.contain,
@@ -168,8 +174,16 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                   ),
                   const SizedBox(width: 10),
                   SizedBox(
-                    width: MediaQuery.of(context).size.width * 0.38,
-                    height: MediaQuery.of(context).size.width * 0.38,
+                    width: Responsive.esEscritorio(context)
+                        ? 220
+                        : Responsive.esTablet(context)
+                            ? 180
+                            : MediaQuery.of(context).size.width * 0.34,
+                    height: Responsive.esEscritorio(context)
+                        ? 220
+                        : Responsive.esTablet(context)
+                            ? 180
+                            : MediaQuery.of(context).size.width * 0.34,
                     child: Image.asset(
                       'logo/tarea.png',
                       fit: BoxFit.contain,
@@ -299,7 +313,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               // Botón de Envío
               SizedBox(
                 width: double.infinity,
-                height: 50,
+                height: Responsive.altoBoton(context) + 8,
                 child: ElevatedButton(
                   onPressed: _isProcessing ? null : _enviarAIA,
                   style: ElevatedButton.styleFrom(
@@ -310,12 +324,12 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                   ),
                   child: _isProcessing
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
+                      : Text(
                           'GENERAR CRONOGRAMA',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.white,
-                            fontSize: 13,
+                            fontSize: Responsive.tamanioSubtitulo(context) - 2,
                           ),
                         ),
                 ),
@@ -324,10 +338,14 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
 
               // 🖼️ BANNER INFERIOR CON LA IMAGEN 'logo/consejo_tarea.png'
               Center(
-                child: Image.asset(
-                  'logo/consejo_tarea.png',
-                  width: double.infinity,
-                  fit: BoxFit.contain,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.esEscritorio(context) ? 900 : double.infinity,
+                    maxHeight: 220,
+                  ),
+                  child: Image.asset(
+                    'logo/consejo_tarea.png',
+                    fit: BoxFit.contain,
                   errorBuilder: (context, error, stackTrace) => Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
