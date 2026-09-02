@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '/services/api_service.dart';
 import 'dashboard_screen.dart';
 import 'calendar_screen.dart';
@@ -261,7 +262,7 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                     children: _logros.map((logro) {
                                       final activo = logro['activo'] as bool;
                                       return Container(
-                                        width: 95,
+                                        width: Responsive.esMovil(context) ? 96 : 112,
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           color: activo
@@ -285,7 +286,7 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: activo ? Colors.white : Colors.white38,
-                                                fontSize: 10,
+                                                fontSize: Responsive.esMovil(context) ? 11 : 12,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),

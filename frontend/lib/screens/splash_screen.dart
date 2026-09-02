@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 
@@ -96,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
 
-          final robotSize = width * 0.62;
+          final robotSize = math.min(width * 0.62, height * 0.34);
 
           return Stack(
             fit: StackFit.expand,

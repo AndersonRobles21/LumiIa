@@ -786,8 +786,8 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       children: [
                                         // Left column: avatar and basic name info
                                         Container(
-                                          width: 320,
-                                          padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(ctx)),
+                                          width: 300,
+                                          padding: const EdgeInsets.symmetric(horizontal: 24),
                                           child: Column(
                                             children: [
                                               const SizedBox(height: 8),
@@ -1057,11 +1057,11 @@ class _ProfileScreenState extends State<ProfileScreen>
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       itemCount: _days.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        childAspectRatio: 0.85,
-        crossAxisSpacing: 6,
-        mainAxisSpacing: 6,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: Responsive.esMovil(context) ? 3 : 4,
+        childAspectRatio: Responsive.esMovil(context) ? 0.95 : 0.85,
+        crossAxisSpacing: Responsive.esMovil(context) ? 8 : 6,
+        mainAxisSpacing: 8,
       ),
       itemBuilder: (context, index) {
         final tieneHoras = _scheduleData[index].isNotEmpty;
@@ -1091,7 +1091,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ? const Color(0xFFFF66FF)
                         : Colors.white70,
                     fontWeight: FontWeight.bold,
-                    fontSize: 11,
+                    fontSize: Responsive.tamanioTexto(context) - 3,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1104,9 +1104,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                       itemBuilder: (ctx, bIdx) => Text(
                         _scheduleData[index][bIdx],
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.cyanAccent,
-                          fontSize: 7,
+                          fontSize: Responsive.tamanioTexto(context) - 5,
                           fontWeight: FontWeight.bold,
                         ),
                       ),

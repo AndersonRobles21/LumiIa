@@ -338,7 +338,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         text.toUpperCase(),
         style: GoogleFonts.orbitron(
           color: textGrey,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.1,
         ),

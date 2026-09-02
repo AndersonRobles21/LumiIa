@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '/services/api_service.dart';
 import 'app_bottom_navbar.dart';
 
@@ -414,11 +415,11 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             '¡Excelente trabajo! 🎉',
             style: TextStyle(
               color: Color(0xFF7000FF),
-              fontSize: 10,
+              fontSize: Responsive.tamanioTexto(context) - 3,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -507,9 +508,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$_racha ${_racha == 1 ? "día" : "días"} de racha',
-                  style: const TextStyle(
+                    style: TextStyle(
                     color: Color(0xFF8B6BFF),
-                    fontSize: 9,
+                    fontSize: Responsive.tamanioTexto(context) - 4,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -636,6 +637,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
               painter: _BarChartPainter(
                 valores: _horasPorDia,
                 etiquetas: _diasSemana,
+                labelFontSize: Responsive.tamanioTexto(context) - 3,
               ),
             ),
           ),
@@ -769,10 +771,12 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
 class _BarChartPainter extends CustomPainter {
   final List<double> valores;
   final List<String> etiquetas;
+  final double labelFontSize;
 
   _BarChartPainter({
     required this.valores,
     required this.etiquetas,
+    required this.labelFontSize,
   });
 
   String _labelHoras(double valor) {
@@ -880,7 +884,7 @@ class _BarChartPainter extends CustomPainter {
           text: valLabel,
           style: TextStyle(
             color: valor > 0 ? Colors.white : Colors.white24,
-            fontSize: 10,
+            fontSize: labelFontSize,
             fontWeight: FontWeight.w600,
           ),
         ),

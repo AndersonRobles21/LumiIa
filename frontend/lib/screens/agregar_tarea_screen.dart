@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
+import '../utils/responsive.dart';
 
 class AgregarTareaScreen extends StatefulWidget {
   final String userId;
@@ -147,11 +148,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                           const SizedBox(height: 12),
                           // 🖼️ Nueva imagen 'logo/recordatorio.png'
                           SizedBox(
-                            width: Responsive.esEscritorio(context)
-                                ? 420
-                                : Responsive.esTablet(context)
-                                    ? 320
-                                    : MediaQuery.of(context).size.width * 0.6,
+                            width: double.infinity,
                             height: Responsive.esEscritorio(context)
                                 ? 160
                                 : Responsive.esTablet(context)
@@ -174,16 +171,8 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                   ),
                   const SizedBox(width: 10),
                   SizedBox(
-                    width: Responsive.esEscritorio(context)
-                        ? 220
-                        : Responsive.esTablet(context)
-                            ? 180
-                            : MediaQuery.of(context).size.width * 0.34,
-                    height: Responsive.esEscritorio(context)
-                        ? 220
-                        : Responsive.esTablet(context)
-                            ? 180
-                            : MediaQuery.of(context).size.width * 0.34,
+                    width: Responsive.esEscritorio(context) ? 220 : Responsive.esTablet(context) ? 180 : 112,
+                    height: Responsive.esEscritorio(context) ? 220 : Responsive.esTablet(context) ? 180 : 112,
                     child: Image.asset(
                       'logo/tarea.png',
                       fit: BoxFit.contain,
@@ -341,21 +330,22 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(
                     maxWidth: Responsive.esEscritorio(context) ? 900 : double.infinity,
-                    maxHeight: 220,
+                    maxHeight: Responsive.esMovil(context) ? 150 : 220,
                   ),
                   child: Image.asset(
                     'logo/consejo_tarea.png',
                     fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E1B3A),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: const Text(
-                      'Cuéntame qué tienes que hacer y yo te ayudo a organizarlo.',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                      textAlign: TextAlign.center,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E1B3A),
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                      child: const Text(
+                        'Cuéntame qué tienes que hacer y yo te ayudo a organizarlo.',
+                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                   ),
                 ),

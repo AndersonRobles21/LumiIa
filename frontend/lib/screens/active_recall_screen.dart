@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class ActiveRecallScreen extends StatefulWidget {
   final String tituloTarea;
@@ -56,15 +57,19 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
         child: Column(
           children: [
             // Mascota con bocadillo informativo
-            Image.asset(
-              'logo/active_recall.png',
-              width: double.infinity,
-              height: 110,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(15)),
-                child: const Text('✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: Responsive.esMovil(context) ? 90 : 130,
+              ),
+              child: Image.asset(
+                'logo/active_recall.png',
+                width: double.infinity,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(15)),
+                  child: const Text('✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                ),
               ),
             ),
             const SizedBox(height: 12),
