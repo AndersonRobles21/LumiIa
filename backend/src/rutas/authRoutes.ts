@@ -73,7 +73,7 @@
       }
 
       const resultado = await pool.query(
-        "SELECT id, nombre, apellido, rol_id, fecha_registro FROM usuarios WHERE id = $1",
+        "SELECT id, nombre, apellido, rol_id, es_admin, fecha_registro FROM usuarios WHERE id = $1",
         [id]
       );
 
@@ -86,6 +86,7 @@
       return res.status(200).json({
         mensaje: "Inicio de sesión verificado correctamente en PostgreSQL",
         usuario: resultado.rows[0],
+        es_admin: Boolean(resultado.rows[0]?.es_admin ?? false),
       });
     } catch (error: any) {
       console.error("❌ Error en POST /login:", error);
@@ -102,7 +103,7 @@
   router.get("/profile/:id", async (req: Request, res: Response): Promise<any> => {
     try {
       const { id } = req.params;
-      const usuarioRes = await pool.query("SELECT id, nombre, apellido, rol_id FROM usuarios WHERE id = $1", [id]);
+      const usuarioRes = await pool.query("SELECT id, nombre, apellido, rol_id, es_admin FROM usuarios WHERE id = $1", [id]);
       if (usuarioRes.rows.length === 0) return res.status(404).json({ mensaje: "Usuario no encontrado" });
       const usuario = usuarioRes.rows[0];
 
@@ -117,6 +118,7 @@
         nombre: usuario.nombre,
         apellido: usuario.apellido,
         rol_id: usuario.rol_id,
+        es_admin: Boolean(usuario.es_admin ?? false),
         perfil_estudio: perfilEstudioRes.rows[0] || { horas_disponibles: 0, objetivo: "", nivel_procrastinacion: 1, foto_perfil: null },
         horarios: horariosRes.rows,
       });
