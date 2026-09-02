@@ -22,6 +22,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   bool _loading = true;
   Map<String, dynamic> _summary = {};
   List<dynamic> _usuarios = [];
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -45,15 +46,29 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   }
 
   Future<void> _loadData() async {
-    setState(() => _loading = true);
-    final summary = await ApiService.getAdminSummary(widget.userId);
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _errorMessage = null;
+      });
+    }
 
-    if (!mounted) return;
+    try {
+      final summary = await ApiService.getAdminSummary(widget.userId);
 
-    setState(() {
-      _summary = summary ?? {};
-      _loading = false;
-    });
+      if (!mounted) return;
+
+      setState(() {
+        _summary = summary ?? {};
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+      });
+    }
   }
 
   String _getLabel(dynamic value) {
@@ -98,6 +113,33 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (_errorMessage != null)
+                        Container(
+                          width: double.infinity,
+                          margin: const EdgeInsets.only(bottom: 16),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF5C1832),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.error_outline, color: Colors.white70),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  _errorMessage!,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Reintentar',
+                                onPressed: _loadData,
+                                icon: const Icon(Icons.refresh, color: Colors.white),
+                              ),
+                            ],
+                          ),
+                        ),
                       _buildHeaderCard(width),
                       const SizedBox(height: 20),
                       SizedBox(
@@ -222,8 +264,8 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 borderRadius: BorderRadius.circular(16),
                 child: Image.asset(
                   'logo/lumii.png',
-                  width: 120,
-                  height: 120,
+                  width: Responsive.esEscritorio(context) ? 120 : 96,
+                  height: Responsive.esEscritorio(context) ? 120 : 96,
                   fit: BoxFit.contain,
                 ),
               ),

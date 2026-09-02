@@ -341,4 +341,29 @@ router.put("/usuarios/:userId/:targetUserId/promover", requireAdmin, async (req:
   }
 });
 
+// Delegar administrador a estudiante sin modificar sus datos de estudiante.
+router.put("/usuarios/:userId/:targetUserId/delegar", requireAdmin, async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { userId, targetUserId } = req.params;
+
+    if (userId === targetUserId) {
+      return res.status(400).json({ ok: false, mensaje: "No puedes delegarte a ti mismo." });
+    }
+
+    const result = await pool.query(
+      `UPDATE usuarios SET es_admin = false WHERE id = $1 AND es_admin = true RETURNING id, es_admin`,
+      [targetUserId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ ok: false, mensaje: "El administrador no fue encontrado." });
+    }
+
+    return res.status(200).json({ ok: true, mensaje: "Administrador delegado a estudiante.", usuario: result.rows[0] });
+  } catch (error: any) {
+    console.error('❌ Error delegando administrador:', error);
+    return res.status(500).json({ ok: false, mensaje: 'Error al delegar administrador a estudiante.' });
+  }
+});
+
 export default router;

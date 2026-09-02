@@ -65,6 +65,13 @@ class Responsive {
     return 18.0;
   }
 
+  static double anchoImagenMetodo(BuildContext context) {
+    final ancho = anchoPantalla(context);
+    if (esMovil(context)) return (ancho * 0.36).clamp(110.0, 150.0).toDouble();
+    if (esTablet(context)) return (ancho * 0.28).clamp(160.0, 220.0).toDouble();
+    return (ancho * 0.26).clamp(220.0, 300.0).toDouble();
+  }
+
   // Espaciados y border radius
   static double espacio(BuildContext context) {
     if (esMovil(context)) return 8.0;

@@ -197,12 +197,25 @@ class ApiService {
   static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
     try {
       final response = await http.get(Uri.parse('$adminBaseUrl/summary/$userId'));
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      if (response.statusCode != 200) {
+        String mensaje = 'No se pudo cargar el resumen administrativo.';
+        if (response.body.isNotEmpty) {
+          final data = jsonDecode(response.body);
+          if (data is Map && data['mensaje'] != null) {
+            mensaje = data['mensaje'].toString();
+          }
+        }
+        throw Exception(mensaje);
+      }
+      if (response.body.isEmpty) {
+        throw Exception('El servidor devolvió un resumen vacío.');
+      }
       final data = jsonDecode(response.body);
-      return data is Map<String, dynamic> ? data : null;
+      if (data is Map<String, dynamic>) return data;
+      throw Exception('El formato del resumen administrativo no es válido.');
     } catch (e) {
       print('Error en ApiService getAdminSummary: $e');
-      return null;
+      rethrow;
     }
   }
 
@@ -291,6 +304,23 @@ class ApiService {
       return response.statusCode == 200;
     } catch (e) {
       print('Error en ApiService promoteAdminUser: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> delegateAdminUser({
+    required String adminUserId,
+    required String targetUserId,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId/delegar'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService delegateAdminUser: $e');
       return false;
     }
   }

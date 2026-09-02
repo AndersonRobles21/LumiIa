@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
@@ -148,6 +149,44 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     }
   }
 
+  Future<void> _delegarAEstudiante() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF111C4A),
+        title: const Text('Delegar administrador', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'El usuario volverá a ser estudiante. Se conservarán su perfil, foto, tareas, planes y progreso.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delegar')),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+
+    final delegated = await ApiService.delegateAdminUser(
+      adminUserId: widget.adminUserId,
+      targetUserId: widget.targetUserId,
+    );
+
+    if (!mounted) return;
+
+    if (delegated) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Administrador delegado a estudiante.')),
+      );
+      Navigator.pop(context, true);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo delegar el administrador.')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final nombre = (_usuario['nombre'] ?? 'Usuario').toString();
@@ -160,7 +199,9 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
         backgroundColor: const Color(0xFF111C4A),
         foregroundColor: Colors.white,
         title: Text(
-          'Detalle de estudiante',
+          (_usuario['es_admin'] ?? false) == true
+              ? 'Detalle de administrador'
+              : 'Detalle de estudiante',
           style: GoogleFonts.orbitron(fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -215,7 +256,21 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _headerCard('$nombre ${apellido}'.trim()),
+                  _headerCard(
+                    '$nombre ${apellido}'.trim(),
+                    (_usuario['foto_perfil'] ?? '').toString(),
+                  ),
+                  if ((_usuario['es_admin'] ?? false) == true && widget.targetUserId != widget.adminUserId) ...[
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _delegarAEstudiante,
+                        icon: const Icon(Icons.person_remove_alt_1),
+                        label: const Text('Delegar a estudiante'),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 20),
                   Wrap(
                     spacing: 12,
@@ -273,7 +328,23 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     );
   }
 
-  Widget _headerCard(String nombre) {
+  Widget _headerCard(String nombre, String fotoPerfil) {
+    Widget avatar = Text(
+      nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
+      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+    );
+
+    if (fotoPerfil.trim().isNotEmpty) {
+      try {
+        final foto = fotoPerfil.trim();
+        avatar = foto.startsWith('http')
+            ? Image.network(foto, width: 56, height: 56, fit: BoxFit.cover)
+            : Image.memory(base64Decode(foto.contains(',') ? foto.split(',').last : foto), width: 56, height: 56, fit: BoxFit.cover);
+      } catch (_) {
+        // Se mantiene la inicial si la imagen almacenada no es válida.
+      }
+    }
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -287,10 +358,7 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
           CircleAvatar(
             radius: 28,
             backgroundColor: const Color(0xFFFF44AA),
-            child: Text(
-              nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
-              style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-            ),
+            child: avatar,
           ),
           const SizedBox(width: 16),
           Expanded(
