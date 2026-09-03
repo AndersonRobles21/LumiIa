@@ -589,6 +589,7 @@ class ApiService {
       return null;
     }
   }
+  
 
   static Future<Map<String, dynamic>?> getProgreso(String userId) async {
     try {
@@ -607,7 +608,41 @@ class ApiService {
       return null;
     }
   }
+static Future<bool> actualizarFechaTarea(String id, String nuevaFecha) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$tareasBaseUrl/$id/fecha'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fecha_entrega': nuevaFecha}),
+      );
 
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService actualizarFechaTarea: $e');
+      return false;
+    }
+  }
+
+ static Future<Map<String, dynamic>?> reajustarPlanIA({
+    required String planId,
+    required String nuevaFechaEntrega,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$iaBaseUrl/plan/$planId/reajustar-fecha'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fecha_entrega': nuevaFechaEntrega}),
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error en ApiService reajustarPlanIA: $e');
+      return null;
+    }
+  }
   static Future<bool> registrarSesionEstudio({
     required String userId,
     required String categoria,
