@@ -22,7 +22,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int activeTab = 0;
   bool isLoading = true;
 
-  String userName = 'Laura';
+  String userName = {
+    'nombre': 
+  }['nombre']!;
   int activeStreak = 0;
 
   List<StudyPlan> plans = [];
