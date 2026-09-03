@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:frontend/screens/calendar_screen.dart';
 
 void main() {
-  testWidgets('CalendarScreen renders the calendar and task details', (WidgetTester tester) async {
+  testWidgets('CalendarScreen muestra eventos tras cargar sus datos', (WidgetTester tester) async {
     final hoy = DateTime.now();
     final tasks = [
       {
@@ -20,6 +20,7 @@ void main() {
         home: CalendarScreen(userId: 'user-1', tasks: tasks),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.text('Calendario'), findsOneWidget);
     expect(find.text('Entrega de proyecto'), findsOneWidget);

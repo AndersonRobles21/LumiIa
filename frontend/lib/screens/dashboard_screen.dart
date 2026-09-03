@@ -5,6 +5,7 @@ import '/services/api_service.dart';
 import 'agregar_tarea_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'guia_detalle_screen.dart';
+import '../utils/responsive.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -232,7 +233,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStreakBottomSheet(BuildContext sheetContext) {
     return Container(
-      padding: const EdgeInsets.only(top: 16, bottom: 24),
+      padding: EdgeInsets.only(top: Responsive.espacio(sheetContext) * 2, bottom: Responsive.espacio(sheetContext) * 3),
       decoration: const BoxDecoration(
         color: Color(0xFF100B2C),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -248,34 +249,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: Responsive.espacio(sheetContext) * 2),
           Image.asset(
             'logo/racha.png',
-            height: 80,
-            width: 80,
+            height: Responsive.esEscritorio(sheetContext) ? 120 : 80,
+            width: Responsive.esEscritorio(sheetContext) ? 120 : 80,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Text('🔥', style: TextStyle(fontSize: 64)),
+            errorBuilder: (_, __, ___) => const Text(
+              '🔥',
+              style: TextStyle(fontSize: 64),
+            ),
           ),
-          const SizedBox(height: 8),
+          SizedBox(height: Responsive.espacio(sheetContext)),
           Text(
             '$activeStreak Racha activa !',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: Responsive.tamanioTitulo(sheetContext),
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+          SizedBox(height: Responsive.espacio(sheetContext) / 2),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(sheetContext)),
             child: Text(
               'Completar una lección al día como rutina.',
-              style: TextStyle(color: Color(0xFFBDB5D6), fontSize: 11),
+              style: TextStyle(color: const Color(0xFFBDB5D6), fontSize: Responsive.tamanioTexto(sheetContext)),
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 18),
+          SizedBox(height: Responsive.espacio(sheetContext) * 2),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -287,16 +290,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   children: [
                     Text(
                       weekDays[index],
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 10,
+                        fontSize: Responsive.tamanioTexto(sheetContext) - 2,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    SizedBox(height: Responsive.espacio(sheetContext) / 1.5),
                     SizedBox(
-                      height: 30,
-                      width: 30,
+                      height: Responsive.esEscritorio(sheetContext) ? 42 : 30,
+                      width: Responsive.esEscritorio(sheetContext) ? 42 : 30,
                       child: isCompleted
                           ? Image.asset(
                               'logo/racha.png',
@@ -328,9 +331,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }),
             ),
           ),
-          const SizedBox(height: 22),
+          SizedBox(height: Responsive.espacio(sheetContext) * 2.5),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(sheetContext)),
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -338,14 +341,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFFD72CFA),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  padding: EdgeInsets.symmetric(vertical: Responsive.altoBoton(sheetContext) - 6),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(28),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'Seguir Aprendiendo',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             ),
@@ -486,26 +492,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF100B2C),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFD942FF),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      color: const Color(0xFFD942FF),
-                      onRefresh: _loadDashboardData,
-                      child: _buildDashboard(),
-                    ),
-            ),
-            _buildBottomNavigation(),
-          ],
-        ),
+        child: Responsive.esEscritorio(context)
+            ? Row(
+                children: [
+                  _buildBottomNavigation(),
+                  Expanded(child: _buildMainContent()),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(child: _buildMainContent()),
+                  _buildBottomNavigation(),
+                ],
+              ),
       ),
     );
+  }
+
+  Widget _buildMainContent() {
+    return isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: Color(0xFFD942FF)),
+          )
+        : RefreshIndicator(
+            color: const Color(0xFFD942FF),
+            onRefresh: _loadDashboardData,
+            child: _buildDashboard(),
+          );
   }
 
   Widget _buildDashboard() {
@@ -525,7 +538,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRobotHeader() {
     return Container(
-      height: 185,
+      height: Responsive.esEscritorio(context) ? 260 : 185,
       width: double.infinity,
       color: const Color(0xFF55588D),
       child: Stack(
@@ -533,37 +546,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Image.asset(
             'logo/Lumi_inicio.png',
-            width: 245,
-            height: 180,
+            width: Responsive.esEscritorio(context) ? 340 : 245,
+            height: Responsive.esEscritorio(context) ? 260 : 180,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
-                const Icon(Icons.smart_toy, size: 80, color: Colors.white),
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.smart_toy,
+              size: 80,
+              color: Colors.white,
+            ),
           ),
           Positioned(
-            top: 20,
-            right: 12,
+            top: Responsive.espacio(context) * 2,
+            right: Responsive.espacio(context) * 1.5,
             child: Container(
               width: 120,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 9,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFF100A32),
                 borderRadius: BorderRadius.circular(22),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   Text(
                     'Lumi:',
                     style: TextStyle(
-                      color: Color(0xFFE871FF),
-                      fontSize: 10,
+                      color: const Color(0xFFE871FF),
+                      fontSize: Responsive.tamanioTexto(context) - 2,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  SizedBox(height: 3),
+                  SizedBox(height: Responsive.espacio(context) / 2),
                   Text(
                     'Tu asistente personal',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white, fontSize: 8),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                    ),
                   ),
                 ],
               ),
@@ -576,40 +598,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildWelcome() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 4),
+      padding: EdgeInsets.fromLTRB(Responsive.paddingHorizontalRecomendado(context) / 2, Responsive.espacio(context), Responsive.paddingHorizontalRecomendado(context) / 2, Responsive.espacio(context) / 1.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Expanded(child: Divider(color: Colors.white, thickness: 2)),
+              Expanded(
+                child: Divider(
+                  color: Colors.white,
+                  thickness: 2,
+                ),
+              ),
               Padding(
-                padding: EdgeInsets.symmetric(horizontal: 12),
+                padding: EdgeInsets.symmetric(horizontal: Responsive.espacio(context) * 1.5),
                 child: Text(
                   'Principiante',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: Responsive.tamanioTexto(context),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              Expanded(child: Divider(color: Colors.white, thickness: 2)),
+              Expanded(
+                child: Divider(
+                  color: Colors.white,
+                  thickness: 2,
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: Responsive.espacio(context) * 1.25),
           Text(
             '¡Hola, $userName!',
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 16,
+              fontSize: Responsive.tamanioTitulo(context),
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
-          const Text(
+          SizedBox(height: Responsive.espacio(context) / 2),
+          Text(
             '¿Listo para aprender hoy?',
-            style: TextStyle(color: Colors.white, fontSize: 11),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -618,8 +653,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildStudyPlan() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 10, 10, 8),
-      padding: const EdgeInsets.all(11),
+      margin: EdgeInsets.fromLTRB(Responsive.paddingHorizontalRecomendado(context)/2, Responsive.espacio(context), Responsive.paddingHorizontalRecomendado(context)/2, Responsive.espacio(context)),
+      padding: EdgeInsets.all(Responsive.espacio(context) * 1.5),
       decoration: BoxDecoration(
         color: const Color(0xFF17122F),
         border: Border.all(color: const Color(0xFF2B2251)),
@@ -627,35 +662,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Tu plan de estudio de hoy',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 11,
+              fontSize: Responsive.tamanioSubtitulo(context),
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: Responsive.espacio(context) / 2),
           Text(
             '${plans.length} ${plans.length == 1 ? 'Plan activo' : 'Planes activos'}',
-            style: const TextStyle(color: Color(0xFFE474FF), fontSize: 9),
+            style: const TextStyle(
+              color: Color(0xFFE474FF),
+              fontSize: 9,
+            ),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: Responsive.espacio(context) * 1.5),
           if (plans.isEmpty)
             Container(
-              height: 56,
+              height: Responsive.esEscritorio(context) ? 70 : 56,
               width: double.infinity,
               alignment: Alignment.centerLeft,
-              child: const Text(
+              child: Text(
                 'No tienes planes activos. ¡Crea uno nuevo!',
-                style: TextStyle(color: Color(0xFFAAA2C9), fontSize: 9),
+                style: TextStyle(color: const Color(0xFFAAA2C9), fontSize: Responsive.tamanioTexto(context)),
               ),
             )
           else
             ...List.generate(
               plans.length,
               (index) => Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: EdgeInsets.only(bottom: Responsive.espacio(context)),
                 child: _buildPlanCard(plans[index]),
               ),
             ),
@@ -676,52 +714,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         color: const Color(0xFFFF4444),
-        child: const Icon(Icons.delete, color: Colors.white, size: 24),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+          size: 24,
+        ),
       ),
       child: InkWell(
         onTap: () => _openPlanDetail(plan),
         child: Container(
-          padding: const EdgeInsets.all(8),
+          padding: EdgeInsets.all(Responsive.espacio(context)),
           decoration: BoxDecoration(
             color: const Color(0xFF211A42),
             border: Border.all(color: const Color(0xFF33285D)),
           ),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.school_outlined,
-                color: Color(0xFFD942FF),
-                size: 22,
+                color: const Color(0xFFD942FF),
+                size: Responsive.tamanioSubtitulo(context),
               ),
-              const SizedBox(width: 9),
+              SizedBox(width: Responsive.espacio(context) + 1),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       plan.title,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
-                        fontSize: 9,
+                        fontSize: Responsive.tamanioSubtitulo(context),
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    SizedBox(height: Responsive.espacio(context) / 2),
                     Text(
                       plan.subtitle,
-                      style: const TextStyle(
-                        color: Color(0xFFAAA2C9),
-                        fontSize: 8,
+                      style: TextStyle(
+                        color: const Color(0xFFAAA2C9),
+                        fontSize: Responsive.tamanioTexto(context),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 5),
+                    SizedBox(height: Responsive.espacio(context)),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(5),
                       child: LinearProgressIndicator(
                         value: plan.progress.clamp(0.0, 1.0),
-                        minHeight: 4,
+                        minHeight: 6,
                         backgroundColor: const Color(0xFF4B426A),
                         valueColor: const AlwaysStoppedAnimation(
                           Color(0xFFC23CFF),
@@ -731,10 +773,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                 ),
               ),
-              const SizedBox(width: 7),
+              SizedBox(width: Responsive.espacio(context)),
               Text(
                 '${(plan.progress * 100).round()}%',
-                style: const TextStyle(color: Colors.white, fontSize: 8),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 8,
+                ),
               ),
             ],
           ),
@@ -754,20 +799,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Crea un nuevo plan de estudio',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 11,
+              fontSize: Responsive.tamanioSubtitulo(context),
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
+          SizedBox(height: Responsive.espacio(context)),
+          Text(
             'Usa la IA de Lumi para generar planes personalizados.',
-            style: TextStyle(color: Color(0xFFAAA4C5), fontSize: 9),
+            style: TextStyle(
+              color: Color(0xFFAAA4C5),
+              fontSize: 9,
+            ),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: Responsive.espacio(context) * 1.5),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
@@ -777,7 +825,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD72CFA),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 11),
+                padding: EdgeInsets.symmetric(vertical: Responsive.altoBoton(context) - 6),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

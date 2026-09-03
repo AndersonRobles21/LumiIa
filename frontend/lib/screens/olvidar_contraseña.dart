@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import '../utils/responsive.dart';
 
 class OlvidarContrasena extends StatefulWidget {
   const OlvidarContrasena({super.key});
@@ -169,7 +170,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
+              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
               child: _buildCurrentStep(),
             ),
           ),
@@ -197,7 +198,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildMethodChoiceStep() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -226,7 +227,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: Responsive.espacio(context) * 3),
           _buildMethodCard(
             icon: Icons.security,
             title: 'Código de Email',
@@ -248,13 +249,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             const SizedBox(height: 14),
             _buildErrorContainer(_errorMessage!),
           ],
-         const SizedBox(height: 40),
+         SizedBox(height: Responsive.espacio(context) * 3),
           _buildPrimaryButton(
             label: 'Volver al Inicio de Sesión',
             onPressed: () =>
                 Navigator.of(context).popUntil((route) => route.isFirst),
             ),
-          const SizedBox(height: 16),
+          SizedBox(height: Responsive.espacio(context) * 2),
         ],
       ),
     );
@@ -262,7 +263,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildEmailStep() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -271,12 +272,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           Center(
             child: Image.asset(
               'logo/Lumi.png',
-              width: 350,
-              height: 205,
+              width: Responsive.anchoPantalla(context) * 0.6,
+              height: Responsive.altoPantalla(context) * 0.22,
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: Responsive.espacio(context) * 3),
           const Center(
             child: Text(
               'Recuperar Contraseña',
@@ -300,7 +301,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: Responsive.espacio(context) * 3),
           const Text(
             'Email',
             style: TextStyle(
@@ -319,13 +320,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             const SizedBox(height: 14),
             _buildErrorContainer(_errorMessage!),
           ],
-          const SizedBox(height: 40),
+          SizedBox(height: Responsive.espacio(context) * 3),
           _buildPrimaryButton(
             label: 'Enviar Código',
             onPressed: _isLoading ? null : _sendEmailCode,
             isLoading: _isLoading,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: Responsive.espacio(context) * 1.5),
           Center(
             child: TextButton(
               onPressed: () => setState(() => _currentStep = 0),
@@ -348,7 +349,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildCodeVerificationStep() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -377,7 +378,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: Responsive.espacio(context) * 3),
           const Text(
             'Código',
             style: TextStyle(
@@ -396,13 +397,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             const SizedBox(height: 14),
             _buildErrorContainer(_errorMessage!),
           ],
-          const SizedBox(height: 40),
+          SizedBox(height: Responsive.espacio(context) * 3),
           _buildPrimaryButton(
             label: 'Verificar Código',
             onPressed: _isLoading ? null : _verifyCode,
             isLoading: _isLoading,
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: Responsive.espacio(context) * 1.5),
           Center(
             child: TextButton(
               onPressed: () => setState(() => _currentStep = 1),
@@ -425,7 +426,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildNewPasswordStep() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -434,12 +435,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           Center(
             child: Image.asset(
               'logo/Lumi.png',
-              width: 280,
-              height: 160,
+              width: Responsive.anchoPantalla(context) * 0.5,
+              height: Responsive.altoPantalla(context) * 0.16,
               fit: BoxFit.contain,
             ),
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: Responsive.espacio(context) * 2.5),
           const Center(
             child: Text(
               'Nueva Contraseña',
@@ -463,7 +464,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               textAlign: TextAlign.center,
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: Responsive.espacio(context) * 3),
           const Text(
             'Nueva Contraseña',
             style: TextStyle(
@@ -514,13 +515,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             const SizedBox(height: 14),
             _buildErrorContainer(_errorMessage!),
           ],
-          const SizedBox(height: 40),
+          SizedBox(height: Responsive.espacio(context) * 3),
           _buildPrimaryButton(
             label: 'Cambiar Contraseña',
             onPressed: _isLoading ? null : _resetPassword,
             isLoading: _isLoading,
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: Responsive.espacio(context) * 2),
         ],
       ),
     );
@@ -528,7 +529,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildSuccessStep() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 36.0, vertical: 24.0),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
@@ -547,7 +548,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               size: 50,
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: Responsive.espacio(context) * 4),
           const Text(
             '¡Contraseña Cambiada!',
             style: TextStyle(
@@ -568,13 +569,13 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 40),
+          SizedBox(height: Responsive.espacio(context) * 5),
           _buildPrimaryButton(
             label: 'Volver al Inicio de Sesión',
             onPressed: () =>
                 Navigator.of(context).popUntil((route) => route.isFirst),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: Responsive.espacio(context) * 2),
         ],
       ),
     );
@@ -598,9 +599,9 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         filled: true,
         fillColor: const Color(0xFF191632),
         suffixIcon: suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 24,
-          vertical: 18,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: Responsive.paddingHorizontalRecomendado(context) / 1.5,
+          vertical: Responsive.espacio(context) * 1.5,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30),
@@ -625,7 +626,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: Responsive.altoBoton(context),
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -646,19 +647,19 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           child: isLoading
-              ? const SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(
+              ? SizedBox(
+                  width: Responsive.tamanioSubtitulo(context),
+                  height: Responsive.tamanioSubtitulo(context),
+                  child: const CircularProgressIndicator(
                     color: Colors.white,
                     strokeWidth: 2,
                   ),
                 )
               : Text(
                   label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
+                    fontSize: Responsive.tamanioTexto(context),
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1,
                   ),

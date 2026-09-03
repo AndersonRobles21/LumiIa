@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
+import '../utils/responsive.dart';
 
 const String kLumiAsset = 'logo/lumi_gamificacion.png';
 const String kRachaAsset = 'logo/racha.png';
@@ -570,7 +571,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   maxLines: 1,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
-                    fontSize: 12,
+                    fontSize: Responsive.tamanioTexto(context) - 2,
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -578,7 +579,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
                     value: (_xpActual / _xpSiguienteNivel).clamp(0.0, 1.0),
-                    minHeight: 6,
+                    minHeight: 8,
                     backgroundColor: Colors.white12,
                     valueColor: const AlwaysStoppedAnimation(Color(0xFFFFC24B)),
                   ),
@@ -590,7 +591,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   maxLines: 1,
                   style: TextStyle(
                     color: Colors.white.withOpacity(0.6),
-                    fontSize: 11,
+                      fontSize: Responsive.tamanioTexto(context) - 2,
                   ),
                 ),
               ],
@@ -842,11 +843,11 @@ class _GamificationScreenState extends State<GamificationScreen> {
       key: const PageStorageKey('gamification_grid'),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 4,
-        mainAxisSpacing: 18,
-        crossAxisSpacing: 10,
-        mainAxisExtent: 126,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: Responsive.esMovil(context) ? 3 : 4,
+        mainAxisSpacing: Responsive.esMovil(context) ? 14 : 18,
+        crossAxisSpacing: Responsive.esMovil(context) ? 12 : 10,
+        mainAxisExtent: Responsive.esMovil(context) ? 136 : 126,
       ),
       itemCount: _logros.length,
       itemBuilder: (context, index) {
@@ -881,7 +882,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 ),
                 child: _AssetOrFallback(
                   asset: l.iconAsset,
-                  size: 54,
+                  size: Responsive.esMovil(context) ? 58 : 54,
                   fallbackIcon: Icons.emoji_events,
                   fallbackColor: const Color(0xFFFFC24B),
                   dim: !l.desbloqueado,
@@ -898,7 +899,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: l.desbloqueado ? Colors.white : Colors.white38,
-                    fontSize: 10.2,
+                    fontSize: Responsive.esMovil(context) ? 11.5 : 11,
                     fontWeight: FontWeight.w600,
                     height: 1.15,
                   ),

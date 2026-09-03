@@ -17,9 +17,9 @@ if (Platform.isAndroid) return 'http://localhost:3000';
   }
 
   static String get baseUrl => '$_backendHost/api/auth';
-  static String get adminBaseUrl => '$_backendHost/api/admin';
   static String get tareasBaseUrl => '$_backendHost/api/tareas';
   static String get iaBaseUrl => '$_backendHost/api/ia';
+  static String get adminBaseUrl => '$_backendHost/api/admin';
   static String get progresoBaseUrl => '$_backendHost/api/progreso';
 
   static Future<List<dynamic>?> getPersonajes(String userId) async {
@@ -229,6 +229,157 @@ if (Platform.isAndroid) return 'http://localhost:3000';
     }
   }
 
+  static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
+    try {
+      final url = '$adminBaseUrl/summary/$userId';
+      print('Llamando a: $url');
+      
+      final response = await http.get(Uri.parse(url));
+      
+      print('Status: ${response.statusCode}');
+      print('Response body (primeros 200 chars): ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      
+      if (response.statusCode != 200) {
+        String mensaje = 'No se pudo cargar el resumen administrativo (${response.statusCode}).';
+        
+        // Intenta parsear como JSON solo si es probable que lo sea
+        if (response.body.isNotEmpty && response.body.trim().startsWith('{')) {
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && data['mensaje'] != null) {
+              mensaje = data['mensaje'].toString();
+            }
+          } catch (_) {
+            // Si no es JSON, usa el mensaje por defecto
+          }
+        }
+        throw Exception(mensaje);
+      }
+      
+      if (response.body.isEmpty) {
+        throw Exception('El servidor devolvió un resumen vacío.');
+      }
+      
+      // Validar que la respuesta sea JSON válido
+      if (!response.body.trim().startsWith('{')) {
+        throw Exception('La respuesta del servidor no es JSON válido. Revisa que el servidor esté corriendo en localhost:3000');
+      }
+      
+      final data = jsonDecode(response.body);
+      if (data is Map<String, dynamic>) return data;
+      throw Exception('El formato del resumen administrativo no es válido.');
+    } catch (e) {
+      print('Error en ApiService getAdminSummary: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<dynamic>> getAdminUsuarios(String userId, {String? order}) async {
+    try {
+      final uri = Uri.parse('$adminBaseUrl/usuarios/$userId').replace(queryParameters: order != null ? {'order': order} : null);
+      final response = await http.get(uri);
+      if (response.statusCode != 200 || response.body.isEmpty) return const [];
+      final data = jsonDecode(response.body);
+      if (data is Map && data['usuarios'] is List) return data['usuarios'] as List;
+      return const [];
+    } catch (e) {
+      print('Error en ApiService getAdminUsuarios: $e');
+      return const [];
+    }
+  }
+
+  static Future<List<dynamic>> getAdminAdministradores(String userId) async {
+    try {
+      final uri = Uri.parse('$adminBaseUrl/administradores/$userId');
+      final response = await http.get(uri);
+      if (response.statusCode != 200 || response.body.isEmpty) return const [];
+      final data = jsonDecode(response.body);
+      if (data is Map && data['usuarios'] is List) return data['usuarios'] as List;
+      return const [];
+    } catch (e) {
+      print('Error en ApiService getAdminAdministradores: $e');
+      return const [];
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getAdminUsuarioDetalle(String adminUserId, String targetUserId) async {
+    try {
+      final response = await http.get(Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId'));
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      final data = jsonDecode(response.body);
+      return data is Map<String, dynamic> ? data : null;
+    } catch (e) {
+      print('Error en ApiService getAdminUsuarioDetalle: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> updateAdminUserName({
+    required String adminUserId,
+    required String targetUserId,
+    required String nombre,
+    required String apellido,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId/nombre'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'nombre': nombre, 'apellido': apellido}),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService updateAdminUserName: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> deleteAdminUser({
+    required String adminUserId,
+    required String targetUserId,
+  }) async {
+    try {
+      final response = await http.delete(Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId'));
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService deleteAdminUser: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> promoteAdminUser({
+    required String adminUserId,
+    required String targetUserId,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId/promover'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService promoteAdminUser: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> delegateAdminUser({
+    required String adminUserId,
+    required String targetUserId,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$adminBaseUrl/usuarios/$adminUserId/$targetUserId/delegar'),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService delegateAdminUser: $e');
+      return false;
+    }
+  }
+
   static Future<bool> registrarRachaHoy(String userId) async {
     try {
       final response = await http.post(
@@ -239,114 +390,6 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       return response.statusCode == 200;
     } catch (e) {
       print('Error en ApiService registrarRachaHoy: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> adminCheck(String userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$adminBaseUrl/check'),
-        headers: {'x-user-id': userId},
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error en ApiService adminCheck: $e');
-      return false;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminOverview(String userId) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$adminBaseUrl/overview'),
-        headers: {'x-user-id': userId},
-      );
-
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      print('Error en ApiService adminOverview: $e');
-      return null;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminListUsers(
-    String userId, {
-    String? search,
-    int page = 1,
-    int limit = 25,
-  }) async {
-    try {
-      final uri = Uri.parse('$adminBaseUrl/users').replace(
-        queryParameters: {
-          if (search != null && search.isNotEmpty) 'search': search,
-          'page': page.toString(),
-          'limit': limit.toString(),
-        },
-      );
-
-      final response = await http.get(uri, headers: {'x-user-id': userId});
-
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      print('Error en ApiService adminListUsers: $e');
-      return null;
-    }
-  }
-
-  static Future<Map<String, dynamic>?> adminGetUser(
-    String userId,
-    String targetId,
-  ) async {
-    try {
-      final response = await http.get(
-        Uri.parse('$adminBaseUrl/users/$targetId'),
-        headers: {'x-user-id': userId},
-      );
-
-      if (response.statusCode != 200 || response.body.isEmpty) return null;
-      return jsonDecode(response.body);
-    } catch (e) {
-      print('Error en ApiService adminGetUser: $e');
-      return null;
-    }
-  }
-
-  static Future<bool> adminUpdateUser(
-    String userId,
-    String targetId,
-    Map<String, dynamic> payload,
-  ) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$adminBaseUrl/users/$targetId'),
-        headers: {
-          'x-user-id': userId,
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode(payload),
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error en ApiService adminUpdateUser: $e');
-      return false;
-    }
-  }
-
-  static Future<bool> adminDeleteUser(String userId, String targetId) async {
-    try {
-      final response = await http.delete(
-        Uri.parse('$adminBaseUrl/users/$targetId'),
-        headers: {'x-user-id': userId},
-      );
-
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error en ApiService adminDeleteUser: $e');
       return false;
     }
   }
@@ -458,6 +501,35 @@ if (Platform.isAndroid) return 'http://localhost:3000';
     }
   }
 
+  static Future<Map<String, dynamic>?> actualizarFechaEntrega({
+    required String tareaId,
+    required String userId,
+    required String fechaEntrega,
+    required String titulo,
+    required String descripcion,
+    required bool completada,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$tareasBaseUrl/$tareaId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'titulo': titulo,
+          'descripcion': descripcion,
+          'completada': completada,
+          'fecha_entrega': fechaEntrega,
+          'usuario_id': userId,
+        }),
+      );
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      final data = jsonDecode(response.body);
+      return data is Map<String, dynamic> ? data : null;
+    } catch (e) {
+      print('Error actualizarFechaEntrega: $e');
+      return null;
+    }
+  }
+
   static Future<bool> eliminarPlan(String planId) async {
     try {
       final response = await http.delete(
@@ -552,6 +624,7 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       return null;
     }
   }
+  
 
   static Future<Map<String, dynamic>?> getProgreso(String userId) async {
     try {
@@ -570,7 +643,41 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       return null;
     }
   }
+static Future<bool> actualizarFechaTarea(String id, String nuevaFecha) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$tareasBaseUrl/$id/fecha'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fecha_entrega': nuevaFecha}),
+      );
 
+      return response.statusCode == 200;
+    } catch (e) {
+      print('Error en ApiService actualizarFechaTarea: $e');
+      return false;
+    }
+  }
+
+ static Future<Map<String, dynamic>?> reajustarPlanIA({
+    required String planId,
+    required String nuevaFechaEntrega,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$iaBaseUrl/plan/$planId/reajustar-fecha'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fecha_entrega': nuevaFechaEntrega}),
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error en ApiService reajustarPlanIA: $e');
+      return null;
+    }
+  }
   static Future<bool> registrarSesionEstudio({
     required String userId,
     required String categoria,

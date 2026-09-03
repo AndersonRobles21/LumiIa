@@ -11,7 +11,7 @@ import horarios from "./rutas/horarios";
 import tareas from "./rutas/tareas.routes";
 import iaRoutes from "./rutas/ia.routes";
 import historialRoutes from "./rutas/historial.routes";
-import adminRoutes from "./rutas/adminRoutes";
+import adminRoutes from "./rutas/admin.routes";
 import progresoRoutes from "./rutas/progreso.routes";
 
 const app = express();

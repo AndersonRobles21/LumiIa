@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { generarPlanIA } from "../services/gemini.service";
+import { calcularCapacidadPlan } from "../services/disponibilidad.service";
 import { GEMINI_MODEL, gemini } from "../config/ia/gemini.config";
 
 export async function generarPlan(req: Request, res: Response) {
@@ -18,6 +19,14 @@ export async function generarPlan(req: Request, res: Response) {
 
     if (!usuario_id || !nombre || !fecha_entrega) {
       return res.status(400).json({ mensaje: "Faltan datos obligatorios." });
+    }
+
+    const fechaEntrega = new Date(`${fecha_entrega}T00:00:00`);
+    const hoyNormalizado = new Date();
+    hoyNormalizado.setHours(0, 0, 0, 0);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_entrega) ||
+        Number.isNaN(fechaEntrega.getTime()) || fechaEntrega < hoyNormalizado) {
+      return res.status(400).json({ mensaje: "La fecha de entrega debe ser válida y no puede estar en el pasado." });
     }
 
     const usuarioQuery = await client.query(
@@ -40,19 +49,8 @@ export async function generarPlan(req: Request, res: Response) {
       [usuario_id]
     );
 
-    let horasDisponibles = 0;
-    horariosQuery.rows.forEach((h: any) => {
-      const inicio = Number(h.hora_inicio.split(":")[0]);
-      const fin = Number(h.hora_fin.split(":")[0]);
-      horasDisponibles += fin - inicio;
-    });
-
-    if (horasDisponibles <= 0) horasDisponibles = 2;
-
-    const hoy = new Date();
-    const entrega = new Date(fecha_entrega);
-    const diasRestantes = Math.max(1, Math.ceil((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)));
-    const minutosDisponibles = diasRestantes * horasDisponibles * 60;
+    const capacidadInicial = calcularCapacidadPlan(fecha_entrega, horariosQuery.rows);
+    const { horasPorDia: horasDisponibles, diasRestantes, minutosDisponibles } = capacidadInicial;
 
 
     // Generar Plan con IA
@@ -71,6 +69,14 @@ export async function generarPlan(req: Request, res: Response) {
       minutosDisponibles,
       mensajeUsuario,
     });
+
+    const tiempoEstimado = Number(planIA.tiempo_estimado_total ?? 0);
+    const estadoDisponibilidad = calcularCapacidadPlan(
+      fecha_entrega,
+      horariosQuery.rows,
+      tiempoEstimado
+    ).estado;
+    const tiempoInsuficiente = estadoDisponibilidad !== "SUFICIENTE";
 
     await client.query("BEGIN");
 
@@ -131,6 +137,13 @@ export async function generarPlan(req: Request, res: Response) {
       ok: true,
       plan: respuestaFinal,
       plan_id: planId,
+      recomendacion_tiempo: tiempoInsuficiente
+        ? estadoDisponibilidad === "AJUSTADO"
+          ? "Tienes poco margen para completar esta tarea. El plan requerirá aprovechar casi todo tu tiempo disponible."
+          : "El tiempo disponible parece ser insuficiente para completar todo el contenido antes de la fecha de entrega. Te recomendamos aumentarlo si es posible."
+        : null,
+      estado_disponibilidad: estadoDisponibilidad,
+      minutos_disponibles: minutosDisponibles,
     });
 
   } catch (error: any) {
@@ -139,6 +152,80 @@ export async function generarPlan(req: Request, res: Response) {
     return res.status(500).json({ ok: false, mensaje: error.message });
   } finally {
     client.release();
+  }
+}
+
+// 📌 ENDPOINT PARA OBTENER EL DETALLE DE UN PLAN Y SU VALIDACIÓN DE TIEMPO
+export async function obtenerPlanPorId(req: Request, res: Response) {
+  const { planId } = req.params;
+
+  try {
+    const client = await pool.connect();
+    
+    const planRes = await client.query(
+      `SELECT pe.id, pe.usuario_id, pe.nombre, pe.descripcion, pe.estado, pe.creado_en AS created_at,
+              pi.proveedor_ia, pi.modelo_ia, pi.metodo_estudio, pi.justificacion, 
+              pi.tiempo_estimado_total, pi.consejos, pi.recursos, pi.resumen_final, 
+              pi.pasos, pi.conceptos_clave, pi.preguntas_recall
+       FROM planes_estudio pe
+       LEFT JOIN planes_ia pi ON pi.plan_id = pe.id
+       WHERE pe.id = $1`,
+      [planId]
+    );
+
+    if (planRes.rows.length === 0) {
+      client.release();
+      return res.status(404).json({ ok: false, mensaje: "Plan no encontrado." });
+    }
+
+    const planData = planRes.rows[0];
+    const usuario_id = planData.usuario_id;
+
+    // Rescatar la última fecha de entrega guardada en el historial
+    const historialRes = await client.query(
+      `SELECT (h.pregunta::json)->>'fecha_entrega' AS fecha_entrega 
+       FROM historial_ia h WHERE h.plan_id = $1 ORDER BY h.fecha DESC LIMIT 1`,
+      [planId]
+    );
+
+    let fechaEntrega = historialRes.rows.length > 0 ? historialRes.rows[0].fecha_entrega : null;
+    
+    // Si no hay fecha en el historial, usamos una por defecto o la actual + 5 días
+    if (!fechaEntrega) {
+      fechaEntrega = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    }
+
+    // Consultar horarios del usuario para recalcular capacidad
+    const horariosQuery = await client.query(
+      `SELECT dia, hora_inicio, hora_fin FROM horarios WHERE usuario_id = $1`,
+      [usuario_id]
+    );
+
+    client.release();
+
+    const tiempoEstimado = Number(planData.tiempo_estimado_total ?? 0);
+    const estadoDisponibilidad = calcularCapacidadPlan(
+      fechaEntrega,
+      horariosQuery.rows,
+      tiempoEstimado
+    ).estado;
+    const tiempoInsuficiente = estadoDisponibilidad !== "SUFICIENTE";
+
+    return res.status(200).json({
+      ok: true,
+      ...planData,
+      fecha_entrega: fechaEntrega,
+      recomendacion_tiempo: tiempoInsuficiente
+        ? estadoDisponibilidad === "AJUSTADO"
+          ? "Tienes poco margen para completar esta tarea. El plan requerirá aprovechar casi todo tu tiempo disponible."
+          : "El tiempo disponible parece ser insuficiente para completar todo el contenido antes de la fecha de entrega. Te recomendamos aumentarlo si es posible."
+        : null,
+      estado_disponibilidad: estadoDisponibilidad,
+    });
+
+  } catch (error: any) {
+    console.error("❌ Error en obtenerPlanPorId:", error);
+    return res.status(500).json({ ok: false, mensaje: error.message });
   }
 }
 
@@ -269,13 +356,13 @@ Devuelve la respuesta estrictamente en un objeto JSON con esta estructura exacta
   }
 }
 
-// 📌 ENDPOINT PARA REGENERAR EL PLAN Y SUS PASOS CON EL NUEVO MÉTODO SELECCIONADO
+// 📌 ENDPOINT PARA REGENERAR EL PLAN Y SUS PASOS CON EL NUEVO MÉTODO SELECCIONADO Y NUEVA FECHA
 export async function regenerarMetodoPlan(req: Request, res: Response) {
   const { planId } = req.params;
   let { metodo_estudio, usuario_id, nombre, descripcion, fecha_entrega, dificultad } = req.body;
 
   try {
-    console.log(`🔄 [REGENERAR] Plan ID: ${planId} | Nuevo método: ${metodo_estudio}`);
+    console.log(`🔄 [REGENERAR] Plan ID: ${planId} | Nuevo método: ${metodo_estudio} | Nueva fecha: ${fecha_entrega}`);
 
     const client = await pool.connect();
     let objetivoUsuario = "";
@@ -283,7 +370,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
     let nombreUsuario = "Estudiante";
 
     try {
-      // 1. Si Flutter no mandó el nombre o la descripción, los buscamos directamente de la BD usando el planId
+      // 1. Buscamos los datos actuales de la base de datos
       const planDbRes = await client.query(
         `SELECT pe.nombre, pe.descripcion, pe.usuario_id, pi.dificultad, pi.fecha_generacion 
          FROM planes_estudio pe 
@@ -298,7 +385,20 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
         descripcion = descripcion || planData.descripcion || "";
         usuario_id = usuario_id || planData.usuario_id;
         dificultad = dificultad || planData.dificultad || "Media";
-        fecha_entrega = fecha_entrega || new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString();
+        
+        // Si no mandaron fecha nueva, intentamos rescatar la última fecha registrada en el historial
+        if (!fecha_entrega) {
+          const historialRes = await client.query(
+            `SELECT (h.pregunta::json)->>'fecha_entrega' AS fecha_antigua 
+             FROM historial_ia h WHERE h.plan_id = $1 ORDER BY h.fecha DESC LIMIT 1`,
+            [planId]
+          );
+          if (historialRes.rows.length > 0 && historialRes.rows[0].fecha_antigua) {
+            fecha_entrega = historialRes.rows[0].fecha_antigua;
+          } else {
+            fecha_entrega = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+          }
+        }
       }
 
       // 2. Buscar datos del usuario y su perfil
@@ -324,14 +424,14 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       return res.status(400).json({ ok: false, mensaje: "El método de estudio es obligatorio." });
     }
 
-    // 3. Llamada obligatoria a la IA con el nuevo método forzado
+    // 3. Llamada obligatoria a la IA con los datos actualizados
     const planIA = await generarPlanIA({
       titulo: nombre,
       descripcion: descripcion,
       fechaEntrega: fecha_entrega,
-      metodoEstudio: metodo_estudio, // 👈 Aquí va explícitamente el nuevo método cambiado
+      metodoEstudio: metodo_estudio,
       dificultad: dificultad,
-      enfoqueAdicional: `ATENCIÓN CRÍTICA: El estudiante ha cambiado explícitamente el método de estudio de esta tarea al método "${metodo_estudio}". DEBES generar una estructura de pasos, subpasos, conceptos clave y preguntas de recall diseñadas EXCLUSIVAMENTE para la técnica "${metodo_estudio}". No repitas el método anterior.`,
+      enfoqueAdicional: `ATENCIÓN CRÍTICA: El estudiante ha cambiado explícitamente el método de estudio de esta tarea al método "${metodo_estudio}" y su nueva fecha límite es ${fecha_entrega}. DEBES generar una estructura de pasos ajustada a este tiempo.`,
       nombreUsuario: nombreUsuario,
       objetivo: objetivoUsuario,
       horasDisponibles: 4,
@@ -345,7 +445,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       throw new Error("El servicio de Gemini no devolvió datos para la regeneración.");
     }
 
-    // 4. Actualizar en la base de datos el método y los nuevos pasos generados por la IA
+    // 4. Actualizar en la base de datos el método y los pasos
     await pool.query(
       `UPDATE planes_ia 
        SET metodo_estudio = $1, 
@@ -373,19 +473,134 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       ]
     );
 
-const planActualizado = {
+    // 5. 🔑 IMPORTANTE: Insertamos un nuevo registro en historial_ia para que la nueva fecha quede guardada y el calendario la lea
+    await pool.query(
+      `INSERT INTO historial_ia (usuario_id, plan_id, pregunta, respuesta)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        usuario_id,
+        planId,
+        JSON.stringify({ nombre, descripcion, fecha_entrega, metodo_estudio, dificultad }),
+        JSON.stringify(planIA),
+      ]
+    );
+
+    const planActualizado = {
       id: planId,
       nombre: nombre,
       descripcion: descripcion,
+      fecha_entrega: fecha_entrega,
       ...planIA,
       metodo_estudio: metodo_estudio,
     };
 
-    console.log(`✅ [EXITO] Plan ${planId} actualizado correctamente al método: ${metodo_estudio}`);
+    console.log(`✅ [EXITO] Plan ${planId} actualizado al método ${metodo_estudio} y fecha ${fecha_entrega}`);
     return res.status(200).json(planActualizado);
 
   } catch (error: any) {
     console.error("❌ Error crítico en regenerarMetodoPlan:", error.message || error);
     return res.status(500).json({ ok: false, mensaje: error.message || "Error interno al regenerar el método." });
+  }
+}
+
+// 📌 ENDPOINT PARA REAJUSTAR SOLAMENTE LA FECHA DE ENTREGA DEL PLAN (MATEMÁTICAMENTE SIN USAR IA)
+export async function reajustarPlanIA(req: Request, res: Response) {
+  const { planId } = req.params;
+  const { fecha_entrega } = req.body;
+
+  try {
+    if (!fecha_entrega) {
+      return res.status(400).json({ ok: false, mensaje: "La nueva fecha de entrega es obligatoria." });
+    }
+
+    console.log(`📅 [REAJUSTAR FECHA MATEMÁTICO] Plan ID: ${planId} | Nueva fecha: ${fecha_entrega}`);
+
+    const client = await pool.connect();
+
+    try {
+      // 1. Buscamos los datos actuales del plan y sus pasos en la base de datos
+      const planDbRes = await client.query(
+        `SELECT pe.nombre, pe.descripcion, pe.usuario_id, pi.pasos 
+         FROM planes_estudio pe 
+         LEFT JOIN planes_ia pi ON pi.plan_id = pe.id 
+         WHERE pe.id = $1`,
+        [planId]
+      );
+
+      if (planDbRes.rows.length === 0) {
+        client.release();
+        return res.status(404).json({ ok: false, mensaje: "Plan no encontrado." });
+      }
+
+      const planData = planDbRes.rows[0];
+      const usuario_id = planData.usuario_id;
+      const nombre = planData.nombre || "Estudio";
+      const descripcion = planData.descripcion || "";
+      let pasos = planData.pasos || [];
+
+      // 2. Rescatar la última fecha de entrega anterior registrada en el historial para calcular la diferencia
+      const historialRes = await client.query(
+        `SELECT (h.pregunta::json)->>'fecha_entrega' AS fecha_antigua 
+         FROM historial_ia h WHERE h.plan_id = $1 ORDER BY h.fecha DESC LIMIT 1`,
+        [planId]
+      );
+
+      const fechaAntiguaStr = historialRes.rows.length > 0 ? historialRes.rows[0].fecha_antigua : null;
+
+      // 3. Desplazar las fechas de los pasos de forma matemática si existen fechas previas
+      if (fechaAntiguaStr && Array.isArray(pasos) && pasos.length > 0) {
+        const fechaAntigua = new Date(`${fechaAntiguaStr}T00:00:00`);
+        const fechaNueva = new Date(`${fecha_entrega}T00:00:00`);
+        
+        const diferenciaDias = Math.round((fechaNueva.getTime() - fechaAntigua.getTime()) / (1000 * 60 * 60 * 24));
+
+        pasos = pasos.map((paso: any) => {
+          if (paso.fecha) {
+            const fPaso = new Date(`${paso.fecha}T00:00:00`);
+            fPaso.setDate(fPaso.getDate() + diferenciaDias);
+            paso.fecha = fPaso.toISOString().split('T')[0];
+          }
+          return paso;
+        });
+      }
+
+      // 4. Actualizamos los pasos reajustados en planes_ia
+      await client.query(
+        `UPDATE planes_ia 
+         SET pasos = $1, actualizado_en = NOW() 
+         WHERE plan_id = $2`,
+        [JSON.stringify(pasos), planId]
+      );
+
+      // 5. Insertamos el registro en historial_ia para que el calendario detecte la nueva fecha al refrescar
+      await client.query(
+        `INSERT INTO historial_ia (usuario_id, plan_id, pregunta, respuesta)
+         VALUES ($1, $2, $3, $4)`,
+        [
+          usuario_id,
+          planId,
+          JSON.stringify({ nombre, descripcion, fecha_entrega }),
+          JSON.stringify({ mensaje: "Reajustado sin IA", pasos })
+        ]
+      );
+
+      client.release();
+
+      console.log(`✅ [EXITO] Fecha del plan ${planId} reajustada matemáticamente al ${fecha_entrega}`);
+      
+      return res.status(200).json({ 
+        ok: true, 
+        mensaje: "Fecha actualizada con éxito",
+        pasos: pasos
+      });
+
+    } catch (innerError: any) {
+      client.release();
+      throw innerError;
+    }
+
+  } catch (error: any) {
+    console.error("❌ Error crítico en reajustarPlanIA:", error.message || error);
+    return res.status(500).json({ ok: false, mensaje: error.message || "Error al reajustar la fecha." });
   }
 }

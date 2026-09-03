@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '/services/api_service.dart'; // Asegúrate de tener tu ApiService importado
 
 class FeynmanScreen extends StatefulWidget {
@@ -318,8 +319,8 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                 const SizedBox(width: 12),
                 Image.asset(
                   'logo/feyman.png',
-                  width: 90,
-                  height: 90,
+                  width: Responsive.esMovil(context) ? 72 : 90,
+                  height: Responsive.esMovil(context) ? 72 : 90,
                   errorBuilder: (_, __, ___) => const Icon(Icons.smart_toy, color: Color(0xFF00F0FF), size: 60),
                 ),
               ],
