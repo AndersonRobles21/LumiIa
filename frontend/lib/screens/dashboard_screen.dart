@@ -524,26 +524,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF100B2C),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFD942FF),
-                      ),
-                    )
-                  : RefreshIndicator(
-                      color: const Color(0xFFD942FF),
-                      onRefresh: _loadDashboardData,
-                      child: _buildDashboard(),
-                    ),
-            ),
-            _buildBottomNavigation(),
-          ],
-        ),
+        child: Responsive.esEscritorio(context)
+            ? Row(
+                children: [
+                  _buildBottomNavigation(),
+                  Expanded(child: _buildMainContent()),
+                ],
+              )
+            : Column(
+                children: [
+                  Expanded(child: _buildMainContent()),
+                  _buildBottomNavigation(),
+                ],
+              ),
       ),
     );
+  }
+
+  Widget _buildMainContent() {
+    return isLoading
+        ? const Center(
+            child: CircularProgressIndicator(color: Color(0xFFD942FF)),
+          )
+        : RefreshIndicator(
+            color: const Color(0xFFD942FF),
+            onRefresh: _loadDashboardData,
+            child: _buildDashboard(),
+          );
   }
 
   Widget _buildDashboard() {

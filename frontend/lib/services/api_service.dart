@@ -466,6 +466,35 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> actualizarFechaEntrega({
+    required String tareaId,
+    required String userId,
+    required String fechaEntrega,
+    required String titulo,
+    required String descripcion,
+    required bool completada,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$tareasBaseUrl/$tareaId'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'titulo': titulo,
+          'descripcion': descripcion,
+          'completada': completada,
+          'fecha_entrega': fechaEntrega,
+          'usuario_id': userId,
+        }),
+      );
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      final data = jsonDecode(response.body);
+      return data is Map<String, dynamic> ? data : null;
+    } catch (e) {
+      print('Error actualizarFechaEntrega: $e');
+      return null;
+    }
+  }
+
   static Future<bool> eliminarPlan(String planId) async {
     try {
       final response = await http.delete(

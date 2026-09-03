@@ -1,5 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
+import { generarPlanIA } from "../services/gemini.service";
+import { calcularCapacidadPlan } from "../services/disponibilidad.service";
 
 const UUID_REGEX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
 
@@ -18,6 +20,7 @@ function obtenerParametroUnico(valor: string | string[] | undefined): string {
 function mapTareaRow(row: any) {
   return {
     id: row.id,
+    actividad_id: row.actividad_id ?? null,
     nombre: row.nombre ?? row.titulo ?? "",
     descripcion: row.descripcion ?? "",
     estado: row.estado ?? (row.completada ? "COMPLETADA" : "PENDIENTE"),
@@ -71,6 +74,15 @@ export function normalizarTareaPayload(payload: Record<string, any>) {
   const usuarioId = typeof payload.usuario_id === "string" && payload.usuario_id.trim() !== ""
     ? payload.usuario_id.trim()
     : null;
+  const fechaEntrega = payload.fecha_entrega == null
+    ? null
+    : typeof payload.fecha_entrega === "string" && /^\d{4}-\d{2}-\d{2}$/.test(payload.fecha_entrega)
+      ? payload.fecha_entrega
+      : undefined;
+
+  if (fechaEntrega === undefined) {
+    return { error: "El campo 'fecha_entrega' debe tener formato YYYY-MM-DD." };
+  }
 
   return {
     titulo,
@@ -79,6 +91,7 @@ export function normalizarTareaPayload(payload: Record<string, any>) {
     completada,
     actividad_id: actividadId,
     usuario_id: usuarioId,
+    fecha_entrega: fechaEntrega,
   };
 }
 
@@ -134,6 +147,18 @@ export async function crearTarea(req: Request, res: Response): Promise<any> {
         ok: false,
         mensaje: payload.error,
       });
+    }
+
+    if (payload.fecha_entrega) {
+      const fechaEntrega = new Date(`${payload.fecha_entrega}T00:00:00`);
+      const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
+      if (Number.isNaN(fechaEntrega.getTime()) || fechaEntrega < hoy) {
+        return res.status(400).json({
+          ok: false,
+          mensaje: "La fecha de entrega debe ser válida y no puede estar en el pasado.",
+        });
+      }
     }
 
     const usuarioIdParam = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
@@ -211,6 +236,7 @@ export async function obtenerTareasPorUsuario(
       `
       SELECT
         t.id,
+        t.actividad_id,
         t.titulo AS nombre,
         t.descripcion,
         CASE
@@ -261,6 +287,7 @@ export async function obtenerTareaPorId(
       `
       SELECT
         t.id,
+        t.actividad_id,
         t.titulo AS nombre,
         t.descripcion,
         CASE
@@ -321,7 +348,105 @@ export async function actualizarTarea(
       });
     }
 
-    const resultado = await pool.query(
+    const contexto = await pool.query(
+      `
+      SELECT t.id, t.actividad_id, a.plan_id, a.fecha,
+             p.usuario_id, p.nombre, p.descripcion,
+             u.nombre AS nombre_usuario, pe.objetivo, pe.nivel_procrastinacion,
+             pia.metodo_estudio, pia.dificultad, pia.pasos,
+             pia.enfoque_adicional
+      FROM tareas t
+      LEFT JOIN actividades a ON a.id = t.actividad_id
+      LEFT JOIN planes_estudio p ON p.id = a.plan_id
+      LEFT JOIN usuarios u ON u.id = p.usuario_id
+      LEFT JOIN perfiles_estudio pe ON pe.usuario_id = p.usuario_id
+      LEFT JOIN planes_ia pia ON pia.plan_id = p.id
+      WHERE t.id = $1
+      `,
+      [tareaId]
+    );
+
+    if (contexto.rowCount === 0) {
+      return res.status(404).json({ ok: false, mensaje: "Tarea no encontrada." });
+    }
+
+    const actual = contexto.rows[0];
+    if (payload.fecha_entrega && payload.usuario_id !== actual.usuario_id) {
+      return res.status(403).json({
+        ok: false,
+        mensaje: "No tienes permiso para modificar esta tarea.",
+      });
+    }
+    let planRegenerado: any = null;
+
+    if (payload.fecha_entrega && actual.plan_id && actual.usuario_id) {
+      const horarios = await pool.query(
+        `SELECT hora_inicio, hora_fin FROM horarios WHERE usuario_id = $1`,
+        [actual.usuario_id]
+      );
+      const capacidad = calcularCapacidadPlan(payload.fecha_entrega, horarios.rows);
+      const { horasPorDia: horasDisponibles, diasRestantes, minutosDisponibles } = capacidad;
+      const pasosAnteriores = typeof actual.pasos === "string"
+        ? JSON.parse(actual.pasos)
+        : (actual.pasos ?? []);
+
+      planRegenerado = await generarPlanIA({
+        titulo: actual.nombre,
+        descripcion: actual.descripcion ?? "",
+        fechaEntrega: payload.fecha_entrega,
+        metodoEstudio: actual.metodo_estudio ?? "Auto",
+        dificultad: actual.dificultad ?? "Media",
+        enfoqueAdicional: "Reorganiza la planificación para la nueva fecha de entrega, manteniendo el método de estudio seleccionado.",
+        nombreUsuario: actual.nombre_usuario ?? "Estudiante",
+        objetivo: actual.objetivo ?? "",
+        horasDisponibles,
+        nivelProcrastinacion: actual.nivel_procrastinacion ?? 3,
+        diasRestantes,
+        minutosDisponibles,
+        mensajeUsuario: "",
+      });
+
+      const progresoPorId = new Map<string, boolean>();
+      for (const paso of Array.isArray(pasosAnteriores) ? pasosAnteriores : []) {
+        for (const subpaso of paso?.subpasos ?? []) {
+          if (subpaso?.id != null) progresoPorId.set(String(subpaso.id), subpaso.completado === true);
+        }
+      }
+      for (const paso of Array.isArray(planRegenerado.pasos) ? planRegenerado.pasos : []) {
+        for (const subpaso of paso?.subpasos ?? []) {
+          if (progresoPorId.has(String(subpaso.id))) {
+            subpaso.completado = progresoPorId.get(String(subpaso.id));
+          }
+        }
+      }
+    }
+
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      if (payload.fecha_entrega && actual.actividad_id) {
+        await client.query("UPDATE actividades SET fecha = $1 WHERE id = $2", [payload.fecha_entrega, actual.actividad_id]);
+      }
+      if (planRegenerado && actual.plan_id) {
+        await client.query(
+          `UPDATE planes_ia SET metodo_estudio = $1, justificacion = $2,
+             tiempo_estimado_total = $3, consejos = $4, recursos = $5,
+             resumen_final = $6, pasos = $7, conceptos_clave = $8,
+             preguntas_recall = $9, actualizado_en = NOW() WHERE plan_id = $10`,
+          [actual.metodo_estudio ?? planRegenerado.metodo_estudio, planRegenerado.justificacion ?? "",
+            planRegenerado.tiempo_estimado_total, JSON.stringify(planRegenerado.consejos ?? []),
+            JSON.stringify(planRegenerado.recursos ?? []), planRegenerado.resumen_final ?? "",
+            JSON.stringify(planRegenerado.pasos ?? []), JSON.stringify(planRegenerado.conceptos_clave ?? []),
+            JSON.stringify(planRegenerado.preguntas_recall ?? []), actual.plan_id]
+        );
+        await client.query(
+          `INSERT INTO historial_ia (usuario_id, plan_id, pregunta, respuesta)
+           VALUES ($1, $2, $3, $4)`,
+          [actual.usuario_id, actual.plan_id, JSON.stringify({ nombre: actual.nombre, descripcion: actual.descripcion, fecha_entrega: payload.fecha_entrega, metodo_estudio: actual.metodo_estudio }), JSON.stringify(planRegenerado)]
+        );
+      }
+
+      const resultado = await client.query(
       `
       UPDATE tareas
       SET
@@ -332,24 +457,21 @@ export async function actualizarTarea(
       RETURNING id, titulo, descripcion, completada
       `,
       [payload.titulo, payload.descripcion, payload.completada, tareaId]
-    );
+      );
 
-    if (resultado.rowCount === 0) {
-      return res.status(404).json({
-        ok: false,
-        mensaje: "Tarea no encontrada.",
+      await client.query("COMMIT");
+
+      return res.status(200).json({
+        ok: true,
+        mensaje: planRegenerado ? "Tarea y planificación reorganizadas correctamente." : "Tarea actualizada correctamente.",
+        tarea: mapTareaRow({ ...resultado.rows[0], actividad_id: actual.actividad_id, fecha_entrega: payload.fecha_entrega ?? actual.fecha }),
       });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-
-    return res.status(200).json({
-      ok: true,
-      mensaje: "Tarea actualizada correctamente.",
-      tarea: mapTareaRow({
-        ...resultado.rows[0],
-        estado: payload.estado,
-        fecha_creacion: new Date().toISOString(),
-      }),
-    });
   } catch (error: any) {
     console.error("❌ Error en actualizarTarea:", error);
 

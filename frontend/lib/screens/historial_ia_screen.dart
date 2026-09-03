@@ -170,7 +170,13 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
       ),
       body: Stack(
         children: [
-          RefreshIndicator(
+          Padding(
+            padding: EdgeInsets.only(
+              left: Responsive.esEscritorio(context)
+                  ? Responsive.anchoSidebar(context)
+                  : 0,
+            ),
+            child: RefreshIndicator(
             color: const Color(0xFF00F0FF),
             onRefresh: _cargarHistorial,
             child: SingleChildScrollView(
@@ -347,18 +353,9 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                 ],
               ),
             ),
-          ),
-          Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 8),
-              child: AppBottomNavbar(
-              userId: widget.userId,
-              currentIndex: 2,
-              ),
             ),
-        ),
+          ),
+          AppBottomNavbar(userId: widget.userId, currentIndex: 2),
         ],
       ),
     );

@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { generarPlanIA } from "../services/gemini.service";
+import { calcularCapacidadPlan } from "../services/disponibilidad.service";
 import { GEMINI_MODEL, gemini } from "../config/ia/gemini.config";
 
 export async function generarPlan(req: Request, res: Response) {
@@ -18,6 +19,14 @@ export async function generarPlan(req: Request, res: Response) {
 
     if (!usuario_id || !nombre || !fecha_entrega) {
       return res.status(400).json({ mensaje: "Faltan datos obligatorios." });
+    }
+
+    const fechaEntrega = new Date(`${fecha_entrega}T00:00:00`);
+    const hoyNormalizado = new Date();
+    hoyNormalizado.setHours(0, 0, 0, 0);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha_entrega) ||
+        Number.isNaN(fechaEntrega.getTime()) || fechaEntrega < hoyNormalizado) {
+      return res.status(400).json({ mensaje: "La fecha de entrega debe ser válida y no puede estar en el pasado." });
     }
 
     const usuarioQuery = await client.query(
@@ -40,19 +49,8 @@ export async function generarPlan(req: Request, res: Response) {
       [usuario_id]
     );
 
-    let horasDisponibles = 0;
-    horariosQuery.rows.forEach((h: any) => {
-      const inicio = Number(h.hora_inicio.split(":")[0]);
-      const fin = Number(h.hora_fin.split(":")[0]);
-      horasDisponibles += fin - inicio;
-    });
-
-    if (horasDisponibles <= 0) horasDisponibles = 2;
-
-    const hoy = new Date();
-    const entrega = new Date(fecha_entrega);
-    const diasRestantes = Math.max(1, Math.ceil((entrega.getTime() - hoy.getTime()) / (1000 * 60 * 60 * 24)));
-    const minutosDisponibles = diasRestantes * horasDisponibles * 60;
+    const capacidadInicial = calcularCapacidadPlan(fecha_entrega, horariosQuery.rows);
+    const { horasPorDia: horasDisponibles, diasRestantes, minutosDisponibles } = capacidadInicial;
 
 
     // Generar Plan con IA
@@ -71,6 +69,14 @@ export async function generarPlan(req: Request, res: Response) {
       minutosDisponibles,
       mensajeUsuario,
     });
+
+    const tiempoEstimado = Number(planIA.tiempo_estimado_total ?? 0);
+    const estadoDisponibilidad = calcularCapacidadPlan(
+      fecha_entrega,
+      horariosQuery.rows,
+      tiempoEstimado
+    ).estado;
+    const tiempoInsuficiente = estadoDisponibilidad !== "SUFICIENTE";
 
     await client.query("BEGIN");
 
@@ -131,6 +137,13 @@ export async function generarPlan(req: Request, res: Response) {
       ok: true,
       plan: respuestaFinal,
       plan_id: planId,
+      recomendacion_tiempo: tiempoInsuficiente
+        ? estadoDisponibilidad === "AJUSTADO"
+          ? "Tienes poco margen para completar esta tarea. El plan requerirá aprovechar casi todo tu tiempo disponible."
+          : "El tiempo disponible parece ser insuficiente para completar todo el contenido antes de la fecha de entrega. Te recomendamos aumentarlo si es posible."
+        : null,
+      estado_disponibilidad: estadoDisponibilidad,
+      minutos_disponibles: minutosDisponibles,
     });
 
   } catch (error: any) {
@@ -281,6 +294,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
     let objetivoUsuario = "";
     let procrastinacion = 3;
     let nombreUsuario = "Estudiante";
+    let horasDisponibles = 0;
 
     try {
       // 1. Si Flutter no mandó el nombre o la descripción, los buscamos directamente de la BD usando el planId
@@ -304,7 +318,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       // 2. Buscar datos del usuario y su perfil
       if (usuario_id) {
         const userRes = await client.query(
-          `SELECT u.nombre, p.objetivo, p.nivel_procrastinacion 
+          `SELECT u.nombre, p.objetivo, p.nivel_procrastinacion
            FROM usuarios u 
            LEFT JOIN perfiles_estudio p ON p.usuario_id = u.id 
            WHERE u.id = $1`,
@@ -314,6 +328,20 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
           nombreUsuario = userRes.rows[0].nombre || "Estudiante";
           objetivoUsuario = userRes.rows[0].objetivo || "";
           procrastinacion = userRes.rows[0].nivel_procrastinacion || 3;
+          const horariosRes = await client.query(
+            `SELECT hora_inicio, hora_fin FROM horarios WHERE usuario_id = $1`,
+            [usuario_id]
+          );
+          const minutosHorarios = horariosRes.rows.reduce((total: number, horario: any) => {
+            const inicio = String(horario.hora_inicio).split(":");
+            const fin = String(horario.hora_fin).split(":");
+            return total + Math.max(
+              0,
+              (Number(fin[0]) * 60 + Number(fin[1] ?? 0)) -
+                (Number(inicio[0]) * 60 + Number(inicio[1] ?? 0))
+            );
+          }, 0);
+          if (minutosHorarios > 0) horasDisponibles = minutosHorarios / 60;
         }
       }
     } finally {
@@ -323,6 +351,17 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
     if (!metodo_estudio) {
       return res.status(400).json({ ok: false, mensaje: "El método de estudio es obligatorio." });
     }
+
+    if (horasDisponibles <= 0) horasDisponibles = 2;
+    const entrega = new Date(fecha_entrega);
+    const diasRestantes = Math.max(
+      1,
+      Math.ceil((entrega.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+    );
+    const minutosDisponibles = Math.max(
+      15,
+      Math.floor(diasRestantes * horasDisponibles * 60)
+    );
 
     // 3. Llamada obligatoria a la IA con el nuevo método forzado
     const planIA = await generarPlanIA({
@@ -334,10 +373,10 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       enfoqueAdicional: `ATENCIÓN CRÍTICA: El estudiante ha cambiado explícitamente el método de estudio de esta tarea al método "${metodo_estudio}". DEBES generar una estructura de pasos, subpasos, conceptos clave y preguntas de recall diseñadas EXCLUSIVAMENTE para la técnica "${metodo_estudio}". No repitas el método anterior.`,
       nombreUsuario: nombreUsuario,
       objetivo: objetivoUsuario,
-      horasDisponibles: 4,
+      horasDisponibles,
       nivelProcrastinacion: procrastinacion,
-      diasRestantes: 5,
-      minutosDisponibles: 1200,
+      diasRestantes,
+      minutosDisponibles,
       mensajeUsuario: "",
     });
 

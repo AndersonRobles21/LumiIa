@@ -4,6 +4,8 @@ import '/services/api_service.dart';
 import 'gamification_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
+import '../utils/responsive.dart';
 
 const String kLumiBannerAsset = 'logo/lumi_gamificacion.png';
 
@@ -156,6 +158,51 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     _seleccionarDiaInicial();
+  }
+
+  Future<void> _cambiarFechaTarea(Map<dynamic, dynamic> tarea) async {
+    final tareaId = tarea['id']?.toString();
+    if (tareaId == null || tarea['actividad_id'] == null) return;
+    final actual = _parsearFecha(tarea['fecha_entrega'] ?? tarea['fecha']);
+    final hoy = DateTime.now();
+    final hoyNormalizado = DateTime(hoy.year, hoy.month, hoy.day);
+    final nuevaFecha = await showDatePicker(
+      context: context,
+      initialDate: actual != null && !actual.isBefore(hoyNormalizado)
+          ? actual
+          : hoyNormalizado,
+      firstDate: hoyNormalizado,
+      lastDate: DateTime(2100),
+    );
+    if (nuevaFecha == null || !mounted) return;
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('¿Cambiar fecha de entrega?'),
+        content: const Text('Se reorganizará tu planificación para adaptarse a la nueva fecha.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Continuar')),
+        ],
+      ),
+    );
+    if (confirmar != true || !mounted) return;
+    setState(() => _isLoading = true);
+    final respuesta = await ApiService.actualizarFechaEntrega(
+      tareaId: tareaId,
+      userId: widget.userId,
+      fechaEntrega: DateFormat('yyyy-MM-dd').format(nuevaFecha),
+      titulo: (tarea['nombre'] ?? tarea['titulo'] ?? '').toString(),
+      descripcion: (tarea['descripcion'] ?? '').toString(),
+      completada: tarea['completada'] == true,
+    );
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(respuesta == null ? 'No se pudo reorganizar la planificación.' : 'Planificación actualizada.'),
+      backgroundColor: respuesta == null ? Colors.red.shade700 : const Color(0xFF3DDC84),
+    ));
+    if (respuesta != null) await _cargarTareas();
   }
 
   Future<List<dynamic>> _completarFechasHistorial(
@@ -500,8 +547,14 @@ class _CalendarScreenState extends State<CalendarScreen> {
         ),
         child: Stack(
           children: [
-            SafeArea(
-              child: RefreshIndicator(
+            Padding(
+              padding: EdgeInsets.only(
+                left: Responsive.esEscritorio(context)
+                    ? Responsive.anchoSidebar(context)
+                    : 0,
+              ),
+              child: SafeArea(
+                child: RefreshIndicator(
                 color: const Color(0xFF9D4EDD),
                 backgroundColor: const Color(0xFF13092A),
                 onRefresh: _cargarTareas,
@@ -882,6 +935,16 @@ todayDecoration: BoxDecoration(
                                                 Icons.check_circle,
                                                 color: Color(0xFF3DDC84),
                                                 size: 22,
+                                              )
+                                            else if (map['actividad_id'] != null)
+                                              IconButton(
+                                                tooltip: 'Cambiar fecha de entrega',
+                                                onPressed: () => _cambiarFechaTarea(map),
+                                                icon: const Icon(
+                                                  Icons.edit_calendar_outlined,
+                                                  color: Colors.white54,
+                                                  size: 20,
+                                                ),
                                               ),
                                           ],
                                         ),
@@ -930,19 +993,10 @@ todayDecoration: BoxDecoration(
                     ],
                   ),
                 ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-                top: false,
-                minimum: const EdgeInsets.only(bottom: 8),
-                child: AppBottomNavbar(
-                  userId: widget.userId,
-                  currentIndex: 1,
                 ),
               ),
             ),
+            AppBottomNavbar(userId: widget.userId, currentIndex: 1),
           ],
         ),
       ),

@@ -37,6 +37,10 @@ class Responsive {
     return anchoPantalla(context) - paddingHorizontalRecomendado(context) * 2;
   }
 
+  static double anchoSidebar(BuildContext context) {
+    return (anchoPantalla(context) * 0.18).clamp(200.0, 260.0);
+  }
+
   // Tamaño de botones
   static double anchoBoton(BuildContext context) {
     if (esMovil(context)) return anchoPantalla(context) - paddingHorizontalRecomendado(context) * 2;
