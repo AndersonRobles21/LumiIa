@@ -78,6 +78,18 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
     if (!mounted) return;
 
     if (resultado != null && resultado['plan'] != null) {
+      final recomendacion = resultado['recomendacion_tiempo']?.toString();
+      if (recomendacion != null && recomendacion.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(recomendacion),
+            backgroundColor: Colors.red.shade700,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 250));
+      }
+
       await Navigator.push(
         context,
         MaterialPageRoute(

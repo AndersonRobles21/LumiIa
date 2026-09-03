@@ -303,20 +303,29 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
             // 🖼️ IMAGEN INFERIOR
             Center(
-              child: Image.asset(
-                'logo/pomodoro.png',
-                width: double.infinity,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B163B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    '⚡ ¿Cómo funciona?\n25 min estudio • 5 min descanso • Repite 4 ciclos',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                    textAlign: TextAlign.center,
+              child: FractionallySizedBox(
+                widthFactor: Responsive.esMovil(context)
+                    ? 0.9
+                    : Responsive.esTablet(context)
+                        ? 0.7
+                        : 0.55,
+                child: AspectRatio(
+                  aspectRatio: 1.8,
+                  child: Image.asset(
+                    'logo/pomodoro.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B163B),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '⚡ ¿Cómo funciona?\n25 min estudio • 5 min descanso • Repite 4 ciclos',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ),
               ),

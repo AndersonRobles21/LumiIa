@@ -122,6 +122,68 @@ class _ProfileScreenState extends State<ProfileScreen>
     return false;
   }
 
+  int _minutosDisponiblesSemanales() {
+    var minutosTotales = 0;
+    for (final horariosDelDia in _scheduleData) {
+      for (final rango in horariosDelDia) {
+        final partes = rango.split(' - ');
+        if (partes.length != 2) continue;
+        final inicio = _convertTimeToMinutes(partes[0].trim(), context);
+        final fin = _convertTimeToMinutes(partes[1].trim(), context);
+        if (fin > inicio) minutosTotales += fin - inicio;
+      }
+    }
+    return minutosTotales;
+  }
+
+  Widget _buildWeeklyAvailabilitySummary() {
+    final minutosTotales = _minutosDisponiblesSemanales();
+    final horas = minutosTotales ~/ 60;
+    final minutos = minutosTotales % 60;
+    final detalle = minutosTotales == 0
+        ? tr('Aún no has agregado bloques de estudio.', 'No study blocks added yet.')
+        : minutos == 0
+            ? tr('$horas h disponibles aproximadamente esta semana', '$horas h available approximately this week')
+            : tr('$horas h $minutos min disponibles aproximadamente esta semana', '$horas h $minutos min available approximately this week');
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF211A42),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF6D43D9).withValues(alpha: 0.7)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule, color: Color(0xFFFF44AA), size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('Tu disponibilidad semanal', 'Your weekly availability'),
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  detalle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _configurarTiemposMultiples(int dayIndex) async {
     await showDialog(
       context: context,
@@ -649,6 +711,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
     setState(() => _isLoading = true);
     final horarioParaBackend = <Map<String, String>>[];
+    final minutosDisponibles = _minutosDisponiblesSemanales();
     const nombresDias = [
       'lunes',
       'martes',
@@ -679,7 +742,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       userId: _userId,
       nombre: _nameController.text.trim(),
       apellido: _apellidoController.text.trim(),
-      horasDisponibles: 10,
+      horasDisponibles: (minutosDisponibles / 60).ceil(),
       objetivo: _objetivoController.text.trim(),
       nivelProcrastinacion: _nivelProcrastinacion,
       fotoPerfil: _base64Image,
@@ -689,8 +752,12 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (resultado != null) {
       _showSnackBar(
         tr(
-          '¡Perfil y hábitos guardados correctamente!',
-          'Profile and habits saved successfully!',
+          resultado['reajuste_en_proceso'] == true
+              ? 'Perfil guardado. Actualizando tus planes según tu nuevo horario...'
+              : '¡Perfil y hábitos guardados correctamente!',
+          resultado['reajuste_en_proceso'] == true
+              ? 'Profile saved. Updating your plans for your new schedule...'
+              : 'Profile and habits saved successfully!',
         ),
       );
     } else {
@@ -727,7 +794,13 @@ class _ProfileScreenState extends State<ProfileScreen>
         child: SafeArea(
           child: Stack(
             children: [
-              _isLoading
+              Padding(
+                padding: EdgeInsets.only(
+                  left: Responsive.esEscritorio(context)
+                      ? Responsive.anchoSidebar(context)
+                      : 0,
+                ),
+                child: _isLoading
                   ? const Center(
                       child: CircularProgressIndicator(
                         color: Color(0xFFCC00CC),
@@ -838,6 +911,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
                                                 SizedBox(height: Responsive.espacio(ctx) * 1.5),
 
+                                                _buildWeeklyAvailabilitySummary(),
                                                 Text(
                                                   '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
                                                   style: TextStyle(
@@ -971,6 +1045,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         ),
 
                                         SizedBox(height: Responsive.espacio(ctx) * 1.5),
+                                        _buildWeeklyAvailabilitySummary(),
                                         Text(
                                           tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
                                           style: TextStyle(
@@ -1014,6 +1089,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         ),
                       ],
                     ),
+                  ),
               AppBottomNavbar(userId: _userId, currentIndex: 4),
             ],
           ),

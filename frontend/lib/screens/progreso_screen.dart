@@ -290,7 +290,13 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         child: SafeArea(
           child: Stack(
             children: [
-              RefreshIndicator(
+              Padding(
+                padding: EdgeInsets.only(
+                  left: Responsive.esEscritorio(context)
+                      ? Responsive.anchoSidebar(context)
+                      : 0,
+                ),
+                child: RefreshIndicator(
                 color: const Color(0xFF8B6BFF),
                 backgroundColor: const Color(0xFF141038),
                 onRefresh: _cargarDatos,
@@ -319,6 +325,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                           _buildDistribucionCard(),
                         ],
                       ),
+                ),
               ),
               AppBottomNavbar(userId: widget.userId, currentIndex: 3),
             ],
