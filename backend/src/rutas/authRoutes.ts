@@ -3,6 +3,104 @@
   import { pool } from "../config/db";
 
   const router = Router();
+
+  function contarLogros(tareas: number, racha: number, planes: number, horas: number) {
+    let count = 0;
+    if (tareas >= 1) count++;
+    if (tareas >= 5) count++;
+    if (planes >= 1) count += 2;
+    if (tareas >= 1 || horas >= 1) count++;
+    if (racha >= 3) count++;
+    if (racha >= 10) count++;
+    if (racha >= 30) count++;
+    if (tareas >= 2 || horas >= 1) count++;
+    if (horas >= 1 || tareas >= 2) count++;
+    if (tareas >= 8) count++;
+    if (tareas >= 10) count++;
+    if (tareas >= 15) count++;
+    if (planes >= 2) count++;
+    if (tareas >= 20) count++;
+    if (count >= 10) count++;
+    return count;
+  }
+
+  router.get("/personajes/:userId", async (req: Request, res: Response): Promise<any> => {
+    try {
+      const result = await pool.query(
+        "SELECT personaje, costo_xp, fecha_compra FROM personajes_usuario WHERE usuario_id = $1 ORDER BY personaje",
+        [req.params.userId],
+      );
+      return res.status(200).json({ personajes: result.rows });
+    } catch (error) {
+      console.error("Error obteniendo personajes:", error);
+      return res.status(500).json({ mensaje: "Error al obtener personajes" });
+    }
+  });
+
+  router.post("/personajes/:userId/comprar", async (req: Request, res: Response): Promise<any> => {
+    const client = await pool.connect();
+    try {
+      const userId = req.params.userId;
+      const personaje = Number(req.body.personaje);
+      if (!Number.isInteger(personaje) || personaje < 1 || personaje > 18) {
+        return res.status(400).json({ mensaje: "Personaje inválido" });
+      }
+
+      const costo = personaje * 25;
+      await client.query("BEGIN");
+      const statsResult = await client.query(
+        "SELECT tareas_completadas, racha, horas_estudio FROM estadisticas WHERE usuario_id = $1 FOR UPDATE",
+        [userId],
+      );
+      const stats = statsResult.rows[0] || {};
+      const tasks = Number(stats.tareas_completadas) || 0;
+      const streak = Number(stats.racha) || 0;
+      const hours = Number(stats.horas_estudio) || 0;
+      const plansResult = await client.query(
+        "SELECT COUNT(*)::int AS total FROM historial_ia WHERE usuario_id = $1",
+        [userId],
+      );
+      const plans = Number(plansResult.rows[0]?.total) || 0;
+      const xpGanado = tasks * 20 + streak * 15 + plans * 25 +
+        contarLogros(tasks, streak, plans, hours) * 35;
+      const purchasedResult = await client.query(
+        "SELECT personaje, costo_xp FROM personajes_usuario WHERE usuario_id = $1 FOR UPDATE",
+        [userId],
+      );
+      const alreadyOwned = purchasedResult.rows.some((row) => Number(row.personaje) === personaje);
+      const spent = purchasedResult.rows.reduce((sum, row) => sum + Number(row.costo_xp), 0);
+
+      if (alreadyOwned) {
+        await client.query("COMMIT");
+        return res.status(200).json({ ok: true, comprado: true, xp_disponible: xpGanado - spent });
+      }
+      if (xpGanado - spent < costo) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({ mensaje: "No tienes XP suficiente", xp_disponible: xpGanado - spent });
+      }
+
+      await client.query(
+        "INSERT INTO personajes_usuario (usuario_id, personaje, costo_xp) VALUES ($1, $2, $3)",
+        [userId, personaje, costo],
+      );
+      await client.query(
+        "UPDATE perfiles_estudio SET foto_perfil = $1 WHERE usuario_id = $2",
+        [`asset:logo/personajes/personaje${personaje}.png`, userId],
+      );
+      await client.query("COMMIT");
+      return res.status(201).json({
+        ok: true,
+        comprado: true,
+        xp_disponible: xpGanado - spent - costo,
+      });
+    } catch (error) {
+      await client.query("ROLLBACK");
+      console.error("Error comprando personaje:", error);
+      return res.status(500).json({ mensaje: "Error al comprar personaje" });
+    } finally {
+      client.release();
+    }
+  });
   /*
   ============================================================
   REGISTRO

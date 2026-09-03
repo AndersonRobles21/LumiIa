@@ -64,6 +64,16 @@ export async function actualizarProgresoPlan(req: Request, res: Response) {
       [JSON.stringify(pasos), planId]
     );
 
+    const completado = pasos.length > 0 && pasos.every((fase: any) => {
+      const subpasos = Array.isArray(fase?.subpasos) ? fase.subpasos : [];
+      return fase?.completado === true ||
+        (subpasos.length > 0 && subpasos.every((sub: any) => sub?.completado === true));
+    });
+    await pool.query(
+      "UPDATE planes_estudio SET completado_en = $1 WHERE id = $2",
+      [completado ? new Date() : null, planId],
+    );
+
     return res.status(200).json({
       ok: true,
       mensaje: "Progreso de pasos actualizado correctamente.",

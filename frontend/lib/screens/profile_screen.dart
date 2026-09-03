@@ -3,10 +3,10 @@ import '/services/api_service.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'app_language.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -438,19 +438,21 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
- Future<void> _seleccionarNuevaImagen() async {
+
+  Future<void> _seleccionarNuevaImagen() async {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 250,   // Reducido para que la resolución sea ligera
-        maxHeight: 250,  // Reducido para que la resolución sea ligera
-        imageQuality: 40, // Alta compresión para que pese muy pocos KB y no dé error 413
+        maxWidth: 250, // Reducido para que la resolución sea ligera
+        maxHeight: 250, // Reducido para que la resolución sea ligera
+        imageQuality:
+            40, // Alta compresión para que pese muy pocos KB y no dé error 413
       );
-      
+
       if (pickedFile != null) {
         final bytes = await pickedFile.readAsBytes();
         String base64String = base64Encode(bytes);
-        
+
         if (base64String.contains(',')) {
           base64String = base64String.split(',').last;
         }
@@ -470,7 +472,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   Future<void> _cargarDatosDeBaseDeDatos() async {
     setState(() => _isLoading = true);
     final data = await ApiService.getProfile(_userId);
-    
+
     if (data != null) {
       final scheduleFromServer = List<List<String>>.generate(
         _days.length,
@@ -479,7 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
       if (data['perfil_estudio'] != null) {
         var fotoServidor = data['perfil_estudio']['foto_perfil'];
-        
+
         // Limpiamos el Base64 por si en la BD se guardó con el header data:image/...
         if (fotoServidor != null && fotoServidor.toString().contains(',')) {
           fotoServidor = fotoServidor.toString().split(',').last;
@@ -516,7 +518,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           }
         }
       }
-      
+
       setState(() {
         _nameController.text = data['nombre'] ?? '';
         _apellidoController.text = data['apellido'] ?? '';
@@ -544,6 +546,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           fit: BoxFit.cover,
         ),
       );
+    } else if (_base64Image != null && _base64Image!.startsWith('asset:')) {
+      avatarChild = ClipRRect(
+        borderRadius: BorderRadius.circular(50),
+        child: Image.asset(
+          _base64Image!.substring(6),
+          width: 100,
+          height: 100,
+          fit: BoxFit.cover,
+        ),
+      );
     } else if (_base64Image != null && _base64Image!.trim().isNotEmpty) {
       // Prioridad 2: Imagen convertida en Base64 proveniente de Supabase / Backend
       try {
@@ -560,7 +572,11 @@ class _ProfileScreenState extends State<ProfileScreen>
             height: 100,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.broken_image, size: 40, color: Colors.white54);
+              return const Icon(
+                Icons.broken_image,
+                size: 40,
+                color: Colors.white54,
+              );
             },
           ),
         );
@@ -598,7 +614,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
-
 
   void _handleSend() async {
     if (_nameController.text.trim().isEmpty) {
@@ -714,19 +729,41 @@ class _ProfileScreenState extends State<ProfileScreen>
                               ),
                               Align(
                                 alignment: Alignment.centerRight,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.settings,
-                                    color: Colors.white70,
-                                    size: 20,
-                                  ),
-                                  onPressed: () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ConfiguracionScreen(),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Editar personaje',
+                                      icon: const Icon(
+                                        Icons.face_retouching_natural,
+                                        color: Colors.white70,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              EditProfileScreen(
+                                                userId: _userId,
+                                              ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.settings,
+                                        color: Colors.white70,
+                                        size: 20,
+                                      ),
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              const ConfiguracionScreen(),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -926,7 +963,6 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
-
 
   Widget _buildGridSchedule() {
     return GridView.builder(
