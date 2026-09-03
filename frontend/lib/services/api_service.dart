@@ -5,11 +5,13 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static String get _backendHost {
+    const configuredHost = String.fromEnvironment('BACKEND_URL');
+    if (configuredHost.isNotEmpty) return configuredHost;
     if (kIsWeb) return 'http://localhost:3000';
 
     // Celular físico conectado por USB:
     // ejecutar antes: adb reverse tcp:3000 tcp:3000
-    if (Platform.isAndroid) return 'http://localhost:3000';
+if (Platform.isAndroid) return 'http://localhost:3000';
 
     return 'http://localhost:3000';
   }
@@ -19,6 +21,39 @@ class ApiService {
   static String get tareasBaseUrl => '$_backendHost/api/tareas';
   static String get iaBaseUrl => '$_backendHost/api/ia';
   static String get progresoBaseUrl => '$_backendHost/api/progreso';
+
+  static Future<List<dynamic>?> getPersonajes(String userId) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/personajes/$userId'));
+      if (response.statusCode != 200 || response.body.isEmpty) return null;
+      final data = jsonDecode(response.body);
+      return data is Map ? data['personajes'] as List<dynamic>? : null;
+    } catch (e) {
+      print('Error en ApiService getPersonajes: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> comprarPersonaje({
+    required String userId,
+    required int personaje,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/personajes/$userId/comprar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'personaje': personaje}),
+      );
+      if ((response.statusCode != 200 && response.statusCode != 201) ||
+          response.body.isEmpty) {
+        return null;
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (e) {
+      print('Error en ApiService comprarPersonaje: $e');
+      return null;
+    }
+  }
 
   static Future<Map<String, dynamic>?> getProfile(String userId) async {
     try {

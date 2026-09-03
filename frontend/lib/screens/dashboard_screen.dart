@@ -1,4 +1,4 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '/services/api_service.dart';
@@ -9,16 +9,14 @@ import 'guia_detalle_screen.dart';
 class DashboardScreen extends StatefulWidget {
   final String userId;
 
-  const DashboardScreen({
-    super.key,
-    required this.userId,
-  });
+  const DashboardScreen({super.key, required this.userId});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Timer? _completedPlansTimer;
   bool _isStreakDialogOpen = false;
   int activeTab = 0;
   bool isLoading = true;
@@ -43,6 +41,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     _loadDashboardData();
+    _completedPlansTimer = Timer.periodic(
+      const Duration(minutes: 1),
+      (_) => _loadActivePlans(),
+    );
+  }
+
+  @override
+  void dispose() {
+    _completedPlansTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadDashboardData() async {
@@ -50,14 +58,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       setState(() => isLoading = true);
     }
 
-    final prefs = await SharedPreferences.getInstance();
-
     final profileData = await ApiService.getProfile(widget.userId);
     if (profileData != null) {
       userName = profileData['nombre'] ?? 'Laura';
     }
 
     await _loadActivePlans();
+    final prefs = await SharedPreferences.getInstance();
     await _updateStreakAutomatically(prefs);
 
     if (!mounted) return;
@@ -74,7 +81,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
     final now = DateTime.now();
 
     List<StudyPlan> loadedPlans = [];
@@ -117,26 +123,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
       }
 
-      if (allCompleted) {
-        final completedKey = 'plan_completed_time_$planId';
-        final completedTimeStr = prefs.getString(completedKey);
-
-        if (completedTimeStr == null) {
-          await prefs.setString(completedKey, now.toIso8601String());
-        } else {
-          final completedTime = DateTime.parse(completedTimeStr);
-          final difference = now.difference(completedTime);
-
-          if (difference.inHours >= 5) {
-            continue;
-          }
-        }
-      } else {
-        final completedKey = 'plan_completed_time_$planId';
-
-        if (prefs.containsKey(completedKey)) {
-          await prefs.remove(completedKey);
-        }
+      final completedAt = DateTime.tryParse(
+        plan['completado_en']?.toString() ?? '',
+      )?.toLocal();
+      if (completedAt != null &&
+          now.difference(completedAt) >= const Duration(hours: 5)) {
+        continue;
       }
 
       loadedPlans.add(
@@ -155,26 +147,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _updateStreakAutomatically(SharedPreferences prefs) async {
-    final today = DateTime.now();
-    final todayString = today.toIso8601String().split('T')[0];
-
-    final lastUpdateDate =
-        prefs.getString('last_streak_update_${widget.userId}');
-
-    if (lastUpdateDate == todayString) {
-      await _loadStreakFromServer();
-      await _verificarYMostrarStreakDiario(prefs);
-      return;
-    }
-
     final success = await ApiService.registrarRachaHoy(widget.userId);
-
-    if (success) {
-      await prefs.setString(
-        'last_streak_update_${widget.userId}',
-        todayString,
-      );
-    }
+    if (!success) debugPrint('No se pudo actualizar la racha diaria.');
 
     await _loadStreakFromServer();
     await _verificarYMostrarStreakDiario(prefs);
@@ -186,7 +160,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (stats == null) return;
 
     final racha = stats['racha'] ?? 0;
-    final parsedRacha = racha is int ? racha : int.tryParse(racha.toString()) ?? 0;
+    final parsedRacha = racha is int
+        ? racha
+        : int.tryParse(racha.toString()) ?? 0;
 
     if (!mounted) return;
 
@@ -237,8 +213,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_isStreakDialogOpen) return;
 
     final todayString = DateTime.now().toIso8601String().split('T')[0];
-    final lastShownDate =
-        prefs.getString('last_streak_dialog_shown_${widget.userId}');
+    final lastShownDate = prefs.getString(
+      'last_streak_dialog_shown_${widget.userId}',
+    );
 
     if (lastShownDate != todayString) {
       await Future.delayed(const Duration(milliseconds: 300));
@@ -277,10 +254,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
             height: 80,
             width: 80,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Text(
-              '🔥',
-              style: TextStyle(fontSize: 64),
-            ),
+            errorBuilder: (_, __, ___) =>
+                const Text('🔥', style: TextStyle(fontSize: 64)),
           ),
           const SizedBox(height: 8),
           Text(
@@ -370,10 +345,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: const Text(
                   'Seguir Aprendiendo',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 25),
                 ),
               ),
             ),
@@ -387,9 +359,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => AgregarTareaScreen(
-          userId: widget.userId,
-        ),
+        builder: (_) => AgregarTareaScreen(userId: widget.userId),
       ),
     );
 
@@ -414,9 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     await Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => GuiaDetalleScreen(guiaData: planData),
-      ),
+      MaterialPageRoute(builder: (_) => GuiaDetalleScreen(guiaData: planData)),
     );
 
     await _loadActivePlans();
@@ -427,9 +395,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF17122F),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(18),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Text(
           '¿Eliminar plan?',
           style: TextStyle(
@@ -440,10 +406,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         content: Text(
           '¿Estás seguro de que quieres eliminar "${plan.title}"? Esta acción no se puede deshacer.',
-          style: const TextStyle(
-            color: Color(0xFFBDB5D6),
-            fontSize: 13,
-          ),
+          style: const TextStyle(color: Color(0xFFBDB5D6), fontSize: 13),
         ),
         actions: [
           TextButton(
@@ -573,21 +536,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: 245,
             height: 180,
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
-              Icons.smart_toy,
-              size: 80,
-              color: Colors.white,
-            ),
+            errorBuilder: (_, __, ___) =>
+                const Icon(Icons.smart_toy, size: 80, color: Colors.white),
           ),
           Positioned(
             top: 20,
             right: 12,
             child: Container(
               width: 120,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 9,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
               decoration: BoxDecoration(
                 color: const Color(0xFF100A32),
                 borderRadius: BorderRadius.circular(22),
@@ -606,10 +563,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     'Tu asistente personal',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 8),
                   ),
                 ],
               ),
@@ -628,12 +582,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           const Row(
             children: [
-              Expanded(
-                child: Divider(
-                  color: Colors.white,
-                  thickness: 2,
-                ),
-              ),
+              Expanded(child: Divider(color: Colors.white, thickness: 2)),
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 12),
                 child: Text(
@@ -645,12 +594,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              Expanded(
-                child: Divider(
-                  color: Colors.white,
-                  thickness: 2,
-                ),
-              ),
+              Expanded(child: Divider(color: Colors.white, thickness: 2)),
             ],
           ),
           const SizedBox(height: 10),
@@ -665,10 +609,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 4),
           const Text(
             '¿Listo para aprender hoy?',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.white, fontSize: 11),
           ),
         ],
       ),
@@ -681,9 +622,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
         color: const Color(0xFF17122F),
-        border: Border.all(
-          color: const Color(0xFF2B2251),
-        ),
+        border: Border.all(color: const Color(0xFF2B2251)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -699,10 +638,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 4),
           Text(
             '${plans.length} ${plans.length == 1 ? 'Plan activo' : 'Planes activos'}',
-            style: const TextStyle(
-              color: Color(0xFFE474FF),
-              fontSize: 9,
-            ),
+            style: const TextStyle(color: Color(0xFFE474FF), fontSize: 9),
           ),
           const SizedBox(height: 10),
           if (plans.isEmpty)
@@ -740,11 +676,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         color: const Color(0xFFFF4444),
-        child: const Icon(
-          Icons.delete,
-          color: Colors.white,
-          size: 24,
-        ),
+        child: const Icon(Icons.delete, color: Colors.white, size: 24),
       ),
       child: InkWell(
         onTap: () => _openPlanDetail(plan),
@@ -752,9 +684,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
             color: const Color(0xFF211A42),
-            border: Border.all(
-              color: const Color(0xFF33285D),
-            ),
+            border: Border.all(color: const Color(0xFF33285D)),
           ),
           child: Row(
             children: [
@@ -804,10 +734,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               const SizedBox(width: 7),
               Text(
                 '${(plan.progress * 100).round()}%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 8,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 8),
               ),
             ],
           ),
@@ -822,9 +749,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF17122F),
-        border: Border.all(
-          color: const Color(0xFF2B2251),
-        ),
+        border: Border.all(color: const Color(0xFF2B2251)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -840,10 +765,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 8),
           const Text(
             'Usa la IA de Lumi para generar planes personalizados.',
-            style: TextStyle(
-              color: Color(0xFFAAA4C5),
-              fontSize: 9,
-            ),
+            style: TextStyle(color: Color(0xFFAAA4C5), fontSize: 9),
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -868,10 +790,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBottomNavigation() {
-    return AppBottomNavbar(
-      userId: widget.userId,
-      currentIndex: activeTab,
-    );
+    return AppBottomNavbar(userId: widget.userId, currentIndex: activeTab);
   }
 }
 

@@ -43,6 +43,8 @@ CREATE TABLE public.planes_estudio (
   CONSTRAINT planes_estudio_pkey PRIMARY KEY (id),
   CONSTRAINT planes_estudio_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
+ALTER TABLE public.planes_estudio
+  ADD COLUMN IF NOT EXISTS completado_en timestamp without time zone;
 CREATE TABLE public.plan_metodo (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   plan_id uuid,
@@ -97,7 +99,20 @@ CREATE TABLE public.estadisticas (
   horas_estudio numeric DEFAULT 0,
   racha integer DEFAULT 0,
   CONSTRAINT estadisticas_pkey PRIMARY KEY (id),
+  CONSTRAINT estadisticas_usuario_id_unico UNIQUE (usuario_id),
   CONSTRAINT estadisticas_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+ALTER TABLE public.estadisticas
+  ADD COLUMN IF NOT EXISTS ultima_racha_fecha date;
+CREATE TABLE public.personajes_usuario (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NOT NULL,
+  personaje integer NOT NULL CHECK (personaje BETWEEN 1 AND 18),
+  costo_xp integer NOT NULL CHECK (costo_xp > 0),
+  fecha_compra timestamp without time zone DEFAULT now(),
+  CONSTRAINT personajes_usuario_pkey PRIMARY KEY (id),
+  CONSTRAINT personajes_usuario_unico UNIQUE (usuario_id, personaje),
+  CONSTRAINT personajes_usuario_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
 CREATE TABLE public.recompensas (
   id uuid NOT NULL DEFAULT gen_random_uuid(),

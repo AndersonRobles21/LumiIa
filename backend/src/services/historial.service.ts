@@ -9,6 +9,7 @@ export async function obtenerHistorialIA(usuarioId: string) {
       pe.descripcion,
       pe.estado,
       pe.fecha_creacion,
+      pe.completado_en,
       pi.metodo_estudio,
       pi.tiempo_estimado_total,
       pi.resumen_final,
