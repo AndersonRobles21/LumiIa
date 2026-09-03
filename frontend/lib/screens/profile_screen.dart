@@ -663,7 +663,19 @@ class _ProfileScreenState extends State<ProfileScreen>
           fit: BoxFit.cover,
         ),
       );
-    } else if (_base64Image != null && _base64Image!.trim().isNotEmpty) {
+    } else if (_base64Image != null && _base64Image!.startsWith('asset:')) {
+      avatarChild = ClipRRect(
+        borderRadius: BorderRadius.circular(avatarRadius),
+        child: Image.asset(
+          _base64Image!.substring(6),
+          width: imageSize,
+          height: imageSize,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else if (_base64Image != null &&
+        _base64Image!.trim().isNotEmpty &&
+        !_base64Image!.startsWith('asset:')) {
       try {
         String cleanBase64 = _base64Image!.trim();
         if (cleanBase64.contains(',')) {
