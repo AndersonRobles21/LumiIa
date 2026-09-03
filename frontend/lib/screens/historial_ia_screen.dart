@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
 import 'package:intl/intl.dart';
@@ -169,7 +170,13 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
       ),
       body: Stack(
         children: [
-          RefreshIndicator(
+          Padding(
+            padding: EdgeInsets.only(
+              left: Responsive.esEscritorio(context)
+                  ? Responsive.anchoSidebar(context)
+                  : 0,
+            ),
+            child: RefreshIndicator(
             color: const Color(0xFF00F0FF),
             onRefresh: _cargarHistorial,
             child: SingleChildScrollView(
@@ -186,12 +193,16 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                   Center(
                     child: SizedBox(
                       width: double.infinity,
-                      child: Image.asset(
-                        'logo/historial_lumi.png',
-                        height: 190,
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Icon(Icons.smart_toy, size: 90, color: Color(0xFF00F0FF)),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: Responsive.esMovil(context) ? 140 : 190,
+                        ),
+                        child: Image.asset(
+                          'logo/historial_lumi.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Icon(Icons.smart_toy, size: 90, color: Color(0xFF00F0FF)),
+                        ),
                       ),
                     ),
                   ),
@@ -342,18 +353,9 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                 ],
               ),
             ),
-          ),
-          Align(
-              alignment: Alignment.bottomCenter,
-              child: SafeArea(
-              top: false,
-              minimum: const EdgeInsets.only(bottom: 8),
-              child: AppBottomNavbar(
-              userId: widget.userId,
-              currentIndex: 2,
-              ),
             ),
-        ),
+          ),
+          AppBottomNavbar(userId: widget.userId, currentIndex: 2),
         ],
       ),
     );

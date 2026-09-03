@@ -132,12 +132,22 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     cargandoFases = List.generate(fasesPasos.length, (_) => false);
   }
 
-  void _inicializarMensajesChat() {
+void _inicializarMensajesChat() {
     final nombrePlan =
         guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo o Tarea';
     final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
+    final recomendacionTiempo = guiaActual['recomendacion_tiempo'];
 
     _mensajes.clear();
+
+    // 🚨 Si el backend mandó la alerta de tiempo insuficiente, la ponemos primero en rojo
+    if (recomendacionTiempo != null && recomendacionTiempo.toString().isNotEmpty) {
+      _mensajes.add({
+        'esBot': true,
+        'texto': '⚠️ ALERTA DE TIEMPO:\n$recomendacionTiempo',
+        'tipo': 'alerta_tiempo',
+      });
+    }
 
     String materialInicial =
         "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
@@ -762,6 +772,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                         itemBuilder: (context, index) {
                           final msg = _mensajes[index];
                           final esBot = msg['esBot'] as bool;
+                          final esAlerta = msg['tipo'] == 'alerta_tiempo';
                           final esBienvenida = msg['tipo'] == 'bienvenida';
                           final faseIndexChat = msg['faseIndexChat'];
                           final listaRecursosMsg =
@@ -802,16 +813,23 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                       Container(
                                         padding: const EdgeInsets.all(14),
                                         decoration: BoxDecoration(
-                                          color: esBot
-                                              ? const Color(0xFF1A1736)
-                                              : const Color(0xFF32285E),
+                                          // 🔴 Fondo rojizo si es alerta, normal si es bot o usuario
+                                          color: esAlerta
+                                              ? const Color(0xFF3D1414)
+                                              : (esBot
+                                                  ? const Color(0xFF1A1736)
+                                                  : const Color(0xFF32285E)),
                                           borderRadius:
                                               BorderRadius.circular(16),
                                           border: Border.all(
-                                            color: esBot
-                                                ? const Color(0xFF4A3E8D)
-                                                    .withOpacity(0.4)
-                                                : const Color(0xFFBD00FF),
+                                            // 🔴 Borde rojo brillante si es alerta
+                                            color: esAlerta
+                                                ? Colors.redAccent
+                                                : (esBot
+                                                    ? const Color(0xFF4A3E8D)
+                                                        .withOpacity(0.4)
+                                                    : const Color(0xFFBD00FF)),
+                                            width: esAlerta ? 1.5 : 1,
                                           ),
                                         ),
                                         child: Column(
@@ -820,10 +838,13 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
                                           children: [
                                             Text(
                                               msg['texto'] ?? '',
-                                              style: const TextStyle(
+                                              style: TextStyle(
                                                 color: Colors.white,
                                                 fontSize: 13.5,
                                                 height: 1.4,
+                                                fontWeight: esAlerta
+                                                    ? FontWeight.w600
+                                                    : FontWeight.normal,
                                               ),
                                             ),
                                             if (listaRecursosMsg.isNotEmpty) ...[

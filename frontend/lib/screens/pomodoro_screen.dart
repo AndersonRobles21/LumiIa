@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final String tituloTarea;
@@ -103,6 +104,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   @override
   Widget build(BuildContext context) {
     final porcentajeProgreso = _segundosRestantes / _tiempoTotalInicial;
+    final tamanioTemporizador = (Responsive.anchoPantalla(context) * 0.58)
+        .clamp(180.0, 240.0);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0D0B1E),
@@ -170,8 +173,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                 children: [
                   // Círculo del Temporizador
                   SizedBox(
-                    width: 220,
-                    height: 220,
+                    width: tamanioTemporizador,
+                    height: tamanioTemporizador,
                     child: Stack(
                       alignment: Alignment.center,
                       fit: StackFit.expand,
@@ -215,8 +218,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   const SizedBox(height: 30),
 
                   // BOTONES DE CONTROL (Reiniciar / Pausar-Iniciar)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 12,
+                      runSpacing: 12,
                     children: [
                       // Botón Reiniciar
                       ElevatedButton.icon(
@@ -241,8 +246,6 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(width: 16),
-
                       // Botón Pausar / Iniciar
                       ElevatedButton.icon(
                         onPressed: _alternarTimer,
@@ -300,20 +303,29 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
             // 🖼️ IMAGEN INFERIOR
             Center(
-              child: Image.asset(
-                'logo/pomodoro.png',
-                width: double.infinity,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1B163B),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: const Text(
-                    '⚡ ¿Cómo funciona?\n25 min estudio • 5 min descanso • Repite 4 ciclos',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
-                    textAlign: TextAlign.center,
+              child: FractionallySizedBox(
+                widthFactor: Responsive.esMovil(context)
+                    ? 0.9
+                    : Responsive.esTablet(context)
+                        ? 0.7
+                        : 0.55,
+                child: AspectRatio(
+                  aspectRatio: 1.8,
+                  child: Image.asset(
+                    'logo/pomodoro.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1B163B),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: const Text(
+                        '⚡ ¿Cómo funciona?\n25 min estudio • 5 min descanso • Repite 4 ciclos',
+                        style: TextStyle(color: Colors.white70, fontSize: 13),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   ),
                 ),
               ),

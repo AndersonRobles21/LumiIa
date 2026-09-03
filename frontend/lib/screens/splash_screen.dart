@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../utils/responsive.dart';
 
 const Color kPurplePrimary = Color(0xFFB026FF);
 const Color kPurpleSecondary = Color(0xFF7B2FF7);
@@ -95,7 +97,7 @@ class _SplashScreenState extends State<SplashScreen>
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
 
-          final robotSize = width * 0.62;
+          final robotSize = math.min(width * 0.62, height * 0.34);
 
           return Stack(
             fit: StackFit.expand,
@@ -114,7 +116,7 @@ class _SplashScreenState extends State<SplashScreen>
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 28),
+                    padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
                     child: Column(
                       children: [
                         SizedBox(height: height * 0.10),
@@ -213,9 +215,9 @@ class _InfoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: 20,
-        vertical: 14,
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.paddingHorizontalRecomendado(context) / 2,
+        vertical: Responsive.espacio(context),
       ),
       decoration: BoxDecoration(
         color: const Color(0xFF140D24).withOpacity(0.85),
@@ -232,7 +234,7 @@ class _InfoCard extends StatelessWidget {
             color: Colors.white70,
             size: 32,
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: Responsive.espacio(context) * 2),
           Flexible(
             child: RichText(
               text: const TextSpan(

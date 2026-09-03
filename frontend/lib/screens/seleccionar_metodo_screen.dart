@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
+import '../utils/responsive.dart';
 
 class SeleccionarMetodoScreen extends StatefulWidget {
   final String tituloTarea;
@@ -84,7 +85,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final anchoPantalla = MediaQuery.of(context).size.width;
+    final anchoImagen = Responsive.anchoImagenMetodo(context);
 
     return Scaffold(
       backgroundColor: const Color(0xFF110D27),
@@ -164,8 +165,8 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: anchoPantalla * 0.45,
-                  height: anchoPantalla * 0.45,
+                  width: anchoImagen,
+                  height: anchoImagen,
                   child: Image.asset(
                     'logo/metodos.png',
                     fit: BoxFit.contain,
@@ -238,7 +239,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                     m['titulo'],
                                     style: const TextStyle(
                                       color: Colors.white,
-                                      fontSize: 17,
+                                      fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -266,7 +267,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                     m['descripcion'],
                                     style: const TextStyle(
                                       color: Colors.white60,
-                                      fontSize: 12,
+                                      fontSize: 14,
                                       height: 1.3,
                                     ),
                                   ),

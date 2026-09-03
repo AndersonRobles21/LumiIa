@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/login_screen.dart';
 import 'package:frontend/screens/splash_screen.dart';
 import 'package:frontend/screens/configuracion_screen.dart';
+import 'package:frontend/screens/admin_panel_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,6 +39,11 @@ class LumiApp extends StatelessWidget {
         '/splash': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
         '/configuracion': (context) => const ConfiguracionScreen(),
+        '/admin-panel': (context) {
+          final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+          final userId = args?['userId']?.toString() ?? '';
+          return AdminPanelScreen(userId: userId);
+        },
       },
     );
   }

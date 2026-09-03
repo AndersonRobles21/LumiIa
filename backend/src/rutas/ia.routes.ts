@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { generarPlan, evaluarFeynman, regenerarMetodoPlan, eliminarPlan } from "../controllers/ia.controller";
+import { generarPlan, evaluarFeynman, regenerarMetodoPlan, eliminarPlan, reajustarPlanIA } from "../controllers/ia.controller";
 import { getPlan, actualizarProgresoPlan } from "../controllers/historial.controller";
 
 const router = Router();
@@ -12,6 +12,8 @@ router.get("/plan/:planId", getPlan);
 
 // Guardar el progreso de los checkboxes (pasos/subpasos)
 router.put("/plan/:planId/progreso", actualizarProgresoPlan);
+router.put("/plan/:planId/reajustar-fecha", reajustarPlanIA);
+
 
 // Evaluar Feynman con IA
 router.post('/feynman/evaluar', evaluarFeynman);
