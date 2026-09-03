@@ -6,6 +6,7 @@ import '../utils/responsive.dart';
 import 'admin_estadisticas_screen.dart';
 import 'admin_usuario_detalle_screen.dart';
 import 'admin_usuarios_list_v2.dart';
+import 'dart:async';
 
 import 'login_screen.dart';
 
@@ -23,11 +24,42 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   Map<String, dynamic> _summary = {};
   List<dynamic> _usuarios = [];
   String? _errorMessage;
+  late Timer _refreshTimer;
+  DateTime _lastUpdate = DateTime.now();
+  String _adminName = 'Admin';
 
   @override
   void initState() {
     super.initState();
+    _loadAdminName();
     _loadData();
+    _initializeRefreshTimer();
+  }
+
+  Future<void> _loadAdminName() async {
+    try {
+      final profile = await ApiService.getProfile(widget.userId);
+      if (profile != null && mounted) {
+        setState(() {
+          _adminName = '${profile['nombre'] ?? 'Admin'} ${profile['apellido'] ?? ''}'.trim();
+        });
+      }
+    } catch (e) {
+      debugPrint('Error cargando nombre del admin: $e');
+    }
+  }
+
+  void _initializeRefreshTimer() {
+    // Actualizar datos cada 10 segundos en tiempo real
+    _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      _loadData();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer.cancel();
+    super.dispose();
   }
 
   Future<void> _cerrarSesion(BuildContext context) async {
@@ -61,6 +93,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       setState(() {
         _summary = summary ?? {};
         _loading = false;
+        _lastUpdate = DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
@@ -91,10 +124,19 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         backgroundColor: const Color(0xFF111C4A),
         foregroundColor: Colors.white,
         title: Text(
-          'Panel de administración',
+          'Panel Admin • $_adminName',
           style: GoogleFonts.orbitron(fontWeight: FontWeight.w700),
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                'Actualizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 12, color: Colors.white70),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Cerrar sesión',
             onPressed: () async => await _cerrarSesion(context),

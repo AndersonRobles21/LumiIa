@@ -19,13 +19,24 @@ async function esAdministrador(userId: string): Promise<boolean> {
 async function requireAdmin(req: Request, res: Response, next: NextFunction) {
   const adminUserId = req.params.userId ?? req.body?.userId ?? req.query?.userId;
 
+  console.log("🔐 Verificando admin - userId:", adminUserId);
+
   if (!adminUserId || typeof adminUserId !== "string") {
+    console.error("❌ userId vacío o inválido");
     return res.status(400).json({ ok: false, mensaje: "Falta el identificador del administrador." });
   }
 
-  const ok = await esAdministrador(adminUserId);
-  if (!ok) {
-    return res.status(403).json({ ok: false, mensaje: "Acceso denegado. El usuario no tiene permisos de administrador." });
+  try {
+    const ok = await esAdministrador(adminUserId);
+    console.log(`✓ Usuario ${adminUserId} es admin: ${ok}`);
+    
+    if (!ok) {
+      console.error(`❌ Usuario ${adminUserId} NO tiene permisos de administrador`);
+      return res.status(403).json({ ok: false, mensaje: "Acceso denegado. El usuario no tiene permisos de administrador." });
+    }
+  } catch (err) {
+    console.error("❌ Error verificando admin:", err);
+    return res.status(500).json({ ok: false, mensaje: "Error verificando permisos de administrador." });
   }
 
   return next();
@@ -40,28 +51,84 @@ router.get("/summary/:userId", requireAdmin, async (req: Request, res: Response)
     const tareasRes = await pool.query(`SELECT COUNT(*)::int AS total FROM tareas`);
     const tareasCompletadasRes = await pool.query(`SELECT COUNT(*)::int AS total FROM tareas WHERE completada = true`);
     const planesPorDiaRes = await pool.query(`
-      SELECT DATE(fecha_creacion) AS fecha, COUNT(*)::int AS total
-      FROM planes_estudio
-      GROUP BY DATE(fecha_creacion)
-      ORDER BY fecha DESC
-      LIMIT 30
+      SELECT fecha, total
+      FROM (
+        SELECT TO_CHAR(DATE_TRUNC('month', fecha_creacion), 'YYYY-MM') AS fecha,
+               COUNT(*)::int AS total,
+               DATE_TRUNC('month', fecha_creacion) AS fecha_orden
+        FROM planes_estudio
+        GROUP BY DATE_TRUNC('month', fecha_creacion)
+        ORDER BY fecha_orden DESC
+        LIMIT 12
+      ) AS meses
+      ORDER BY fecha ASC
     `);
     const tareasPorDiaRes = await pool.query(`
-      SELECT DATE(a.fecha) AS fecha, COUNT(*)::int AS total
-      FROM tareas t
-      JOIN actividades a ON a.id = t.actividad_id
-      GROUP BY DATE(a.fecha)
-      ORDER BY fecha DESC
-      LIMIT 30
+      SELECT fecha, total
+      FROM (
+        SELECT TO_CHAR(DATE_TRUNC('month', a.fecha), 'YYYY-MM') AS fecha,
+               COUNT(*)::int AS total,
+               DATE_TRUNC('month', a.fecha) AS fecha_orden
+        FROM tareas t
+        JOIN actividades a ON a.id = t.actividad_id
+        GROUP BY DATE_TRUNC('month', a.fecha)
+        ORDER BY fecha_orden DESC
+        LIMIT 12
+      ) AS meses
+      ORDER BY fecha ASC
     `);
     const tareasCompletadasPorDiaRes = await pool.query(`
-      SELECT DATE(a.fecha) AS fecha, COUNT(*)::int AS total
+      SELECT fecha, total
+      FROM (
+        SELECT TO_CHAR(DATE_TRUNC('month', a.fecha), 'YYYY-MM') AS fecha,
+               COUNT(*)::int AS total,
+               DATE_TRUNC('month', a.fecha) AS fecha_orden
+        FROM tareas t
+        JOIN actividades a ON a.id = t.actividad_id
+        WHERE t.completada = true
+        GROUP BY DATE_TRUNC('month', a.fecha)
+        ORDER BY fecha_orden DESC
+        LIMIT 12
+      ) AS meses
+      ORDER BY fecha ASC
+    `);
+
+    // Datos diarios detallados para los últimos 30 días
+    const planesPorDiaDetalladoRes = await pool.query(`
+      SELECT DATE(fecha_creacion)::text AS fecha, COUNT(*)::int AS total
+      FROM planes_estudio
+      WHERE fecha_creacion >= NOW() - INTERVAL '30 days'
+      GROUP BY DATE(fecha_creacion)
+      ORDER BY DATE(fecha_creacion) ASC
+    `);
+
+    const tareasPorDiaDetalladoRes = await pool.query(`
+      SELECT DATE(a.fecha)::text AS fecha, COUNT(*)::int AS total
       FROM tareas t
       JOIN actividades a ON a.id = t.actividad_id
-      WHERE t.completada = true
+      WHERE a.fecha >= NOW() - INTERVAL '30 days'
       GROUP BY DATE(a.fecha)
-      ORDER BY fecha DESC
-      LIMIT 30
+      ORDER BY DATE(a.fecha) ASC
+    `);
+
+    // Usuarios creados recientemente
+    const usuariosRecentesRes = await pool.query(`
+      SELECT 
+        u.id,
+        u.nombre,
+        u.apellido,
+        u.fecha_registro,
+        COALESCE(u.es_admin, false) AS es_admin,
+        COUNT(pe.id) AS planes_count,
+        (SELECT COUNT(*) FROM tareas t2 
+         JOIN actividades a2 ON a2.id = t2.actividad_id 
+         JOIN planes_estudio pe2 ON pe2.id = a2.plan_id 
+         WHERE pe2.usuario_id = u.id) AS tareas_count
+      FROM usuarios u
+      LEFT JOIN planes_estudio pe ON pe.usuario_id = u.id
+      GROUP BY u.id, u.nombre, u.apellido, u.fecha_registro, u.es_admin
+      ORDER BY u.fecha_registro DESC
+      LIMIT 20
     `);
 
     return res.status(200).json({
@@ -75,6 +142,9 @@ router.get("/summary/:userId", requireAdmin, async (req: Request, res: Response)
       planesPorDia: planesPorDiaRes.rows,
       tareasPorDia: tareasPorDiaRes.rows,
       tareasCompletadasPorDia: tareasCompletadasPorDiaRes.rows,
+      planesPorDiaDetallado: planesPorDiaDetalladoRes.rows,
+      tareasPorDiaDetallado: tareasPorDiaDetalladoRes.rows,
+      usuariosRecientes: usuariosRecentesRes.rows,
     });
   } catch (error: any) {
     console.error("❌ Error en /admin/summary:", error);
