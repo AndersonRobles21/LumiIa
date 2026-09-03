@@ -196,20 +196,40 @@ class ApiService {
 
   static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
     try {
-      final response = await http.get(Uri.parse('$adminBaseUrl/summary/$userId'));
+      final url = '$adminBaseUrl/summary/$userId';
+      print('Llamando a: $url');
+      
+      final response = await http.get(Uri.parse(url));
+      
+      print('Status: ${response.statusCode}');
+      print('Response body (primeros 200 chars): ${response.body.substring(0, response.body.length > 200 ? 200 : response.body.length)}');
+      
       if (response.statusCode != 200) {
-        String mensaje = 'No se pudo cargar el resumen administrativo.';
-        if (response.body.isNotEmpty) {
-          final data = jsonDecode(response.body);
-          if (data is Map && data['mensaje'] != null) {
-            mensaje = data['mensaje'].toString();
+        String mensaje = 'No se pudo cargar el resumen administrativo (${response.statusCode}).';
+        
+        // Intenta parsear como JSON solo si es probable que lo sea
+        if (response.body.isNotEmpty && response.body.trim().startsWith('{')) {
+          try {
+            final data = jsonDecode(response.body);
+            if (data is Map && data['mensaje'] != null) {
+              mensaje = data['mensaje'].toString();
+            }
+          } catch (_) {
+            // Si no es JSON, usa el mensaje por defecto
           }
         }
         throw Exception(mensaje);
       }
+      
       if (response.body.isEmpty) {
         throw Exception('El servidor devolvió un resumen vacío.');
       }
+      
+      // Validar que la respuesta sea JSON válido
+      if (!response.body.trim().startsWith('{')) {
+        throw Exception('La respuesta del servidor no es JSON válido. Revisa que el servidor esté corriendo en localhost:3000');
+      }
+      
       final data = jsonDecode(response.body);
       if (data is Map<String, dynamic>) return data;
       throw Exception('El formato del resumen administrativo no es válido.');
