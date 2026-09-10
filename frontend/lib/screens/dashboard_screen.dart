@@ -22,9 +22,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int activeTab = 0;
   bool isLoading = true;
 
-  String userName = {
-    'nombre': 
-  }['nombre']!;
+  String userName = 'Laura';
   int activeStreak = 0;
 
   List<StudyPlan> plans = [];
@@ -63,7 +61,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final profileData = await ApiService.getProfile(widget.userId);
     if (profileData != null) {
-      userName = profileData['nombre'] ?? 'Laura';
+      userName = 'Laura';
     }
 
     await _loadActivePlans();
