@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -5,17 +8,22 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../services/api_service.dart';
 import 'dart:async';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
+import 'path_provider_stub.dart'
+    if (dart.library.io) 'package:path_provider/path_provider.dart';
 
 class AdminEstadisticasScreen extends StatefulWidget {
   final Map<String, dynamic> summary;
   final String adminUserId;
 
-  const AdminEstadisticasScreen({super.key, required this.summary, required this.adminUserId});
+  const AdminEstadisticasScreen({
+    super.key,
+    required this.summary,
+    required this.adminUserId,
+  });
 
   @override
-  State<AdminEstadisticasScreen> createState() => _AdminEstadisticasScreenState();
+  State<AdminEstadisticasScreen> createState() =>
+      _AdminEstadisticasScreenState();
 }
 
 class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
@@ -38,7 +46,9 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
       final profile = await ApiService.getProfile(widget.adminUserId);
       if (profile != null && mounted) {
         setState(() {
-          _adminName = '${profile['nombre'] ?? 'Admin'} ${profile['apellido'] ?? ''}'.trim();
+          _adminName =
+              '${profile['nombre'] ?? 'Admin'} ${profile['apellido'] ?? ''}'
+                  .trim();
         });
       }
     } catch (e) {
@@ -47,7 +57,6 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
   }
 
   void _initializeRefreshTimer() {
-    // Actualizar datos cada 10 segundos
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadLatestSummary();
     });
@@ -85,7 +94,9 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
     if (rows == null) return const [];
 
     return rows.map((row) {
-      final map = row is Map ? Map<String, dynamic>.from(row) : <String, dynamic>{};
+      final map = row is Map
+          ? Map<String, dynamic>.from(row)
+          : <String, dynamic>{};
       final fecha = (map['fecha'] ?? '').toString();
       final total = map['total'] is num ? (map['total'] as num).toInt() : 0;
       return {'fecha': fecha, 'total': total};
@@ -95,7 +106,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
   String _sanitizeText(String? text) {
     if (text == null) return '';
     return text
-        .replaceAll(RegExp(r'[^\x00-\x7F]'), '') // Elimina caracteres no ASCII
+        .replaceAll(RegExp(r'[^\x00-\x7F]'), '')
         .replaceAll('"', '"')
         .replaceAll('"', '"')
         .replaceAll(''', "'")
@@ -105,123 +116,25 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
         .trim();
   }
 
-  String _getMonthName(String monthStr) {
-    if (monthStr.isEmpty || !monthStr.contains('-')) return monthStr;
-    final parts = monthStr.split('-');
-    if (parts.length < 2) return monthStr;
-    
-    const months = [
-      'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
-      'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
-    ];
-    
-    try {
-      final monthNum = int.parse(parts[1]);
-      return months[monthNum - 1];
-    } catch (e) {
-      return monthStr;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final planes = _toSeries(_currentSummary['planesPorDia'] as List<dynamic>?);
     final tareas = _toSeries(_currentSummary['tareasPorDia'] as List<dynamic>?);
-    final completadas = _toSeries(_currentSummary['tareasCompletadasPorDia'] as List<dynamic>?);
-
-    Widget chartCard(String title, List<Map<String, dynamic>> data, {Color color = const Color(0xFF7C3AED)}) {
-      final maxValue = data.isEmpty ? 1 : data.map((d) => (d['total'] as int)).reduce((a, b) => a > b ? a : b);
-
-      return Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF111C4A),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: GoogleFonts.orbitron(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (data.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 20),
-                child: Text(
-                  'No hay datos para mostrar.',
-                  style: TextStyle(color: Colors.white70),
-                ),
-              )
-            else
-              SizedBox(
-                height: 220,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: data.take(12).toList().asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final item = entry.value;
-                    final value = (item['total'] as int?) ?? 0;
-                    final barHeight = maxValue == 0 ? 0.0 : (value / maxValue) * 150;
-                    final monthLabel = _getMonthName((item['fecha'] as String));
-
-                    return Expanded(
-                      child: Padding(
-                        padding: EdgeInsets.only(left: index == 0 ? 0 : 4, right: 4),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              value.toString(),
-                              style: const TextStyle(color: Colors.white70, fontSize: 10),
-                            ),
-                            const SizedBox(height: 6),
-                            AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              height: barHeight,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  begin: Alignment.topCenter,
-                                  end: Alignment.bottomCenter,
-                                  colors: [color, color.withValues(alpha: 0.45)],
-                                ),
-                                borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              monthLabel,
-                              style: const TextStyle(color: Colors.white60, fontSize: 9),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-          ],
-        ),
-      );
-    }
+    final completadas = _toSeries(
+      _currentSummary['tareasCompletadasPorDia'] as List<dynamic>?,
+    );
 
     return Scaffold(
       backgroundColor: const Color(0xFF080D2B),
       appBar: AppBar(
         backgroundColor: const Color(0xFF111C4A),
-        foregroundColor: Colors.white,
+        elevation: 0,
         title: Text(
           'Estadísticas • $_adminName',
-          style: GoogleFonts.orbitron(fontWeight: FontWeight.w700),
+          style: GoogleFonts.orbitron(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
         ),
         actions: [
           Padding(
@@ -229,7 +142,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
             child: Center(
               child: Text(
                 'Actualizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                style: const TextStyle(fontSize: 11, color: Colors.white70),
               ),
             ),
           ),
@@ -241,57 +154,200 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // --- ENCABEZADO CON LA IMAGEN DEL ROBOT MÁS GRANDE ---
               Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  _metricCard('Total usuarios', (_currentSummary['totalUsuarios'] ?? 0).toString()),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Agosto 24, 2026',
+                          style: GoogleFonts.orbitron(
+                            color: const Color(0xFF7C9CFF),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Panel de control - Administrador',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Reportes y Estadísticas',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Visualiza el rendimiento y uso de la plataforma en tiempo real',
+                          style: TextStyle(color: Colors.white60, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
                   const SizedBox(width: 12),
-                  _metricCard('Estudiantes', (_currentSummary['estudiantes'] ?? 0).toString()),
-                  const SizedBox(width: 12),
-                  _metricCard('Admins', (_currentSummary['administradores'] ?? 0).toString()),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Row(
-                children: [
-                  _metricCard('Planes', (_currentSummary['totalPlanes'] ?? 0).toString()),
-                  const SizedBox(width: 12),
-                  _metricCard('Tareas', (_currentSummary['totalTareas'] ?? 0).toString()),
-                  const SizedBox(width: 12),
-                  _metricCard('Completadas', (_currentSummary['tareasCompletadas'] ?? 0).toString()),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_isLoading)
-                      const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF44AA)),
+                  // Imagen del robot con tamaño ampliado
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.asset(
+                      'logo/estadisticalumi.png', 
+                      width: 180,
+                      height: 130,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => Container(
+                        width: 150,
+                        height: 110,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF111C4A),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(
+                              0xFF3D5AFE,
+                            ).withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.smart_toy_rounded,
+                          color: Color(0xFF00C2FF),
+                          size: 45,
                         ),
                       ),
-                    const SizedBox(width: 8),
-                    FilledButton.icon(
-                      onPressed: () async {
-                        await _onDownloadPdf(context);
-                      },
-                      icon: const Icon(Icons.download_rounded),
-                      label: const Text('Descargar PDF'),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // --- TARJETAS DE MÉTRICAS RÁPIDAS ---
+              Row(
+                children: [
+                  _metricCard(
+                    'Total usuarios',
+                    (_currentSummary['totalUsuarios'] ?? 0).toString(),
+                    Icons.group_rounded,
+                  ),
+                  const SizedBox(width: 10),
+                  _metricCard(
+                    'Estudiantes',
+                    (_currentSummary['estudiantes'] ?? 0).toString(),
+                    Icons.school_rounded,
+                  ),
+                  const SizedBox(width: 10),
+                  _metricCard(
+                    'Admins',
+                    (_currentSummary['administradores'] ?? 0).toString(),
+                    Icons.admin_panel_settings_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  _metricCard(
+                    'Planes',
+                    (_currentSummary['totalPlanes'] ?? 0).toString(),
+                    Icons.assignment_rounded,
+                  ),
+                  const SizedBox(width: 10),
+                  _metricCard(
+                    'Tareas',
+                    (_currentSummary['totalTareas'] ?? 0).toString(),
+                    Icons.task_rounded,
+                  ),
+                  const SizedBox(width: 10),
+                  _metricCard(
+                    'Completadas',
+                    (_currentSummary['tareasCompletadas'] ?? 0).toString(),
+                    Icons.task_alt_rounded,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // --- BOTÓN DE DESCARGA PDF COMPLETO ---
+              Align(
+                alignment: Alignment.centerRight,
+                child: SizedBox(
+                  height: 44,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFF716DC).withValues(alpha: 0.3),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: ElevatedButton.icon(
+                      onPressed: () async => await _onDownloadPdf(context),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(
+                        Icons.download_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      label: Text(
+                        'Descargar Reporte Ejecutivo (PDF)',
+                        style: GoogleFonts.orbitron(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              chartCard('Planes creados (Mensual)', planes, color: const Color(0xFF00C2FF)),
               const SizedBox(height: 20),
-              chartCard('Tareas registradas (Mensual)', tareas, color: const Color(0xFF7C3AED)),
+
+              // --- GRÁFICOS ORGANIZADOS EN TARJETAS AMPLIAS ---
+              _buildNeonChartCard(
+                title: 'Progreso de estudiantes',
+                subtitle: 'Completados vs En progreso',
+                icon: Icons.school_rounded,
+                data: planes,
+                lineColor: const Color(0xFF00C2FF),
+                secondaryColor: const Color(0xFF7C3AED),
+              ),
               const SizedBox(height: 20),
-              chartCard('Tareas completadas (Mensual)', completadas, color: const Color(0xFF22C55E)),
+              _buildNeonChartCard(
+                title: 'Uso de la plataforma',
+                subtitle: 'Usuarios activos y sesiones',
+                icon: Icons.auto_graph_rounded,
+                data: tareas,
+                lineColor: const Color(0xFFF716DC),
+                secondaryColor: const Color(0xFF0F1D8A),
+              ),
+              const SizedBox(height: 20),
+              _buildNeonChartCard(
+                title: 'Tareas Completadas (Mensual)',
+                subtitle: 'Rendimiento general de cumplimiento',
+                icon: Icons.insights_rounded,
+                data: completadas,
+                lineColor: const Color(0xFF22C55E),
+                secondaryColor: const Color(0xFF00C2FF),
+              ),
             ],
           ),
         ),
@@ -299,14 +355,155 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
     );
   }
 
+  Widget _buildNeonChartCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required List<Map<String, dynamic>> data,
+    required Color lineColor,
+    required Color secondaryColor,
+  }) {
+    final values = data.map((d) => (d['total'] as int)).toList();
+    final double maxValue = values.isEmpty
+        ? 1.0
+        : values.reduce((a, b) => a > b ? a : b).toDouble();
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111C4A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFF3D5AFE).withValues(alpha: 0.3),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: lineColor.withValues(alpha: 0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: lineColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: lineColor, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.orbitron(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (data.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 30),
+              child: Center(
+                child: Text(
+                  'No hay datos suficientes para mostrar.',
+                  style: TextStyle(color: Colors.white60),
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 200,
+              child: CustomPaint(
+                size: const Size(double.infinity, 200),
+                painter: _NeonLineChartPainter(
+                  data: data,
+                  maxValue: maxValue == 0 ? 1.0 : maxValue,
+                  lineColor: lineColor,
+                  secondaryColor: secondaryColor,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _metricCard(String label, String value, IconData icon) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111C4A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(icon, color: const Color(0xFF00C2FF), size: 16),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              value,
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- GENERACIÓN DE PDF COMPLETO DE 4 PÁGINAS ---
   Future<void> _onDownloadPdf(BuildContext context) async {
     final scaffold = ScaffoldMessenger.of(context);
-    scaffold.showSnackBar(const SnackBar(content: Text('Generando PDF ejecutivo...')));
+    scaffold.showSnackBar(
+      const SnackBar(content: Text('Generando reporte ejecutivo completo...')),
+    );
 
     try {
       final pdf = pw.Document();
 
-      // Página 1: Resumen Ejecutivo
+      // PÁGINA 1: PORTADA Y RESUMEN OPERATIVO
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -315,48 +512,75 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
             return pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                // Encabezado
-                pw.Center(
-                  child: pw.Column(
-                    children: [
-                      pw.Text(
-                        'LUMI ADMIN',
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(
+                          'LUMI ADMIN',
+                          style: pw.TextStyle(
+                            fontSize: 24,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColors.purple900,
+                          ),
+                        ),
+                        pw.Text(
+                          'Sistema de Monitoreo Inteligente',
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            color: PdfColors.grey600,
+                          ),
+                        ),
+                      ],
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 5,
+                      ),
+                      decoration: pw.BoxDecoration(
+                        color: PdfColors.purple100,
+                        borderRadius: pw.BorderRadius.circular(6),
+                      ),
+                      child: pw.Text(
+                        'REPORTE OFICIAL',
                         style: pw.TextStyle(
-                          fontSize: 32,
+                          fontSize: 9,
                           fontWeight: pw.FontWeight.bold,
-                          color: PdfColors.blue900,
+                          color: PdfColors.purple900,
                         ),
                       ),
-                      pw.Text(
-                        'Reporte Ejecutivo - Estadisticas Mensuales',
-                        style: pw.TextStyle(
-                          fontSize: 14,
-                          color: PdfColors.grey700,
-                        ),
-                      ),
-                      pw.SizedBox(height: 4),
-                      pw.Text(
-                        'Generado: ${DateTime.now().toString().split('.')[0]}',
-                        style: pw.TextStyle(
-                          fontSize: 10,
-                          color: PdfColors.grey500,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                pw.SizedBox(height: 30),
-
-                // Seccion: Resumen Operativo
+                pw.SizedBox(height: 20),
+                pw.Divider(color: PdfColors.purple900, thickness: 2),
+                pw.SizedBox(height: 15),
                 pw.Text(
-                  'RESUMEN OPERATIVO',
+                  'Reporte Ejecutivo General',
                   style: pw.TextStyle(
-                    fontSize: 16,
+                    fontSize: 20,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+                    color: PdfColors.black,
                   ),
                 ),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'Generado por: $_adminName | Fecha: ${DateTime.now().toString().split('.')[0]}',
+                  style: pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                ),
+                pw.SizedBox(height: 20),
+                pw.Text(
+                  '1. RESUMEN OPERATIVO',
+                  style: pw.TextStyle(
+                    fontSize: 14,
+                    fontWeight: pw.FontWeight.bold,
+                    color: PdfColors.purple900,
+                  ),
+                ),
+                pw.SizedBox(height: 8),
                 pw.Table(
                   border: pw.TableBorder.all(color: PdfColors.grey300),
                   columnWidths: {
@@ -364,28 +588,56 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                     1: const pw.FlexColumnWidth(1),
                   },
                   children: [
-                    _pdfTableRow('Usuarios Totales', _sanitizeText((_currentSummary['totalUsuarios'] ?? 0).toString())),
-                    _pdfTableRow('Estudiantes', _sanitizeText((_currentSummary['estudiantes'] ?? 0).toString())),
-                    _pdfTableRow('Administradores', _sanitizeText((_currentSummary['administradores'] ?? 0).toString())),
-                    _pdfTableRow('Planes de Estudio', _sanitizeText((_currentSummary['totalPlanes'] ?? 0).toString())),
-                    _pdfTableRow('Total de Tareas', _sanitizeText((_currentSummary['totalTareas'] ?? 0).toString())),
-                    _pdfTableRow('Tareas Completadas', _sanitizeText((_currentSummary['tareasCompletadas'] ?? 0).toString())),
+                    _pdfTableRow(
+                      'Usuarios Totales',
+                      _sanitizeText(
+                        (_currentSummary['totalUsuarios'] ?? 0).toString(),
+                      ),
+                    ),
+                    _pdfTableRow(
+                      'Estudiantes Registrados',
+                      _sanitizeText(
+                        (_currentSummary['estudiantes'] ?? 0).toString(),
+                      ),
+                    ),
+                    _pdfTableRow(
+                      'Administradores Activos',
+                      _sanitizeText(
+                        (_currentSummary['administradores'] ?? 0).toString(),
+                      ),
+                    ),
+                    _pdfTableRow(
+                      'Planes de Estudio Creados',
+                      _sanitizeText(
+                        (_currentSummary['totalPlanes'] ?? 0).toString(),
+                      ),
+                    ),
+                    _pdfTableRow(
+                      'Total de Tareas en Sistema',
+                      _sanitizeText(
+                        (_currentSummary['totalTareas'] ?? 0).toString(),
+                      ),
+                    ),
+                    _pdfTableRow(
+                      'Tareas Completadas',
+                      _sanitizeText(
+                        (_currentSummary['tareasCompletadas'] ?? 0).toString(),
+                      ),
+                    ),
                   ],
                 ),
                 pw.SizedBox(height: 20),
-
-                // Tasa de Completacion
                 pw.Text(
-                  'INDICADORES CLAVE',
+                  '2. INDICADORES DE RENDIMIENTO',
                   style: pw.TextStyle(
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+                    color: PdfColors.purple900,
                   ),
                 ),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 8),
                 _pdfIndicator(
-                  'Tasa de Completacion de Tareas',
+                  'Tasa Global de Completación de Tareas',
                   _calculateCompletionRate(),
                 ),
               ],
@@ -394,7 +646,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
         ),
       );
 
-      // Página 2: Series Mensuales + Diarias
+      // PÁGINA 2: TENDENCIAS MENSUALES
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -404,48 +656,42 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'TENDENCIAS MENSUALES',
+                  '3. TENDENCIAS MENSUALES',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+                    color: PdfColors.purple900,
                   ),
                 ),
-                pw.SizedBox(height: 10),
-
-                // Planes por mes
+                pw.SizedBox(height: 14),
                 pw.Text(
-                  'Planes de Estudio Creados (Mensual)',
+                  'Planes de Estudio Creados por Mes',
                   style: pw.TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800,
+                    color: PdfColors.purple800,
                   ),
                 ),
                 pw.SizedBox(height: 6),
                 _pwTableFromSeries(_currentSummary['planesPorDia']),
-                pw.SizedBox(height: 12),
-
-                // Tareas por mes
+                pw.SizedBox(height: 14),
                 pw.Text(
-                  'Tareas Registradas (Mensual)',
+                  'Tareas Registradas por Mes',
                   style: pw.TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800,
+                    color: PdfColors.purple800,
                   ),
                 ),
                 pw.SizedBox(height: 6),
                 _pwTableFromSeries(_currentSummary['tareasPorDia']),
-                pw.SizedBox(height: 12),
-
-                // Tareas completadas por mes
+                pw.SizedBox(height: 14),
                 pw.Text(
-                  'Tareas Completadas (Mensual)',
+                  'Tareas Completadas por Mes',
                   style: pw.TextStyle(
-                    fontSize: 12,
+                    fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800,
+                    color: PdfColors.purple800,
                   ),
                 ),
                 pw.SizedBox(height: 6),
@@ -456,7 +702,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
         ),
       );
 
-      // Página 3: Datos Diarios Detallados
+      // PÁGINA 3: ACTIVIDAD DETALLADA (ÚLTIMOS 30 DÍAS)
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -466,46 +712,46 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'ACTIVIDAD DETALLADA (ÚLTIMOS 30 DÍAS)',
+                  '4. ACTIVIDAD DETALLADA (ÚLTIMOS 30 DÍAS)',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+                    color: PdfColors.purple900,
                   ),
                 ),
-                pw.SizedBox(height: 12),
-
-                // Planes por día
+                pw.SizedBox(height: 14),
                 pw.Text(
                   'Planes de Estudio por Día',
                   style: pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800,
+                    color: PdfColors.purple800,
                   ),
                 ),
                 pw.SizedBox(height: 6),
-                _pwTableFromSeriesDetailado(_currentSummary['planesPorDiaDetallado']),
-                pw.SizedBox(height: 12),
-
-                // Tareas por día
+                _pwTableFromSeriesDetailado(
+                  _currentSummary['planesPorDiaDetallado'],
+                ),
+                pw.SizedBox(height: 14),
                 pw.Text(
-                  'Tareas por Día',
+                  'Tareas Generadas por Día',
                   style: pw.TextStyle(
                     fontSize: 11,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue800,
+                    color: PdfColors.purple800,
                   ),
                 ),
                 pw.SizedBox(height: 6),
-                _pwTableFromSeriesDetailado(_currentSummary['tareasPorDiaDetallado']),
+                _pwTableFromSeriesDetailado(
+                  _currentSummary['tareasPorDiaDetallado'],
+                ),
               ],
             );
           },
         ),
       );
 
-      // Página 4: Usuarios Recientemente Creados
+      // PÁGINA 4: USUARIOS RECIENTEMENTE REGISTRADOS
       pdf.addPage(
         pw.Page(
           pageFormat: PdfPageFormat.a4,
@@ -515,14 +761,14 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
                 pw.Text(
-                  'USUARIOS RECIENTEMENTE CREADOS',
+                  '5. USUARIOS RECIENTEMENTE REGISTRADOS',
                   style: pw.TextStyle(
                     fontSize: 16,
                     fontWeight: pw.FontWeight.bold,
-                    color: PdfColors.blue900,
+                    color: PdfColors.purple900,
                   ),
                 ),
-                pw.SizedBox(height: 12),
+                pw.SizedBox(height: 14),
                 _pwTableUsuarios(_currentSummary['usuariosRecientes']),
               ],
             );
@@ -531,73 +777,34 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
       );
 
       await Printing.layoutPdf(onLayout: (format) async => pdf.save());
-      
-      // Guardar el PDF en la carpeta de descargas con mejor manejo de errores
+
       try {
         final pdfBytes = await pdf.save();
-        
-        // Obtener ruta de descargas según plataforma
-        late String downloadPath;
-        late String displayPath;
-        
-        try {
-          if (Platform.isAndroid || Platform.isIOS) {
-            final directory = await getApplicationDocumentsDirectory();
-            downloadPath = directory.path;
-            displayPath = 'Documentos de la app';
-          } else if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
-            final directory = await getDownloadsDirectory();
-            if (directory != null) {
-              downloadPath = directory.path;
-              displayPath = 'Carpeta de Descargas';
-            } else {
-              throw Exception('No se pudo obtener la carpeta de Descargas');
-            }
-          } else {
-            throw Exception('Plataforma no soportada');
+        if (!kIsWeb) {
+          final directory = await getApplicationDocumentsDirectory();
+          if (directory != null) {
+            final fileName =
+                'LUMI_Reporte_Ejecutivo_${DateTime.now().millisecondsSinceEpoch}.pdf';
+            final file = File('${directory.path}/$fileName');
+            await file.writeAsBytes(pdfBytes);
+            if (mounted)
+              scaffold.showSnackBar(
+                SnackBar(content: Text('✓ Reporte PDF guardado: $fileName')),
+              );
           }
-        } catch (pathError) {
-          debugPrint('Error obteniendo ruta: $pathError');
-          if (mounted) {
-            scaffold.showSnackBar(SnackBar(content: Text('Error al obtener ruta de descargas: $pathError')));
-          }
-          return;
         }
-        
-        // Crear nombre de archivo único con timestamp
-        final fileName = 'LUMI_Reporte_${DateTime.now().year}-${DateTime.now().month.toString().padLeft(2, '0')}-${DateTime.now().day.toString().padLeft(2, '0')}_${DateTime.now().hour.toString().padLeft(2, '0')}-${DateTime.now().minute.toString().padLeft(2, '0')}-${DateTime.now().second.toString().padLeft(2, '0')}.pdf';
-        final filePath = '$downloadPath/$fileName';
-        
-        // Escribir archivo
-        final file = File(filePath);
-        await file.writeAsBytes(pdfBytes);
-        
-        // Verificar que el archivo se creó
-        if (await file.exists()) {
-          final fileSize = await file.length();
-          if (mounted) {
-            scaffold.showSnackBar(SnackBar(
-              content: Text('✓ PDF guardado en $displayPath\nArchivo: $fileName\nTamaño: ${(fileSize / 1024).toStringAsFixed(2)} KB'),
-              duration: const Duration(seconds: 4),
-            ));
-          }
-          debugPrint('PDF guardado exitosamente en: $filePath ($fileSize bytes)');
-        } else {
-          throw Exception('El archivo no se creó correctamente');
-        }
-      } catch (saveError) {
-        debugPrint('Error guardando PDF: $saveError');
-        if (mounted) {
-          scaffold.showSnackBar(SnackBar(
-            content: Text('Error guardando PDF: ${_sanitizeText(saveError.toString())}'),
-            duration: const Duration(seconds: 3),
-          ));
-        }
+      } catch (e) {
+        debugPrint('Error guardando PDF local: $e');
       }
     } catch (e) {
-      if (mounted) {
-        scaffold.showSnackBar(SnackBar(content: Text('Error: ${_sanitizeText(e.toString())}')));
-      }
+      if (mounted)
+        scaffold.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Error generando PDF: ${_sanitizeText(e.toString())}',
+            ),
+          ),
+        );
     }
   }
 
@@ -605,18 +812,18 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
     return pw.TableRow(
       children: [
         pw.Padding(
-          padding: const pw.EdgeInsets.all(8),
+          padding: const pw.EdgeInsets.all(6),
           child: pw.Text(
             _sanitizeText(label),
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10),
           ),
         ),
         pw.Padding(
-          padding: const pw.EdgeInsets.all(8),
+          padding: const pw.EdgeInsets.all(6),
           child: pw.Text(
             _sanitizeText(value),
             textAlign: pw.TextAlign.right,
-            style: const pw.TextStyle(fontSize: 11),
+            style: const pw.TextStyle(fontSize: 10),
           ),
         ),
       ],
@@ -627,15 +834,16 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
     return pw.Container(
       padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
-        border: pw.Border.all(color: PdfColors.blue300),
-        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+        border: pw.Border.all(color: PdfColors.purple300),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(6)),
+        color: PdfColors.purple50,
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
             _sanitizeText(label),
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
           ),
           pw.Text(
             value,
@@ -653,134 +861,236 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
   String _calculateCompletionRate() {
     final total = (_currentSummary['totalTareas'] ?? 0) as int;
     final completadas = (_currentSummary['tareasCompletadas'] ?? 0) as int;
-
     if (total == 0) return '0%';
-
-    final porcentaje = ((completadas / total) * 100).toStringAsFixed(1);
-    return '$porcentaje%';
+    return '${((completadas / total) * 100).toStringAsFixed(1)}%';
   }
 
   pw.Widget _pwTableFromSeries(dynamic rows) {
-    if (rows == null) return pw.Text('Sin datos');
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    
-    final data = list.map((r) {
-      final fecha = _sanitizeText((r['fecha'] ?? '').toString());
-      final total = (r['total'] ?? '').toString();
-      return [fecha, total];
-    }).toList();
+    if (rows == null || (rows as List).isEmpty)
+      return pw.Text(
+        'Sin datos disponibles',
+        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+      );
+    final list = rows.cast<Map<String, dynamic>>();
+    final data = list
+        .map(
+          (r) => [
+            _sanitizeText((r['fecha'] ?? '').toString()),
+            (r['total'] ?? '').toString(),
+          ],
+        )
+        .toList();
 
     return pw.TableHelper.fromTextArray(
-      headers: ['Mes', 'Cantidad'],
+      headers: ['Periodo (Mes)', 'Cantidad Registrada'],
       data: data,
       border: pw.TableBorder.all(color: PdfColors.grey300),
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
+        fontSize: 9,
       ),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
-      cellAlignment: pw.Alignment.center,
-      cellPadding: const pw.EdgeInsets.all(6),
-    );
-  }
-
-  pw.Widget _pwTableFromSeriesDetailado(dynamic rows) {
-    if (rows == null) return pw.Text('Sin datos');
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    
-    if (list.isEmpty) return pw.Text('Sin datos en los últimos 30 días');
-    
-    final data = list.map((r) {
-      final fecha = _sanitizeText((r['fecha'] ?? '').toString());
-      final total = (r['total'] ?? '').toString();
-      return [fecha, total];
-    }).toList();
-
-    return pw.TableHelper.fromTextArray(
-      headers: ['Fecha', 'Cantidad'],
-      data: data,
-      border: pw.TableBorder.all(color: PdfColors.grey300),
-      headerStyle: pw.TextStyle(
-        fontWeight: pw.FontWeight.bold,
-        color: PdfColors.white,
-      ),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue800),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.purple900),
       cellAlignment: pw.Alignment.center,
       cellPadding: const pw.EdgeInsets.all(5),
       cellStyle: const pw.TextStyle(fontSize: 9),
     );
   }
 
+  pw.Widget _pwTableFromSeriesDetailado(dynamic rows) {
+    if (rows == null || (rows as List).isEmpty)
+      return pw.Text(
+        'Sin datos en los últimos 30 días',
+        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+      );
+    final list = rows.cast<Map<String, dynamic>>();
+    final data = list
+        .map(
+          (r) => [
+            _sanitizeText((r['fecha'] ?? '').toString()),
+            (r['total'] ?? '').toString(),
+          ],
+        )
+        .toList();
+
+    return pw.TableHelper.fromTextArray(
+      headers: ['Fecha Específica', 'Cantidad'],
+      data: data,
+      border: pw.TableBorder.all(color: PdfColors.grey300),
+      headerStyle: pw.TextStyle(
+        fontWeight: pw.FontWeight.bold,
+        color: PdfColors.white,
+        fontSize: 9,
+      ),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.purple800),
+      cellAlignment: pw.Alignment.center,
+      cellPadding: const pw.EdgeInsets.all(4),
+      cellStyle: const pw.TextStyle(fontSize: 8),
+    );
+  }
+
   pw.Widget _pwTableUsuarios(dynamic rows) {
-    if (rows == null) return pw.Text('Sin datos');
-    final list = (rows as List).cast<Map<String, dynamic>>();
-    
-    if (list.isEmpty) return pw.Text('Sin usuarios recientemente creados');
-    
+    if (rows == null || (rows as List).isEmpty)
+      return pw.Text(
+        'Sin usuarios recientes',
+        style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+      );
+    final list = rows.cast<Map<String, dynamic>>();
     final data = list.map((r) {
-      final nombreCompleto = '${r['nombre'] ?? ''} ${r['apellido'] ?? ''}'.trim();
-      final nombre = _sanitizeText(nombreCompleto);
+      final nombre = _sanitizeText(
+        '${r['nombre'] ?? ''} ${r['apellido'] ?? ''}'.trim(),
+      );
       final tipo = (r['es_admin'] == true) ? 'Admin' : 'Estudiante';
-      final fecha = _formatDate((r['fecha_registro'] ?? '').toString());
+      final fecha = (r['fecha_registro'] ?? '').toString().split('T')[0];
       final planes = (r['planes_count'] ?? 0).toString();
       final tareas = (r['tareas_count'] ?? 0).toString();
       return [nombre, tipo, fecha, planes, tareas];
     }).toList();
 
     return pw.TableHelper.fromTextArray(
-      headers: ['Nombre', 'Tipo', 'Fecha Registro', 'Planes', 'Tareas'],
+      headers: ['Nombre del Usuario', 'Rol', 'Registro', 'Planes', 'Tareas'],
       data: data,
       border: pw.TableBorder.all(color: PdfColors.grey300),
       headerStyle: pw.TextStyle(
         fontWeight: pw.FontWeight.bold,
         color: PdfColors.white,
-        fontSize: 10,
+        fontSize: 9,
       ),
-      headerDecoration: const pw.BoxDecoration(color: PdfColors.blue900),
+      headerDecoration: const pw.BoxDecoration(color: PdfColors.purple900),
       cellAlignment: pw.Alignment.center,
-      cellPadding: const pw.EdgeInsets.all(5),
-      cellStyle: const pw.TextStyle(fontSize: 9),
+      cellPadding: const pw.EdgeInsets.all(4),
+      cellStyle: const pw.TextStyle(fontSize: 8),
     );
   }
+}
 
-  String _formatDate(String dateStr) {
-    try {
-      if (dateStr.isEmpty) return '';
-      final date = DateTime.parse(dateStr);
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-    } catch (e) {
-      return dateStr;
+class _NeonLineChartPainter extends CustomPainter {
+  final List<Map<String, dynamic>> data;
+  final double maxValue;
+  final Color lineColor;
+  final Color secondaryColor;
+
+  _NeonLineChartPainter({
+    required this.data,
+    required this.maxValue,
+    required this.lineColor,
+    required this.secondaryColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (data.isEmpty) return;
+
+    final paintLine = Paint()
+      ..color = lineColor
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final paintGlow = Paint()
+      ..color = lineColor.withValues(alpha: 0.3)
+      ..strokeWidth = 8.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6)
+      ..style = PaintingStyle.stroke;
+
+    final paintPoint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final paintPointBorder = Paint()
+      ..color = lineColor
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    final points = <Offset>[];
+
+    final double stepX = size.width / (data.length > 1 ? data.length - 1 : 1);
+    const double paddingBottom = 24.0;
+    const double paddingTop = 16.0;
+    final double usableHeight = size.height - paddingBottom - paddingTop;
+
+    for (int i = 0; i < data.length; i++) {
+      final value = (data[i]['total'] as int).toDouble();
+      final x = i * stepX;
+      final y = size.height - paddingBottom - (value / maxValue) * usableHeight;
+      points.add(Offset(x, y));
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    canvas.drawPath(path, paintGlow);
+    canvas.drawPath(path, paintLine);
+
+    for (int i = 0; i < points.length; i++) {
+      canvas.drawCircle(points[i], 4.5, paintPoint);
+      canvas.drawCircle(points[i], 4.5, paintPointBorder);
+    }
+
+    final textPainter = TextPainter(textDirection: TextDirection.ltr);
+
+    for (int i = 0; i < data.length; i++) {
+      final item = data[i];
+      final label = item['fecha'].toString().contains('-')
+          ? _getShortMonth(item['fecha'].toString())
+          : item['fecha'].toString();
+      final valueStr = item['total'].toString();
+
+      textPainter.text = TextSpan(
+        text: label,
+        style: GoogleFonts.orbitron(color: Colors.white60, fontSize: 9),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(points[i].dx - textPainter.width / 2, size.height - 18),
+      );
+
+      textPainter.text = TextSpan(
+        text: valueStr,
+        style: GoogleFonts.orbitron(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(points[i].dx - textPainter.width / 2, points[i].dy - 18),
+      );
     }
   }
 
-  Widget _metricCard(String label, String value) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF151C3D),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: GoogleFonts.orbitron(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  String _getShortMonth(String dateStr) {
+    const months = [
+      'Ene',
+      'Feb',
+      'Mar',
+      'Abr',
+      'May',
+      'Jun',
+      'Jul',
+      'Ago',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dic',
+    ];
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length >= 2) {
+        final monthIdx = int.parse(parts[1]) - 1;
+        if (monthIdx >= 0 && monthIdx < 12) return months[monthIdx];
+      }
+    } catch (_) {}
+    return dateStr;
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
