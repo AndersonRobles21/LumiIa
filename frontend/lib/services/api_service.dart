@@ -154,8 +154,7 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       return false;
     }
   }
-
-  static Future<Map<String, dynamic>> login({required String userId}) async {
+static Future<Map<String, dynamic>> login({required String userId}) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/login'),
@@ -164,22 +163,27 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       );
 
       if (response.body.isEmpty) {
-        throw Exception(
-          'El servidor Node.js devolvió una respuesta vacía en el inicio de sesión.',
-        );
+        throw Exception('El servidor devolvió una respuesta vacía.');
       }
 
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200) {
-        throw Exception(
-          data['mensaje'] ?? 'Error al iniciar sesión en el servidor local.',
-        );
+        // Buscamos cualquier llave común donde el backend mande el error
+        final serverMessage = data['mensaje'] ?? data['error'] ?? data['message'];
+        
+        if (response.statusCode == 400 || response.statusCode == 401) {
+          throw Exception('Correo o contraseña incorrectos.');
+        }
+        
+        throw Exception(serverMessage ?? 'Error al iniciar sesión (Código ${response.statusCode}).');
       }
 
       return data;
     } catch (e) {
-      throw Exception('Error en ApiService login: $e');
+      // Limpiamos la excepción para que no arrastre texto técnico feo
+      final cleanMessage = e.toString().replaceAll('Exception: ', '').replaceAll('Error en ApiService login: ', '');
+      throw Exception(cleanMessage);
     }
   }
 
@@ -586,6 +590,7 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
     }
   }
 
+  // --- MÉTODO ACTUALIZADO CON TIMEOUT PARA REGENERAR PLAN ---
   static Future<Map<String, dynamic>?> regenerarPlanExistente({
     required String planId,
     required String metodoEstudio,
@@ -607,6 +612,9 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
           'fecha_entrega': fechaEntrega,
           'dificultad': dificultad,
         }),
+      ).timeout(
+        const Duration(seconds: 120),
+        onTimeout: () => throw Exception('La IA está tardando demasiado. Inténtalo de nuevo.'),
       );
 
       if (response.statusCode == 200 && response.body.isNotEmpty) {
@@ -616,11 +624,35 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
 
       return null;
     } catch (e) {
-      print('Error al conectar con el servidor para cambiar método: $e');
+      print('Error al cambiar método con IA: $e');
       return null;
     }
   }
-  
+
+  // --- MÉTODO ACTUALIZADO CON TIMEOUT PARA REAJUSTAR PLAN ---
+  static Future<Map<String, dynamic>?> reajustarPlanIA({
+    required String planId,
+    required String nuevaFechaEntrega,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$iaBaseUrl/plan/$planId/reajustar-fecha'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'fecha_entrega': nuevaFechaEntrega}),
+      ).timeout(
+        const Duration(seconds: 120),
+        onTimeout: () => throw Exception('El reajuste del plan tardó mucho tiempo.'),
+      );
+
+      if (response.statusCode == 200 && response.body.isNotEmpty) {
+        return jsonDecode(response.body);
+      }
+      return null;
+    } catch (e) {
+      print('Error en ApiService reajustarPlanIA: $e');
+      return null;
+    }
+  }
 
   static Future<Map<String, dynamic>?> getProgreso(String userId) async {
     try {
@@ -654,26 +686,6 @@ static Future<bool> actualizarFechaTarea(String id, String nuevaFecha) async {
     }
   }
 
- static Future<Map<String, dynamic>?> reajustarPlanIA({
-    required String planId,
-    required String nuevaFechaEntrega,
-  }) async {
-    try {
-      final response = await http.put(
-        Uri.parse('$iaBaseUrl/plan/$planId/reajustar-fecha'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'fecha_entrega': nuevaFechaEntrega}),
-      );
-
-      if (response.statusCode == 200 && response.body.isNotEmpty) {
-        return jsonDecode(response.body);
-      }
-      return null;
-    } catch (e) {
-      print('Error en ApiService reajustarPlanIA: $e');
-      return null;
-    }
-  }
   static Future<bool> registrarSesionEstudio({
     required String userId,
     required String categoria,

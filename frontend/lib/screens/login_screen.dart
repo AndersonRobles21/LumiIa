@@ -59,13 +59,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un email válido.');
+      setState(() => _errorMessage = 'Ingresa un correo electrónico válido.');
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
+      // 1. Autenticación real con Supabase
       final AuthResponse response = await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
@@ -88,8 +89,8 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('¡Bienvenido a Lumi!', style: GoogleFonts.orbitron(fontWeight: FontWeight.w600)),
-          backgroundColor: const Color(0xFF102CE4),
+          content: Text('✓ ¡Bienvenido de nuevo a LUMI!', style: GoogleFonts.orbitron(fontWeight: FontWeight.bold)),
+          backgroundColor: const Color(0xFF22C55E),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -125,9 +126,19 @@ class _LoginScreenState extends State<LoginScreen> {
 
     } catch (e) {
       if (!mounted) return;
+      
+      // Limpiamos y traducimos los errores comunes de Supabase o credenciales erróneas
+      String errorText = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
+      
+      if (errorText.toLowerCase().contains('invalid login credentials') || 
+          errorText.toLowerCase().contains('invalid grant') ||
+          errorText.toLowerCase().contains('unauthorized')) {
+        errorText = 'Correo o contraseña incorrectos. Verifica tus datos.';
+      }
+
       setState(() {
         _isLoading = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
+        _errorMessage = errorText;
       });
     }
   }
@@ -215,7 +226,7 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Componente visual reutilizable para el logotipo con efecto glow sutil
+  // Componente visual reutilizable para el logotipo con efecto glow
   Widget _buildHeroLogo({required double width, required double height}) {
     return Container(
       decoration: BoxDecoration(
@@ -233,11 +244,12 @@ class _LoginScreenState extends State<LoginScreen> {
         width: width,
         height: height,
         fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Icon(Icons.auto_awesome, size: 60, color: Color(0xFFF716DC)),
       ),
     );
   }
 
-  // Contenido unificado del formulario para evitar duplicación de código
+  // Contenido unificado del formulario
   Widget _buildFormContent(BuildContext context) {
     final isDesktop = Responsive.esEscritorio(context);
     
@@ -290,11 +302,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
 
         Text(
-          'Email',
+          'Correo Electrónico',
           style: GoogleFonts.orbitron(
-            color: const Color(0xFFE2E0EE),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+            color: const Color(0xFFB0AEC4),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -302,16 +314,16 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _emailController,
           hint: 'tucorreo@email.com',
           keyboardType: TextInputType.emailAddress,
-          prefixIcon: const Icon(Icons.mail_outline_rounded, color: Color(0xFFB0AEC4), size: 20),
+          prefixIcon: const Icon(Icons.mail_outline_rounded, color: Color(0xFF7C3AED), size: 20),
         ),
         SizedBox(height: Responsive.espacio(context) * 2),
 
         Text(
           'Contraseña',
           style: GoogleFonts.orbitron(
-            color: const Color(0xFFE2E0EE),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
+            color: const Color(0xFFB0AEC4),
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
@@ -319,11 +331,11 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _passwordController,
           hint: '••••••••••••',
           obscureText: _obscurePassword,
-          prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFFB0AEC4), size: 20),
+          prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF7C3AED), size: 20),
           suffixIcon: IconButton(
             icon: Icon(
               _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-              color: const Color(0xFFB0AEC4),
+              color: const Color(0xFFF716DC),
               size: 20,
             ),
             onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -365,10 +377,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
               ),
               child: _isLoading
-                  ? SizedBox(
+                  ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: const CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                     )
                   : Text(
                       'Iniciar Sesión',
@@ -383,7 +395,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
 
-        SizedBox(height: Responsive.espacio(context) * 2.5),
+        SizedBox(height: Responsive.espacio(context) * 2),
 
         Center(
           child: TextButton(
@@ -408,7 +420,7 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
 
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
 
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -416,7 +428,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               '¿No tienes una cuenta? ',
               style: GoogleFonts.orbitron(
-                color: Colors.grey[400], 
+                color: const Color(0xFFB0AEC4), 
                 fontSize: Responsive.tamanioTexto(context) - 2,
               ),
             ),
@@ -450,38 +462,30 @@ class _LoginScreenState extends State<LoginScreen> {
     Widget? prefixIcon,
     Widget? suffixIcon,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscureText,
-        keyboardType: keyboardType,
-        style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 13),
-          filled: true,
-          fillColor: const Color(0xFF1E142C).withValues(alpha: 0.6),
-          prefixIcon: prefixIcon,
-          suffixIcon: suffixIcon,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide(color: const Color(0xFF4A2A68).withValues(alpha: 0.5), width: 1),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: Color(0xFFF716DC), width: 1.5),
-          ),
+    return TextField(
+      controller: controller,
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 12),
+        filled: true,
+        fillColor: const Color(0xFF1E142C).withValues(alpha: 0.7),
+        prefixIcon: prefixIcon,
+        suffixIcon: suffixIcon,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF4A2A68), width: 1.0),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFF716DC), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
         ),
       ),
     );
@@ -489,26 +493,21 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildErrorContainer(String message) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF3A1B2A).withValues(alpha: 0.8),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFCC3355).withValues(alpha: 0.6)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFCC3355).withValues(alpha: 0.1),
-            blurRadius: 10,
-          ),
-        ],
+        color: Colors.redAccent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFFF4D79), size: 18),
+          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.orbitron(color: const Color(0xFFFF99B3), fontSize: 12, fontWeight: FontWeight.w500),
+              style: GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],
