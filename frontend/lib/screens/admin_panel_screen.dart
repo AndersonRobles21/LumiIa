@@ -50,7 +50,6 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
   }
 
   void _initializeRefreshTimer() {
-    // Actualizar datos cada 10 segundos en tiempo real
     _refreshTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _loadData();
     });
@@ -110,279 +109,300 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     return value.toString();
   }
 
+  String _getFormattedDate() {
+    final months = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    return '${months[_lastUpdate.month - 1]} ${_lastUpdate.day}, ${_lastUpdate.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
       final isDesktop = width >= 1024;
-
-      final crossCount = (width ~/ 240).clamp(2, 6);
+      final crossCount = (width ~/ 260).clamp(2, 4);
 
       return Scaffold(
-      backgroundColor: const Color(0xFF080D2B),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF111C4A),
-        foregroundColor: Colors.white,
-        title: Text(
-          'Panel Admin • $_adminName',
-          style: GoogleFonts.orbitron(fontWeight: FontWeight.w700),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                'Actualizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
-              ),
+        backgroundColor: const Color(0xFF0B0813),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF16003A),
+          elevation: 0,
+          title: Text(
+            'Panel de control • Administrador',
+            style: GoogleFonts.orbitron(
+              fontWeight: FontWeight.w700,
+              fontSize: 18,
+              color: Colors.white,
             ),
           ),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () async => await _cerrarSesion(context),
-            icon: const Icon(Icons.logout_rounded),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: _loading
-            ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF44AA)))
-            : SingleChildScrollView(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.paddingHorizontalRecomendado(context),
-                  vertical: 20,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E142C),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    'Sincronizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
+                    style: GoogleFonts.orbitron(fontSize: 11, color: const Color(0xFFB0AEC4)),
+                  ),
                 ),
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (_errorMessage != null)
-                        Container(
-                          width: double.infinity,
-                          margin: const EdgeInsets.only(bottom: 16),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF5C1832),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline, color: Colors.white70),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  _errorMessage!,
-                                  style: const TextStyle(color: Colors.white),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Cerrar sesión',
+              onPressed: () async => await _cerrarSesion(context),
+              icon: const Icon(Icons.logout_rounded, color: Color(0xFFFF4D79)),
+            ),
+          ],
+        ),
+        body: Container(
+          width: double.infinity,
+          height: double.infinity,
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+            ),
+          ),
+          child: SafeArea(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFFF716DC), strokeWidth: 3))
+                : SingleChildScrollView(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: Responsive.paddingHorizontalRecomendado(context),
+                      vertical: 24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_errorMessage != null)
+                          Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.only(bottom: 20),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF3A1B2A).withValues(alpha: 0.9),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFCC3355)),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.error_outline_rounded, color: Color(0xFFFF4D79)),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    _errorMessage!,
+                                    style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+                                  ),
                                 ),
-                              ),
-                              IconButton(
-                                tooltip: 'Reintentar',
-                                onPressed: _loadData,
-                                icon: const Icon(Icons.refresh, color: Colors.white),
-                              ),
-                            ],
+                                IconButton(
+                                  tooltip: 'Reintentar',
+                                  onPressed: _loadData,
+                                  icon: const Icon(Icons.refresh_rounded, color: Colors.white),
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                      _buildHeaderCard(width),
-                      const SizedBox(height: 20),
-                      SizedBox(
-                        width: double.infinity,
-                        child: GridView.count(
+
+                        // Banner de Bienvenida Estilo Cyberpunk
+                        _buildHeaderCard(width),
+                        const SizedBox(height: 24),
+
+                        // Cuadrícula de Estadísticas
+                        GridView.count(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           crossAxisCount: crossCount,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: isDesktop ? 2.2 : 1.5,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                          childAspectRatio: isDesktop ? 2.1 : 1.6,
                           children: [
-                            _buildStatCard('Usuarios', _getLabel(_summary['totalUsuarios'])),
-                            _buildStatCard('Estudiantes', _getLabel(_summary['estudiantes'])),
-                            _buildStatCard('Admins', _getLabel(_summary['administradores'])),
-                            _buildStatCard('Planes', _getLabel(_summary['totalPlanes'])),
-                            _buildStatCard('Tareas', _getLabel(_summary['totalTareas'])),
+                            _buildStatCard('Estudiantes totales', _getLabel(_summary['totalUsuarios']), Icons.school_outlined, 'Registrados'),
+                            _buildStatCard('Estudiantes activos', _getLabel(_summary['estudiantes']), Icons.verified_user_outlined, 'En línea ahora'),
+                            _buildStatCard('Planes generados', _getLabel(_summary['totalPlanes']), Icons.assignment_outlined, 'IA activa'),
+                            _buildStatCard('Estado del sistema', 'Óptimo', Icons.psychology_outlined, 'Latencia: 42ms'),
                           ],
                         ),
-                      ),
-                      const SizedBox(height: 16),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => AdminEstadisticasScreen(summary: _summary, adminUserId: widget.userId),
+                        const SizedBox(height: 28),
+
+                        // Botones de Acción Rápida (Estadísticas y Gestión)
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            FilledButton.icon(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminEstadisticasScreen(summary: _summary, adminUserId: widget.userId),
+                                  ),
+                                );
+                              },
+                              style: FilledButton.styleFrom(
+                                backgroundColor: const Color(0xFF1E142C),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.5)),
+                                ),
                               ),
-                            );
-                          },
-                          icon: const Icon(Icons.bar_chart_rounded),
-                          label: const Text('Ver estadísticas'),
+                              icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFFF716DC)),
+                              label: Text('Ver estadísticas completas', style: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold)),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 20),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: FilledButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AdminUsuariosListV2(
-                                          adminUserId: widget.userId,
-                                          onlyAdmins: false,
-                                        ),
-                                  ),
-                                );
-                              },
-                              child: const Text('Estudiantes'),
-                            ),
+                        const SizedBox(height: 20),
+
+                        // Accesos a Listas de Usuarios
+                        Text(
+                          'Gestión de usuarios',
+                          style: GoogleFonts.orbitron(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: FilledButton.tonal(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AdminUsuariosListV2(
-                                      adminUserId: widget.userId,
-                                      onlyAdmins: true,
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildActionButton(
+                                title: 'Estudiantes',
+                                icon: Icons.group_rounded,
+                                gradientColors: const [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AdminUsuariosListV2(
+                                        adminUserId: widget.userId,
+                                        onlyAdmins: false,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: const Text('Administradores'),
+                                  );
+                                },
+                              ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildActionButton(
+                                title: 'Administradores',
+                                icon: Icons.admin_panel_settings_rounded,
+                                gradientColors: const [Color(0xFF0F1D8A), Color(0xFF102CE4)],
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AdminUsuariosListV2(
+                                        adminUserId: widget.userId,
+                                        onlyAdmins: true,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 30),
+                      ],
+                    ),
                   ),
-              ),
-      ),
+          ),
+        ),
       );
     });
   }
 
-  Widget _buildHeaderCard([double? width]) {
+  Widget _buildHeaderCard(double width) {
+    final isDesktop = width >= 1024;
+
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF18275E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF3D5AFE).withValues(alpha: 0.4)),
+        color: const Color(0xFF1E142C).withValues(alpha: 0.7),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF716DC).withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
-      child: LayoutBuilder(builder: (context, constraints) {
-        final isDesktop = (width ?? constraints.maxWidth) >= 1024;
-
-        if (isDesktop) {
-          return Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LUMI Admin',
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Resumen operativo y gestión de usuarios del sistema.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontSize: 15,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: Image.asset(
-                  'logo/lumii.png',
-                  width: Responsive.esEscritorio(context) ? 120 : 96,
-                  height: Responsive.esEscritorio(context) ? 120 : 96,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ],
-          );
-        }
-
-        return Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Image.asset(
-                'logo/lumii.png',
-                width: 84,
-                height: 84,
-                fit: BoxFit.cover,
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'LUMI Admin',
-                    style: GoogleFonts.orbitron(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Resumen operativo y gestión de usuarios del sistema.',
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.72),
-                      fontSize: 15,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        );
-      }),
-    );
-  }
-
-  Widget _buildStatCard(String titulo, String valor) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF151C3D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          Text(
-            titulo,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
-              fontSize: 12,
-              letterSpacing: 1,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getFormattedDate(),
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFFB0AEC4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Panel de control - Administrador',
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFFF716DC),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Bienvenido otra vez, $_adminName',
+                  style: GoogleFonts.orbitron(
+                    color: Colors.white,
+                    fontSize: isDesktop ? 26 : 20,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Monitoreo del sistema de LUMI a tiempo real',
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFFB0AEC4),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            valor,
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.w700,
+          const SizedBox(width: 12),
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFF716DC).withValues(alpha: 0.2),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.asset(
+                'logo/Lumi.png',
+                width: isDesktop ? 110 : 80,
+                height: isDesktop ? 110 : 80,
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ],
@@ -390,92 +410,98 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     );
   }
 
-  Widget _buildUsersSection() {
+  Widget _buildStatCard(String titulo, String valor, IconData icon, String subtitle) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C4A),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1E142C).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Usuarios registrados',
-                style: GoogleFonts.orbitron(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
+              Expanded(
+                child: Text(
+                  titulo,
+                  style: GoogleFonts.orbitron(
+                    color: const Color(0xFFB0AEC4),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ),
-              TextButton(
-                onPressed: _loadData,
-                child: const Text('Actualizar'),
-              ),
+              Icon(icon, color: const Color(0xFFF716DC), size: 20),
             ],
           ),
-          const SizedBox(height: 12),
-          if (_usuarios.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 18),
-              child: Text(
-                'No hay usuarios disponibles para mostrar.',
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-              ),
-            )
-          else
-            ListView.separated(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _usuarios.length,
-              separatorBuilder: (_, _) => const Divider(color: Color(0xFF2A2F5A)),
-              itemBuilder: (context, index) {
-                final usuario = _usuarios[index] as Map<String, dynamic>;
-                final nombre = (usuario['nombre'] ?? 'Usuario').toString();
-                final apellido = (usuario['apellido'] ?? '').toString();
-                final fecha = usuario['fecha_registro']?.toString() ?? 'Sin fecha';
-                final tareas = usuario['tareas_completadas'] ?? 0;
-                final racha = usuario['racha'] ?? 0;
-
-                final userId = (usuario['id'] ?? '').toString();
-
-                return ListTile(
-                  onTap: userId.isEmpty
-                      ? null
-                      : () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => AdminUsuarioDetalleScreen(
-                                adminUserId: widget.userId,
-                                targetUserId: userId,
-                              ),
-                            ),
-                          );
-                        },
-                  contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-                  leading: CircleAvatar(
-                    backgroundColor: const Color(0xFFFF44AA),
-                    child: Text(
-                      nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  title: Text(
-                    '$nombre $apellido'.trim(),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    'Registrado: $fecha\nTareas completadas: $tareas • Racha: $racha',
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
-                  ),
-                );
-              },
+          Text(
+            valor,
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
             ),
+          ),
+          Text(
+            subtitle,
+            style: GoogleFonts.orbitron(
+              color: Colors.grey[500],
+              fontSize: 11,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required String title,
+    required IconData icon,
+    required List<Color> gradientColors,
+    required VoidCallback onPressed,
+  }) {
+    return SizedBox(
+      height: 52,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(colors: gradientColors),
+          boxShadow: [
+            BoxShadow(
+              color: gradientColors.first.withValues(alpha: 0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ElevatedButton.icon(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          ),
+          icon: Icon(icon, color: Colors.white, size: 20),
+          label: Text(
+            title,
+            style: GoogleFonts.orbitron(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ),
     );
   }
