@@ -229,9 +229,10 @@ if (Platform.isAndroid) return 'http://localhost:3000';
     }
   }
 
-  static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
+static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
     try {
-      final url = '$adminBaseUrl/summary/$userId';
+      // Volvemos a incluir el userId en la ruta, que es como Node.js lo tiene configurado
+      final url = '$adminBaseUrl/summary/$userId'; 
       print('Llamando a: $url');
       
       final response = await http.get(Uri.parse(url));
@@ -242,16 +243,13 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       if (response.statusCode != 200) {
         String mensaje = 'No se pudo cargar el resumen administrativo (${response.statusCode}).';
         
-        // Intenta parsear como JSON solo si es probable que lo sea
         if (response.body.isNotEmpty && response.body.trim().startsWith('{')) {
           try {
             final data = jsonDecode(response.body);
             if (data is Map && data['mensaje'] != null) {
               mensaje = data['mensaje'].toString();
             }
-          } catch (_) {
-            // Si no es JSON, usa el mensaje por defecto
-          }
+          } catch (_) {}
         }
         throw Exception(mensaje);
       }
@@ -260,7 +258,6 @@ if (Platform.isAndroid) return 'http://localhost:3000';
         throw Exception('El servidor devolvió un resumen vacío.');
       }
       
-      // Validar que la respuesta sea JSON válido
       if (!response.body.trim().startsWith('{')) {
         throw Exception('La respuesta del servidor no es JSON válido. Revisa que el servidor esté corriendo en localhost:3000');
       }
@@ -273,7 +270,6 @@ if (Platform.isAndroid) return 'http://localhost:3000';
       rethrow;
     }
   }
-
   static Future<List<dynamic>> getAdminUsuarios(String userId, {String? order}) async {
     try {
       final uri = Uri.parse('$adminBaseUrl/usuarios/$userId').replace(queryParameters: order != null ? {'order': order} : null);

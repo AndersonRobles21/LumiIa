@@ -3,6 +3,28 @@ import { gemini, GEMINI_MODEL } from "../config/ia/gemini.config";
 import { construirPromptPlan, PromptPlanInput } from "../prompts/plan.prompt";
 import { PlanIA } from "../types/plan.types";
 
+// Función auxiliar para esperar unos segundos entre reintentos
+const esperar = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+// Función genérica para manejar llamadas a Gemini con reintentos automáticos en caso de error 503
+async function intentarConReintentos(fn: () => Promise<any>, maxIntentos = 3, esperaMs = 3000) {
+  let intentos = maxIntentos;
+  while (intentos > 0) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      // Si es un error 503 (Servicio no disponible / alta demanda) y quedan intentos
+      if (error?.status === 503 && intentos > 1) {
+        console.warn(`[Gemini] Servidores saturados (503). Reintentando en ${esperaMs / 1000}s... (Intentos restantes: ${intentos - 1})`);
+        await esperar(esperaMs);
+        intentos--;
+      } else {
+        throw error;
+      }
+    }
+  }
+}
+
 export async function generarPlanIA(
   datos: PromptPlanInput
 ): Promise<PlanIA> {
@@ -12,14 +34,16 @@ export async function generarPlanIA(
   console.log(prompt);
   console.log("============================");
 
-  // Usamos directamente el modelo configurado sin reintentos erróneos
-  const response = await gemini.models.generateContent({
-    model: GEMINI_MODEL, // Asegúrate que en tu gemini.config.ts este sea un modelo válido actual
-    contents: prompt,
-    config: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
+  // Llamada envuelta con reintentos automáticos
+  const response = await intentarConReintentos(async () => {
+    return await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    });
   });
 
   const texto = response.text;
@@ -64,13 +88,16 @@ Devuelve la respuesta estrictamente en un objeto JSON con esta estructura exacta
   "mensaje": "Un mensaje corto de Lumi felicitándolo si está bien o corrigiéndolo con cariño si está mal o es broma."
 }`;
 
-  const response = await gemini.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: prompt,
-    config: {
-      temperature: 0.2,
-      responseMimeType: "application/json",
-    },
+  // Llamada envuelta con reintentos automáticos
+  const response = await intentarConReintentos(async () => {
+    return await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+      config: {
+        temperature: 0.2,
+        responseMimeType: "application/json",
+      },
+    });
   });
 
   const texto = response.text;
