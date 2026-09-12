@@ -56,29 +56,53 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF111C4A),
-          title: const Text('Editar nombre', style: TextStyle(color: Colors.white)),
+          backgroundColor: const Color(0xFF1E142C),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.3)),
+          ),
+          title: Text('Editar nombre', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nombreCtrl,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Nombre', labelStyle: TextStyle(color: Colors.white70)),
+                decoration: InputDecoration(
+                  labelText: 'Nombre',
+                  labelStyle: const TextStyle(color: Color(0xFFB0AEC4)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF4A2A68))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF716DC))),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               TextField(
                 controller: apellidoCtrl,
                 style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(labelText: 'Apellido', labelStyle: TextStyle(color: Colors.white70)),
+                decoration: InputDecoration(
+                  labelText: 'Apellido',
+                  labelStyle: const TextStyle(color: Color(0xFFB0AEC4)),
+                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFF4A2A68))),
+                  focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFF716DC))),
+                ),
               ),
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Guardar'),
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4))),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                gradient: const LinearGradient(colors: [Color(0xFFF716DC), Color(0xFFA41CF9)]),
+              ),
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
+                child: const Text('Guardar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
             ),
           ],
         );
@@ -98,12 +122,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
 
     if (updated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nombre actualizado correctamente.')),
+        const SnackBar(content: Text('✓ Nombre actualizado correctamente.')),
       );
       await _loadData();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo actualizar el nombre.')),
+        const SnackBar(content: Text('Error: No se pudo actualizar el nombre.')),
       );
     }
   }
@@ -112,16 +136,21 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF111C4A),
-        title: const Text('Eliminar usuario', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF1E142C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
+        ),
+        title: Text('Eliminar usuario', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
           'Esta acción elimina el perfil, planes, tareas y dependencias asociadas al usuario. ¿Continuar?',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: Color(0xFFB0AEC4)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton.tonal(
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4)))),
+          ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
             child: const Text('Eliminar'),
           ),
         ],
@@ -139,12 +168,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
 
     if (deleted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Usuario eliminado correctamente.')),
+        const SnackBar(content: Text('✓ Usuario eliminado correctamente.')),
       );
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo eliminar el usuario.')),
+        const SnackBar(content: Text('Error: No se pudo eliminar el usuario.')),
       );
     }
   }
@@ -153,15 +182,29 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF111C4A),
-        title: const Text('Delegar administrador', style: TextStyle(color: Colors.white)),
+        backgroundColor: const Color(0xFF1E142C),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: const Color(0xFF00C2FF).withValues(alpha: 0.5)),
+        ),
+        title: Text('Delegar administrador', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
           'El usuario volverá a ser estudiante. Se conservarán su perfil, foto, tareas, planes y progreso.',
-          style: TextStyle(color: Colors.white70),
+          style: TextStyle(color: Color(0xFFB0AEC4)),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delegar')),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4)))),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: const LinearGradient(colors: [Color(0xFF00C2FF), Color(0xFF7C3AED)]),
+            ),
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
+              child: const Text('Delegar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ),
         ],
       ),
     );
@@ -177,12 +220,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
 
     if (delegated) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Administrador delegado a estudiante.')),
+        const SnackBar(content: Text('✓ Administrador delegado a estudiante.')),
       );
       Navigator.pop(context, true);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo delegar el administrador.')),
+        const SnackBar(content: Text('Error al delegar el administrador.')),
       );
     }
   }
@@ -192,36 +235,50 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final nombre = (_usuario['nombre'] ?? 'Usuario').toString();
     final apellido = (_usuario['apellido'] ?? '').toString();
     final objetivo = (_usuario['objetivo'] ?? '').toString();
+    final esAdmin = (_usuario['es_admin'] ?? false) == true;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080D2B),
+      backgroundColor: const Color(0xFF0B0813),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111C4A),
+        backgroundColor: const Color(0xFF16003A),
+        elevation: 0,
         foregroundColor: Colors.white,
         title: Text(
-          (_usuario['es_admin'] ?? false) == true
-              ? 'Detalle de administrador'
-              : 'Detalle de estudiante',
-          style: GoogleFonts.orbitron(fontWeight: FontWeight.w700),
+          esAdmin ? 'Detalle de Administrador' : 'Detalle de Estudiante',
+          style: GoogleFonts.orbitron(fontWeight: FontWeight.w700, fontSize: 16),
         ),
         actions: [
           IconButton(
             onPressed: _editarNombre,
             tooltip: 'Editar nombre',
-            icon: const Icon(Icons.edit_note_rounded),
+            icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF00C2FF)),
           ),
-          if ((_usuario['es_admin'] ?? false) != true)
+          if (!esAdmin)
             IconButton(
               onPressed: () async {
                 final confirmar = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF111C4A),
-                    title: const Text('Promover a administrador', style: TextStyle(color: Colors.white)),
-                    content: const Text('¿Deseas promover este usuario a administrador?', style: TextStyle(color: Colors.white70)),
+                    backgroundColor: const Color(0xFF1E142C),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.5)),
+                    ),
+                    title: Text('Promover a administrador', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    content: const Text('¿Deseas promover este usuario a administrador?', style: TextStyle(color: Color(0xFFB0AEC4))),
                     actions: [
-                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
-                      FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Promover')),
+                      TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4)))),
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          gradient: const LinearGradient(colors: [Color(0xFFF716DC), Color(0xFFA41CF9)]),
+                        ),
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent),
+                          child: const Text('Promover', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -233,132 +290,190 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
                 if (!mounted) return;
 
                 if (promoted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Usuario promovido a administrador.')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('✓ Usuario promovido a administrador.')));
                   Navigator.pop(context, true);
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo promover al usuario.')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error al promover al usuario.')));
                 }
               },
               tooltip: 'Promover a admin',
-              icon: const Icon(Icons.person_add_alt_1),
+              icon: const Icon(Icons.person_add_alt_1_rounded, color: Color(0xFFF716DC)),
             ),
           IconButton(
             onPressed: _eliminarUsuario,
             tooltip: 'Eliminar usuario',
-            icon: const Icon(Icons.delete_outline_rounded),
+            icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF44AA)))
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _headerCard(
-                    '$nombre ${apellido}'.trim(),
-                    (_usuario['foto_perfil'] ?? '').toString(),
-                  ),
-                  if ((_usuario['es_admin'] ?? false) == true && widget.targetUserId != widget.adminUserId) ...[
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: _delegarAEstudiante,
-                        icon: const Icon(Icons.person_remove_alt_1),
-                        label: const Text('Delegar a estudiante'),
-                      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+          ),
+        ),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFF716DC))))
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _headerCard(
+                      '$nombre $apellido'.trim(),
+                      (_usuario['foto_perfil'] ?? '').toString(),
                     ),
-                  ],
-                  const SizedBox(height: 20),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      _statChip('Racha', (_usuario['racha'] ?? 0).toString()),
-                      _statChip('Tareas completadas', (_usuario['tareas_completadas'] ?? 0).toString()),
-                      _statChip('Horas estudio', (_usuario['horas_estudio'] ?? 0).toString()),
-                      _statChip('Objetivo', objetivo.isEmpty ? 'Sin objetivo' : objetivo),
+                    if (esAdmin && widget.targetUserId != widget.adminUserId) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            gradient: const LinearGradient(colors: [Color(0xFF00C2FF), Color(0xFF7C3AED)]),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFF00C2FF).withValues(alpha: 0.2),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton.icon(
+                            onPressed: _delegarAEstudiante,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              shadowColor: Colors.transparent,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: const Icon(Icons.person_remove_alt_1_rounded, color: Colors.white, size: 18),
+                            label: Text(
+                              'Delegar a Estudiante',
+                              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 20),
-                  _sectionTitle('Planes de estudio'),
-                  if (_planes.isEmpty)
-                    const Text('Sin planes registrados.', style: TextStyle(color: Colors.white70))
-                  else
-                    ..._planes.map((plan) => _infoCard(
-                          title: (plan['nombre'] ?? 'Plan').toString(),
-                          subtitle: (plan['descripcion'] ?? '').toString(),
-                          meta: 'Estado: ${(plan['estado'] ?? 'SIN ESTADO').toString()}',
-                        )),
-                  const SizedBox(height: 20),
-                  _sectionTitle('Tareas'),
-                  if (_tareas.isEmpty)
-                    const Text('Sin tareas registradas.', style: TextStyle(color: Colors.white70))
-                  else
-                    ..._tareas.map((tarea) => _infoCard(
-                          title: (tarea['titulo'] ?? tarea['nombre'] ?? 'Tarea').toString(),
-                          subtitle: (tarea['descripcion'] ?? '').toString(),
-                          meta: 'Completada: ${((tarea['completada'] ?? false) == true) ? 'Sí' : 'No'}',
-                        )),
-                  const SizedBox(height: 20),
-                  _sectionTitle('Medallas'),
-                  if (_medallas.isEmpty)
-                    const Text('Sin medallas.', style: TextStyle(color: Colors.white70))
-                  else
-                    ..._medallas.map((medalla) => _infoCard(
-                          title: (medalla['nombre'] ?? 'Medalla').toString(),
-                          subtitle: (medalla['descripcion'] ?? '').toString(),
-                          meta: 'Puntos: ${(medalla['puntos'] ?? 0).toString()}',
-                        )),
-                  const SizedBox(height: 20),
-                  _sectionTitle('Horarios'),
-                  if (_horarios.isEmpty)
-                    const Text('Sin horarios configurados.', style: TextStyle(color: Colors.white70))
-                  else
-                    ..._horarios.map((horario) => _infoCard(
-                          title: (horario['dia'] ?? 'Horario').toString(),
-                          subtitle: '${(horario['hora_inicio'] ?? '').toString()} - ${(horario['hora_fin'] ?? '').toString()}',
-                          meta: 'Horario del estudiante',
-                        )),
-                ],
+                    const SizedBox(height: 24),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        _statChip('Racha', (_usuario['racha'] ?? 0).toString(), Icons.local_fire_department_rounded, const Color(0xFFF716DC)),
+                        _statChip('Completadas', (_usuario['tareas_completadas'] ?? 0).toString(), Icons.task_alt_rounded, const Color(0xFF22C55E)),
+                        _statChip('Horas', (_usuario['horas_estudio'] ?? 0).toString(), Icons.timer_rounded, const Color(0xFF00C2FF)),
+                        _statChip('Objetivo', objetivo.isEmpty ? 'Sin objetivo' : objetivo, Icons.flag_rounded, const Color(0xFFA41CF9)),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    _sectionTitle('Planes de Estudio', Icons.assignment_rounded),
+                    const SizedBox(height: 10),
+                    if (_planes.isEmpty)
+                      _emptyNotice('Sin planes registrados.')
+                    else
+                      ..._planes.map((plan) => _infoCard(
+                            title: (plan['nombre'] ?? 'Plan').toString(),
+                            subtitle: (plan['descripcion'] ?? '').toString(),
+                            meta: 'Estado: ${(plan['estado'] ?? 'SIN ESTADO').toString()}',
+                            accentColor: const Color(0xFF00C2FF),
+                          )),
+                    const SizedBox(height: 24),
+                    _sectionTitle('Tareas', Icons.task_rounded),
+                    const SizedBox(height: 10),
+                    if (_tareas.isEmpty)
+                      _emptyNotice('Sin tareas registradas.')
+                    else
+                      ..._tareas.map((tarea) => _infoCard(
+                            title: (tarea['titulo'] ?? tarea['nombre'] ?? 'Tarea').toString(),
+                            subtitle: (tarea['descripcion'] ?? '').toString(),
+                            meta: 'Completada: ${((tarea['completada'] ?? false) == true) ? 'Sí' : 'No'}',
+                            accentColor: const Color(0xFFF716DC),
+                          )),
+                    const SizedBox(height: 24),
+                    _sectionTitle('Medallas', Icons.military_tech_rounded),
+                    const SizedBox(height: 10),
+                    if (_medallas.isEmpty)
+                      _emptyNotice('Sin medallas.')
+                    else
+                      ..._medallas.map((medalla) => _infoCard(
+                            title: (medalla['nombre'] ?? 'Medalla').toString(),
+                            subtitle: (medalla['descripcion'] ?? '').toString(),
+                            meta: 'Puntos: ${(medalla['puntos'] ?? 0).toString()}',
+                            accentColor: Colors.amberAccent,
+                          )),
+                    const SizedBox(height: 24),
+                    _sectionTitle('Horarios', Icons.schedule_rounded),
+                    const SizedBox(height: 10),
+                    if (_horarios.isEmpty)
+                      _emptyNotice('Sin horarios configurados.')
+                    else
+                      ..._horarios.map((horario) => _infoCard(
+                            title: (horario['dia'] ?? 'Horario').toString(),
+                            subtitle: '${(horario['hora_inicio'] ?? '').toString()} - ${(horario['hora_fin'] ?? '').toString()}',
+                            meta: 'Horario del estudiante',
+                            accentColor: const Color(0xFF7C3AED),
+                          )),
+                    const SizedBox(height: 30),
+                  ],
+                ),
               ),
-            ),
+      ),
     );
   }
 
   Widget _headerCard(String nombre, String fotoPerfil) {
-    Widget avatar = Text(
+    Widget avatarChild = Text(
       nombre.isNotEmpty ? nombre[0].toUpperCase() : 'U',
-      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+      style: GoogleFonts.orbitron(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 22),
     );
 
     if (fotoPerfil.trim().isNotEmpty) {
       try {
         final foto = fotoPerfil.trim();
-        avatar = foto.startsWith('http')
-            ? Image.network(foto, width: 56, height: 56, fit: BoxFit.cover)
-            : Image.memory(base64Decode(foto.contains(',') ? foto.split(',').last : foto), width: 56, height: 56, fit: BoxFit.cover);
-      } catch (_) {
-        // Se mantiene la inicial si la imagen almacenada no es válida.
-      }
+        avatarChild = foto.startsWith('http')
+            ? Image.network(foto, width: 64, height: 64, fit: BoxFit.cover)
+            : Image.memory(base64Decode(foto.contains(',') ? foto.split(',').last : foto), width: 64, height: 64, fit: BoxFit.cover);
+      } catch (_) {}
     }
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF18275E),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF3D5AFE).withValues(alpha: 0.4)),
+        color: const Color(0xFF1E142C).withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.6)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFF716DC).withValues(alpha: 0.1),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 28,
-            backgroundColor: const Color(0xFFFF44AA),
-            child: avatar,
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFFF716DC), width: 2),
+            ),
+            child: ClipOval(
+              child: SizedBox(
+                width: 58,
+                height: 58,
+                child: ColoredBox(
+                  color: const Color(0xFF16003A),
+                  child: Center(child: avatarChild),
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -369,14 +484,14 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
                   nombre,
                   style: GoogleFonts.orbitron(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
-                  'Registro: ${(_usuario['fecha_registro'] ?? 'Sin fecha').toString()}',
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                  'Registro: ${(_usuario['fecha_registro'] ?? 'Sin fecha').toString().split('T')[0]}',
+                  style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 11),
                 ),
               ],
             ),
@@ -386,57 +501,92 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: GoogleFonts.orbitron(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w700,
-      ),
+  Widget _sectionTitle(String title, IconData icon) {
+    return Row(
+      children: [
+        Icon(icon, color: const Color(0xFFF716DC), size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: GoogleFonts.orbitron(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _statChip(String label, String value) {
+  Widget _statChip(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF141B39),
-        borderRadius: BorderRadius.circular(999),
+        color: const Color(0xFF1E142C).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('$label: ', style: const TextStyle(color: Colors.white70)),
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 6),
+          Text('$label: ', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 11)),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
           ),
         ],
       ),
     );
   }
 
-  Widget _infoCard({required String title, required String subtitle, required String meta}) {
+  Widget _emptyNotice(String text) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: Text(
+        text,
+        style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 11),
+      ),
+    );
+  }
+
+  Widget _infoCard({required String title, required String subtitle, required String meta, required Color accentColor}) {
     return Container(
       width: double.infinity,
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(14),
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF111C4A),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        color: const Color(0xFF1E142C).withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+          Text(
+            title,
+            style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 13),
+          ),
           if (subtitle.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(subtitle, style: TextStyle(color: Colors.white.withValues(alpha: 0.7))),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Color(0xFFB0AEC4), fontSize: 13),
+            ),
           ],
-          const SizedBox(height: 8),
-          Text(meta, style: TextStyle(color: const Color(0xFF7C9CFF), fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: accentColor.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              meta,
+              style: GoogleFonts.orbitron(color: accentColor, fontWeight: FontWeight.w600, fontSize: 10),
+            ),
+          ),
         ],
       ),
     );
