@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/responsive.dart';
 
 class OlvidarContrasena extends StatefulWidget {
@@ -11,16 +13,14 @@ class OlvidarContrasena extends StatefulWidget {
 
 class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   final _emailController = TextEditingController();
-  final _codeController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  int _currentStep = 0;
+  int _currentStep = 0; // 0: Elegir método, 1: Ingresar email, 3: Nueva contraseña, 4: Éxito
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _errorMessage;
-  String? _verificationCode;
   bool _biometricAvailable = false;
 
   @override
@@ -32,111 +32,107 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   @override
   void dispose() {
     _emailController.dispose();
-    _codeController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _checkBiometric() async {
-  final LocalAuthentication localAuth = LocalAuthentication();
+    final LocalAuthentication localAuth = LocalAuthentication();
+    try {
+      final canCheck = await localAuth.canCheckBiometrics;
+      final isSupported = await localAuth.isDeviceSupported();
+      final biometrics = await localAuth.getAvailableBiometrics();
 
-  try {
-    final canCheck = await localAuth.canCheckBiometrics;
-    final isSupported = await localAuth.isDeviceSupported();
-    final biometrics = await localAuth.getAvailableBiometrics();
-
-    print('canCheckBiometrics: $canCheck');
-    print('isDeviceSupported: $isSupported');
-    print('Biometrics: $biometrics');
-
-    setState(() {
-      _biometricAvailable =
-          (canCheck || isSupported) && biometrics.isNotEmpty;
-    });
-  } catch (e) {
-    print(e);
+      setState(() {
+        _biometricAvailable = (canCheck || isSupported) && biometrics.isNotEmpty;
+      });
+    } catch (e) {
+      debugPrint('Error biométrico: $e');
+    }
   }
-}
 
-  Future<void> _sendEmailCode() async {
+  // --- 1. ENVIAR CORREO REAL DE RECUPERACIÓN CON SUPABASE ---
+  Future<void> _sendSupabaseRecoveryEmail() async {
     final email = _emailController.text.trim();
 
     setState(() => _errorMessage = null);
 
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Ingresa tu email.');
+      setState(() => _errorMessage = 'Ingresa tu correo electrónico.');
       return;
     }
 
-    if (!RegExp(r'^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un email válido.');
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
+      setState(() => _errorMessage = 'Ingresa un correo electrónico válido.');
       return;
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1500));
 
-    _verificationCode = '123456';
-    setState(() {
-      _isLoading = false;
-      _currentStep = 2;
-    });
+    try {
+      // Supabase envía el enlace de recuperación al correo real
+      await Supabase.instance.client.auth.resetPasswordForEmail(
+        email,
+        // Opcional: puedes configurar una URL de redirección si usas Web o Deep Links
+        // redirectTo: 'tu-app://reset-password',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _currentStep = 4; // Pantalla de aviso de correo enviado con éxito
+      });
+    } on AuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'Ocurrió un error al enviar el correo. Inténtalo de nuevo.';
+      });
+    }
   }
 
-  Future<void> _verifyCode() async {
-    final code = _codeController.text.trim();
-
-    setState(() => _errorMessage = null);
-
-    if (code.isEmpty) {
-      setState(() => _errorMessage = 'Ingresa el código recibido.');
-      return;
-    }
-
-    if (code != _verificationCode) {
-      setState(() => _errorMessage = 'Código incorrecto.');
-      return;
-    }
-
-    setState(() => _currentStep = 3);
-  }
-
+  // --- 2. AUTENTICACIÓN BIOMÉTRICA (Huella / FaceID) ---
   Future<void> _authenticateWithBiometric() async {
     setState(() => _errorMessage = null);
     final LocalAuthentication localAuth = LocalAuthentication();
     try {
       final isAuthenticated = await localAuth.authenticate(
-        localizedReason: 'Usa tu huella dactilar para recuperar contraseña',
+        localizedReason: 'Usa tu huella dactilar para acceder y cambiar tu contraseña',
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );
 
       if (isAuthenticated) {
-        setState(() => _currentStep = 3);
+        setState(() => _currentStep = 3); // Pasa directo a la pantalla de nueva contraseña
       } else {
         setState(() => _errorMessage = 'Autenticación biométrica rechazada.');
       }
     } catch (e) {
-      setState(() => _errorMessage = 'Error en autenticación: $e');
+      setState(() => _errorMessage = 'Error en autenticación biométrica: $e');
     }
   }
 
-  Future<void> _resetPassword() async {
+  // --- 3. ACTUALIZAR CONTRASEÑA EN SUPABASE ---
+  Future<void> _updatePasswordInSupabase() async {
     final newPass = _newPasswordController.text;
     final confirmPass = _confirmPasswordController.text;
 
     setState(() => _errorMessage = null);
 
     if (newPass.isEmpty || confirmPass.isEmpty) {
-      setState(() => _errorMessage = 'Completa todos los campos.');
+      setState(() => _errorMessage = 'Completa todos los campos obligatorios.');
       return;
     }
 
-    if (newPass.length < 6) {
-      setState(
-        () => _errorMessage = 'La contraseña debe tener al menos 6 caracteres.',
-      );
+    final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
+    if (!passwordRegex.hasMatch(newPass)) {
+      setState(() => _errorMessage = 'Mín. 8 caracteres, incluir mayúscula, minúscula y número.');
       return;
     }
 
@@ -146,17 +142,36 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     }
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 1500));
 
-    setState(() {
-      _isLoading = false;
-      _currentStep = 4;
-    });
+    try {
+      // Actualiza la contraseña del usuario actualmente autenticado (vía biométrica o enlace)
+      await Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: newPass),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _currentStep = 5; // Pantalla final de éxito total
+      });
+    } on AuthException catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = 'No se pudo actualizar la contraseña.';
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF0B0813),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -168,13 +183,59 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ),
         ),
         child: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
-              child: _buildCurrentStep(),
-            ),
+          child: Column(
+            children: [
+              _buildCustomAppBar(),
+              Expanded(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
+                    child: _buildCurrentStep(),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCustomAppBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E142C),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.5)),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+              onPressed: () {
+                if (_currentStep > 0 && _currentStep < 4) {
+                  setState(() => _currentStep = 0);
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'Recuperación de Cuenta',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: 48),
+        ],
       ),
     );
   }
@@ -185,12 +246,12 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         return _buildMethodChoiceStep();
       case 1:
         return _buildEmailStep();
-      case 2:
-        return _buildCodeVerificationStep();
       case 3:
         return _buildNewPasswordStep();
       case 4:
-        return _buildSuccessStep();
+        return _buildEmailSentSuccessStep(); // Aviso de que se envió el correo real
+      case 5:
+        return _buildSuccessStep(); // Cambio completado con éxito
       default:
         return _buildMethodChoiceStep();
     }
@@ -198,64 +259,57 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildMethodChoiceStep() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 3),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 20),
-          const Center(
+          const SizedBox(height: 10),
+          Center(
             child: Text(
               'Elige un Método',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
-          const SizedBox(height: 12),
-          const Center(
+          const SizedBox(height: 8),
+          Center(
             child: Text(
-              'Elige cómo quieres recuperar el acceso: con código o con huella dactilar.',
-              style: TextStyle(
-                color: Color(0xFFB0AEC4),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
+              'Selecciona cómo deseas recuperar el acceso a tu cuenta.',
+              style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
-          SizedBox(height: Responsive.espacio(context) * 3),
+          const SizedBox(height: 30),
           _buildMethodCard(
-            icon: Icons.security,
-            title: 'Código de Email',
-            description:
-                'Recibe un código en tu email y verifica tu identidad.',
-            onTap: () => setState(() => _currentStep = 1),
+            icon: Icons.mark_email_read_rounded,
+            title: 'Correo Electrónico (Supabase)',
+            description: 'Recibe un enlace oficial de recuperación en tu bandeja.',
+            accentColor: const Color(0xFF00C2FF),
+            onTap: () => setState(() {
+              _errorMessage = null;
+              _currentStep = 1;
+            }),
           ),
           const SizedBox(height: 16),
           _buildMethodCard(
-            icon: Icons.fingerprint,
+            icon: Icons.fingerprint_rounded,
             title: 'Huella Dactilar',
             description: _biometricAvailable
-                ? 'Usa tu huella para recuperar la contraseña.'
-                : 'Huella no disponible en este dispositivo.',
+                ? 'Acceso biométrico rápido para reestablecer clave.'
+                : 'No disponible en este dispositivo.',
+            accentColor: const Color(0xFFF716DC),
             enabled: _biometricAvailable,
             onTap: _biometricAvailable ? _authenticateWithBiometric : null,
           ),
           if (_errorMessage != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _buildErrorContainer(_errorMessage!),
           ],
-         SizedBox(height: Responsive.espacio(context) * 3),
+          const SizedBox(height: 30),
           _buildPrimaryButton(
             label: 'Volver al Inicio de Sesión',
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
-            ),
-          SizedBox(height: Responsive.espacio(context) * 2),
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+          ),
         ],
       ),
     );
@@ -263,162 +317,89 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildEmailStep() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          Center(
+            child: Icon(Icons.mark_email_unread_rounded, size: 70, color: const Color(0xFF00C2FF)),
+          ),
           const SizedBox(height: 20),
           Center(
-            child: Image.asset(
-              'logo/Lumi.png',
-              width: Responsive.anchoPantalla(context) * 0.6,
-              height: Responsive.altoPantalla(context) * 0.22,
-              fit: BoxFit.contain,
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-          const Center(
             child: Text(
-              'Recuperar Contraseña',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text(
-              'Ingresa tu email para recibir un código de recuperación.',
-              style: TextStyle(
-                color: Color(0xFFB0AEC4),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-          const Text(
-            'Email',
-            style: TextStyle(
-              color: Color(0xFFE2E0EE),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+              'Recuperar por Correo',
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Te enviaremos un enlace seguro a tu correo registrado mediante Supabase.',
+              style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 30),
+          Text('Correo Electrónico', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
           _buildTextField(
             controller: _emailController,
-            hint: 'ingresa tu email@',
+            hint: 'ejemplo@correo.com',
+            prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
           ),
           if (_errorMessage != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _buildErrorContainer(_errorMessage!),
           ],
-          SizedBox(height: Responsive.espacio(context) * 3),
+          const SizedBox(height: 24),
           _buildPrimaryButton(
-            label: 'Enviar Código',
-            onPressed: _isLoading ? null : _sendEmailCode,
+            label: 'Enviar Enlace de Recuperación',
+            onPressed: _isLoading ? null : _sendSupabaseRecoveryEmail,
             isLoading: _isLoading,
           ),
-          SizedBox(height: Responsive.espacio(context) * 1.5),
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() => _currentStep = 0),
-              child: const Text(
-                'Volver',
-                style: TextStyle(
-                  color: Color(0xFFB0AEC4),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _buildCodeVerificationStep() {
+  // Pantalla cuando el correo de Supabase ya fue disparado con éxito
+  Widget _buildEmailSentSuccessStep() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: 20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 20),
-          const Center(
-            child: Text(
-              'Verifica tu Código',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
+          const SizedBox(height: 30),
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: const Color(0xFF00C2FF).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF00C2FF), width: 2),
             ),
+            child: const Icon(Icons.mark_email_read_rounded, color: Color(0xFF00C2FF), size: 40),
           ),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text(
-              'Ingresa el código que recibiste en tu email.',
-              style: TextStyle(
-                color: Color(0xFFB0AEC4),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-          const Text(
-            'Código',
-            style: TextStyle(
-              color: Color(0xFFE2E0EE),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
+          const SizedBox(height: 24),
+          Text(
+            '¡Correo Enviado!',
+            style: GoogleFonts.orbitron(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
-          _buildTextField(
-            controller: _codeController,
-            hint: 'Ej: 123456',
-            keyboardType: TextInputType.number,
+          Text(
+            'Hemos enviado un enlace de recuperación a ${_emailController.text.trim()}. Revisa tu bandeja de entrada o spam para restablecer tu contraseña.',
+            style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
+            textAlign: TextAlign.center,
           ),
-          if (_errorMessage != null) ...[
-            const SizedBox(height: 14),
-            _buildErrorContainer(_errorMessage!),
-          ],
-          SizedBox(height: Responsive.espacio(context) * 3),
+          const SizedBox(height: 35),
           _buildPrimaryButton(
-            label: 'Verificar Código',
-            onPressed: _isLoading ? null : _verifyCode,
-            isLoading: _isLoading,
+            label: 'Volver al Inicio de Sesión',
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
-          SizedBox(height: Responsive.espacio(context) * 1.5),
-          Center(
-            child: TextButton(
-              onPressed: () => setState(() => _currentStep = 1),
-              child: const Text(
-                'Volver',
-                style: TextStyle(
-                  color: Color(0xFFB0AEC4),
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                  decoration: TextDecoration.underline,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
         ],
       ),
     );
@@ -426,102 +407,62 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildNewPasswordStep() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Center(
-            child: Image.asset(
-              'logo/Lumi.png',
-              width: Responsive.anchoPantalla(context) * 0.5,
-              height: Responsive.altoPantalla(context) * 0.16,
-              fit: BoxFit.contain,
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 2.5),
-          const Center(
             child: Text(
               'Nueva Contraseña',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.5,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Center(
-            child: Text(
-              'Crea una contraseña segura y diferente.',
-              style: TextStyle(
-                color: Color(0xFFB0AEC4),
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-          const Text(
-            'Nueva Contraseña',
-            style: TextStyle(
-              color: Color(0xFFE2E0EE),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Crea una contraseña segura (Mín. 8 caracteres, mayúscula y número).',
+              style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text('Nueva Contraseña', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
           _buildTextField(
             controller: _newPasswordController,
-            hint: 'Mínimo 6 caracteres',
+            hint: 'Mínimo 8 caracteres',
+            prefixIcon: Icons.lock_outline_rounded,
             obscureText: _obscureNew,
             suffixIcon: IconButton(
-              icon: Icon(
-                _obscureNew ? Icons.visibility_off : Icons.visibility,
-                color: const Color(0xFF9A96B6),
-                size: 22,
-              ),
+              icon: Icon(_obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFFF716DC), size: 20),
               onPressed: () => setState(() => _obscureNew = !_obscureNew),
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Confirmar Contraseña',
-            style: TextStyle(
-              color: Color(0xFFE2E0EE),
-              fontSize: 14,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          const SizedBox(height: 16),
+          Text('Confirmar Contraseña', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildTextField(
             controller: _confirmPasswordController,
             hint: 'Repite tu nueva contraseña',
+            prefixIcon: Icons.lock_outline_rounded,
             obscureText: _obscureConfirm,
             suffixIcon: IconButton(
-              icon: Icon(
-                _obscureConfirm ? Icons.visibility_off : Icons.visibility,
-                color: const Color(0xFF9A96B6),
-                size: 22,
-              ),
-              onPressed: () =>
-                  setState(() => _obscureConfirm = !_obscureConfirm),
+              icon: Icon(_obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFFF716DC), size: 20),
+              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
             ),
           ),
           if (_errorMessage != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
             _buildErrorContainer(_errorMessage!),
           ],
-          SizedBox(height: Responsive.espacio(context) * 3),
+          const SizedBox(height: 24),
           _buildPrimaryButton(
-            label: 'Cambiar Contraseña',
-            onPressed: _isLoading ? null : _resetPassword,
+            label: 'Actualizar Contraseña',
+            onPressed: _isLoading ? null : _updatePasswordInSupabase,
             isLoading: _isLoading,
           ),
-          SizedBox(height: Responsive.espacio(context) * 2),
         ],
       ),
     );
@@ -529,53 +470,39 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildSuccessStep() {
     return SingleChildScrollView(
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context) * 2.5),
+      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
           Container(
             width: 80,
             height: 80,
-            decoration: const BoxDecoration(
-              color: Color(0xFF1E3A2A),
+            decoration: BoxDecoration(
+              color: const Color(0xFF22C55E).withValues(alpha: 0.15),
               shape: BoxShape.circle,
+              border: Border.all(color: const Color(0xFF22C55E), width: 2),
             ),
-            child: const Icon(
-              Icons.check_circle,
-              color: Color(0xFF4CAF50),
-              size: 50,
-            ),
+            child: const Icon(Icons.check_rounded, color: Color(0xFF22C55E), size: 45),
           ),
-          SizedBox(height: Responsive.espacio(context) * 4),
-          const Text(
-            '¡Contraseña Cambiada!',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 32,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.5,
-            ),
+          const SizedBox(height: 24),
+          Text(
+            '¡Contraseña Actualizada!',
+            style: GoogleFonts.orbitron(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 12),
-          const Text(
-            'Tu contraseña ha sido actualizada exitosamente.',
-            style: TextStyle(
-              color: Color(0xFFB0AEC4),
-              fontSize: 14,
-              fontWeight: FontWeight.w400,
-            ),
+          const SizedBox(height: 8),
+          Text(
+            'Tu contraseña ha sido modificada con éxito en Supabase. Ya puedes iniciar sesión con tus nuevas credenciales.',
+            style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: Responsive.espacio(context) * 5),
+          const SizedBox(height: 35),
           _buildPrimaryButton(
-            label: 'Volver al Inicio de Sesión',
-            onPressed: () =>
-                Navigator.of(context).popUntil((route) => route.isFirst),
+            label: 'Ir al Inicio de Sesión',
+            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
-          SizedBox(height: Responsive.espacio(context) * 2),
         ],
       ),
     );
@@ -584,6 +511,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   Widget _buildTextField({
     required TextEditingController controller,
     required String hint,
+    required IconData prefixIcon,
     bool obscureText = false,
     TextInputType? keyboardType,
     Widget? suffixIcon,
@@ -592,28 +520,22 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: const TextStyle(color: Colors.white, fontSize: 15),
+      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF6B6885), fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFF191632),
+        hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 12),
+        prefixIcon: Icon(prefixIcon, color: const Color(0xFF7C3AED), size: 20),
         suffixIcon: suffixIcon,
-        contentPadding: EdgeInsets.symmetric(
-          horizontal: Responsive.paddingHorizontalRecomendado(context) / 1.5,
-          vertical: Responsive.espacio(context) * 1.5,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
+        filled: true,
+        fillColor: const Color(0xFF1E142C).withValues(alpha: 0.7),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFF4A2A68), width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: const BorderSide(color: Color(0xFF9C27B0), width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0xFFF716DC), width: 1.5),
         ),
       ),
     );
@@ -626,43 +548,37 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   }) {
     return SizedBox(
       width: double.infinity,
-      height: Responsive.altoBoton(context),
+      height: 50,
       child: DecoratedBox(
         decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
           gradient: const LinearGradient(
-            colors: [Color(0xFFA41CF9), Color(0xFFF716DC)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
+            colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
           ),
-          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFF716DC).withValues(alpha: 0.3),
+              blurRadius: 15,
+              offset: const Offset(0, 5),
+            ),
+          ],
         ),
         child: ElevatedButton(
           onPressed: onPressed,
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           ),
           child: isLoading
-              ? SizedBox(
-                  width: Responsive.tamanioSubtitulo(context),
-                  height: Responsive.tamanioSubtitulo(context),
-                  child: const CircularProgressIndicator(
-                    color: Colors.white,
-                    strokeWidth: 2,
-                  ),
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                 )
               : Text(
                   label,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: Responsive.tamanioTexto(context),
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1,
-                  ),
+                  style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                 ),
         ),
       ),
@@ -671,20 +587,21 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
 
   Widget _buildErrorContainer(String message) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF3A1B2A),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color.fromARGB(128, 204, 51, 85)),
+        color: Colors.redAccent.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, color: Color(0xFFCC3355), size: 16),
-          const SizedBox(width: 8),
+          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: Color(0xFFCC3355), fontSize: 13),
+              style: GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -696,64 +613,65 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     required IconData icon,
     required String title,
     required String description,
+    required Color accentColor,
     required VoidCallback? onTap,
     bool enabled = true,
   }) {
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFF191632),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color.fromARGB(77, 154, 150, 182)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: const Color.fromARGB(51, 156, 39, 176),
-                borderRadius: BorderRadius.circular(12),
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.5,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E142C).withValues(alpha: 0.6),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.6)),
+            boxShadow: [
+              BoxShadow(
+                color: accentColor.withValues(alpha: 0.08),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
-              child: Icon(icon, color: const Color(0xFF9C27B0), size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      color: Color(0xFFB0AEC4),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                ],
+            ],
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(icon, color: accentColor, size: 24),
               ),
-            ),
-            const Icon(
-              Icons.arrow_forward_ios,
-              color: Color(0xFF9C27B0),
-              size: 18,
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                color: accentColor,
+                size: 16,
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
-
-
