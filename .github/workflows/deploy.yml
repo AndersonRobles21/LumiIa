@@ -35,7 +35,7 @@ jobs:
 
       - name: Build Flutter Web
         working-directory: frontend
-        run: flutter build web --release --base-href /LumiIa/
+        run: flutter build web --release --base-href /LumiIa/ --dart-define=BACKEND_URL=https://lumiia-1pzy.onrender.com
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

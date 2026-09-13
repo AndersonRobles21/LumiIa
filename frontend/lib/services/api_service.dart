@@ -7,12 +7,16 @@ class ApiService {
   static String get _backendHost {
     const configuredHost = String.fromEnvironment('BACKEND_URL');
     if (configuredHost.isNotEmpty) return configuredHost;
+
+    // URL de producción por defecto (Render)
+    // En desarrollo local, usar localhost:3000
     if (kIsWeb) return 'http://localhost:3000';
 
     // Celular físico conectado por USB:
     // ejecutar antes: adb reverse tcp:3000 tcp:3000
-if (Platform.isAndroid) return 'http://localhost:3000';
+    if (Platform.isAndroid) return 'http://localhost:3000';
 
+    // Escritorio (Windows/macOS/Linux) - desarrollo local
     return 'http://localhost:3000';
   }
 
@@ -263,7 +267,7 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
       }
       
       if (!response.body.trim().startsWith('{')) {
-        throw Exception('La respuesta del servidor no es JSON válido. Revisa que el servidor esté corriendo en localhost:3000');
+        throw Exception('La respuesta del servidor no es JSON válido. Revisa que el backend esté corriendo.');
       }
       
       final data = jsonDecode(response.body);
