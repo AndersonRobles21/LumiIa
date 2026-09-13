@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 import 'app_language.dart';
 import 'biometric_service.dart';
 import 'login_screen.dart'; 
@@ -34,8 +35,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   void initState() {
     super.initState();
     AppLanguage.instance.addListener(_onLanguageChanged);
-    _initializeBiometrics();
     _isEnglish = AppLanguage.instance.isEnglish;
+    // Solo inicializar biometría en plataformas nativas (no web)
+    if (!kIsWeb) {
+      _initializeBiometrics();
+    }
   }
 
   Future<void> _initializeBiometrics() async {
@@ -193,20 +197,22 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
                           const SizedBox(height: 12),
                           _buildSectionTitle(_text('Seguridad', 'Security')),
-                          _buildSwitchTile(
-                            icon: Icons.fingerprint,
-                            title: _text(
-                              'Inicio con biometría',
-                              'Biometric login',
+                          if (!kIsWeb) ...[
+                            _buildSwitchTile(
+                              icon: Icons.fingerprint,
+                              title: _text(
+                                'Inicio con biometría',
+                                'Biometric login',
+                              ),
+                              subtitle: _text(
+                                'Usa huella o Face ID para entrar a Lumi',
+                                'Use fingerprint or Face ID to sign in to Lumi',
+                              ),
+                              value: _autenticacionBiometrica,
+                              loading: _verificandoBiometria,
+                              onChanged: _onBiometricChanged,
                             ),
-                            subtitle: _text(
-                              'Usa huella o Face ID para entrar a Lumi',
-                              'Use fingerprint or Face ID to sign in to Lumi',
-                            ),
-                            value: _autenticacionBiometrica,
-                            loading: _verificandoBiometria,
-                            onChanged: _onBiometricChanged,
-                          ),
+                          ],
                           _buildNavTile(
                             icon: Icons.lock_reset_outlined,
                             title: _text(
