@@ -1,6 +1,10 @@
-import 'package:local_auth/local_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// Solo importar local_auth en plataformas nativas (no web).
+// En web, usa el stub biometric_service_web.dart que provee la misma interfaz.
+import 'package:local_auth/local_auth.dart'
+    if (dart.library.html) 'biometric_service_web.dart';
 
 class BiometricService {
   BiometricService._();
@@ -10,6 +14,10 @@ class BiometricService {
   static bool _enabled = false;
 
   static bool get isEnabled => _enabled;
+
+  /// Indica si la biometría está disponible en la plataforma actual.
+  /// En Web siempre retorna false.
+  static bool get isWeb => kIsWeb;
 
   static Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
@@ -23,7 +31,9 @@ class BiometricService {
   }
 
   /// aca se verifica q el usuario ya tiene huella/Face ID en su cel
+  /// En Web, siempre retorna false.
   static Future<bool> isDeviceSupported() async {
+    if (kIsWeb) return false;
     try {
       final bool canCheck = await _auth.canCheckBiometrics;
       final bool supported = await _auth.isDeviceSupported();
@@ -40,9 +50,11 @@ class BiometricService {
   /// muestra el prom del autentificador, entonces true es si el usuario se autenticó corectamnete
   /// false pss si falló, canceló, o el dispositivo no soporta biometría.
   /// y si tiene fallo false esta para q la pantalla de login pida la contraseña.
+  /// En Web, siempre retorna false.
   static Future<bool> authenticate({
     String reason = 'Confirma tu identidad para entrar a Lumi',
   }) async {
+    if (kIsWeb) return false;
     try {
       final soportado = await isDeviceSupported();
       if (!soportado) return false;
