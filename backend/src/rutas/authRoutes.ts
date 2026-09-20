@@ -366,6 +366,24 @@
     }
   });
 
+  router.get("/alertas/:usuarioId", async (req: Request, res: Response): Promise<any> => {
+    try {
+      const result = await pool.query(
+        `SELECT id, tipo, mensaje, leida, fecha
+         FROM alertas_perfil
+         WHERE usuario_id = $1
+         ORDER BY fecha DESC
+         LIMIT 20`,
+        [req.params.usuarioId]
+      );
+
+      return res.status(200).json({ alertas: result.rows });
+    } catch (error) {
+      console.error("❌ Error obteniendo alertas de perfil:", error);
+      return res.status(500).json({ mensaje: "Error al obtener alertas de perfil." });
+    }
+  });
+
   /*
   ============================================================
   UPDATE PROFILE

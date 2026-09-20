@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int activeStreak = 0;
 
   List<StudyPlan> plans = [];
+  List<dynamic> _profileAlerts = [];
   List<bool> completedDays = List<bool>.filled(7, false);
 
   final List<String> weekDays = [
@@ -60,9 +61,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final profileData = await ApiService.getProfile(widget.userId);
+    final profileAlerts = await ApiService.getProfileAlerts(widget.userId);
     if (mounted) {
       setState(() {
         userName = profileData?['nombre']?.toString().trim() ?? '';
+        _profileAlerts = profileAlerts;
       });
     }
 
@@ -538,8 +541,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           _buildRobotHeader(),
           _buildWelcome(),
+          _buildProfileAlerts(),
           _buildStudyPlan(),
           _buildAddTaskCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileAlerts() {
+    if (_profileAlerts.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF241A4A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFF44AA).withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.notifications_active_outlined, color: Color(0xFFFF8ACB)),
+              SizedBox(width: 8),
+              Text(
+                'Alertas de tu perfil',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ..._profileAlerts.map(
+            (alert) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
+                style: const TextStyle(color: Color(0xFFE5DDF7), fontSize: 13),
+              ),
+            ),
+          ),
         ],
       ),
     );

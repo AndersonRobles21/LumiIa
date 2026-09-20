@@ -138,6 +138,17 @@ CREATE TABLE public.notificaciones (
   CONSTRAINT notificaciones_pkey PRIMARY KEY (id),
   CONSTRAINT notificaciones_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
+CREATE TABLE public.alertas_perfil (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NOT NULL,
+  tipo character varying NOT NULL,
+  mensaje text NOT NULL,
+  leida boolean NOT NULL DEFAULT false,
+  fecha timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT alertas_perfil_pkey PRIMARY KEY (id)
+);
+CREATE INDEX alertas_perfil_usuario_fecha_idx
+  ON public.alertas_perfil (usuario_id, fecha DESC);
 CREATE TABLE public.planes_ia (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   plan_id uuid NOT NULL UNIQUE,
