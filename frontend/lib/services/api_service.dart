@@ -70,6 +70,18 @@ class ApiService {
     }
   }
 
+  static Future<List<dynamic>> getProfileAlerts(String userId) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/alertas/$userId'));
+      if (response.statusCode != 200 || response.body.isEmpty) return const [];
+      final data = jsonDecode(response.body);
+      return data is Map && data['alertas'] is List ? data['alertas'] as List : const [];
+    } catch (e) {
+      print('Error en ApiService getProfileAlerts: $e');
+      return const [];
+    }
+  }
+
   static Future<Map<String, dynamic>?> syncTaskStats(String userId) async {
     try {
       final response = await http.post(

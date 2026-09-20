@@ -322,6 +322,8 @@ router.get("/usuarios/:userId/:targetUserId", requireAdmin, async (req: Request,
 });
 
 router.put("/usuarios/:userId/:targetUserId/nombre", requireAdmin, async (req: Request, res: Response): Promise<any> => {
+  const client = await pool.connect();
+
   try {
     const { targetUserId } = req.params;
     const { nombre, apellido } = req.body ?? {};
@@ -334,7 +336,9 @@ router.put("/usuarios/:userId/:targetUserId/nombre", requireAdmin, async (req: R
       return res.status(400).json({ ok: false, mensaje: "El apellido tiene un formato inválido." });
     }
 
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    const result = await client.query(
       `UPDATE usuarios
        SET nombre = $1,
            apellido = $2
@@ -344,13 +348,24 @@ router.put("/usuarios/:userId/:targetUserId/nombre", requireAdmin, async (req: R
     );
 
     if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ ok: false, mensaje: "No se encontró el usuario para actualizar." });
     }
 
+    await client.query(
+      `INSERT INTO alertas_perfil (usuario_id, tipo, mensaje)
+       VALUES ($1, $2, $3)`,
+      [targetUserId, "perfil_modificado", "Un administrador actualizó tu nombre o apellido."]
+    );
+    await client.query("COMMIT");
+
     return res.status(200).json({ ok: true, mensaje: "Nombre y apellido actualizados correctamente.", usuario: result.rows[0] });
   } catch (error: any) {
+    await client.query("ROLLBACK").catch(() => undefined);
     console.error("❌ Error actualizando nombre/apellido:", error);
     return res.status(500).json({ ok: false, mensaje: "Error al actualizar los datos del usuario." });
+  } finally {
+    client.release();
   }
 });
 
@@ -360,6 +375,21 @@ router.delete("/usuarios/:userId/:targetUserId", requireAdmin, async (req: Reque
   try {
     const { targetUserId } = req.params;
     await client.query("BEGIN");
+
+    const targetUser = await client.query(
+      `SELECT id FROM usuarios WHERE id = $1 FOR UPDATE`,
+      [targetUserId]
+    );
+    if (targetUser.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ ok: false, mensaje: "No se encontró el usuario a eliminar." });
+    }
+
+    await client.query(
+      `INSERT INTO alertas_perfil (usuario_id, tipo, mensaje)
+       VALUES ($1, $2, $3)`,
+      [targetUserId, "perfil_eliminado", "Un administrador eliminó tu perfil de LUMI."]
+    );
 
     await client.query(`DELETE FROM historial_ia WHERE usuario_id = $1`, [targetUserId]);
     await client.query(`DELETE FROM planes_ia WHERE plan_id IN (SELECT id FROM planes_estudio WHERE usuario_id = $1)`, [targetUserId]);
@@ -372,13 +402,9 @@ router.delete("/usuarios/:userId/:targetUserId", requireAdmin, async (req: Reque
     await client.query(`DELETE FROM usuario_recompensa WHERE usuario_id = $1`, [targetUserId]);
     await client.query(`DELETE FROM notificaciones WHERE usuario_id = $1`, [targetUserId]);
 
-    const deleted = await client.query(`DELETE FROM usuarios WHERE id = $1 RETURNING id`, [targetUserId]);
+    await client.query(`DELETE FROM usuarios WHERE id = $1`, [targetUserId]);
 
     await client.query("COMMIT");
-
-    if (deleted.rowCount === 0) {
-      return res.status(404).json({ ok: false, mensaje: "No se encontró el usuario a eliminar." });
-    }
 
     return res.status(200).json({ ok: true, mensaje: "Usuario eliminado correctamente." });
   } catch (error: any) {
@@ -392,27 +418,43 @@ router.delete("/usuarios/:userId/:targetUserId", requireAdmin, async (req: Reque
 
 // Promover usuario a administrador
 router.put("/usuarios/:userId/:targetUserId/promover", requireAdmin, async (req: Request, res: Response): Promise<any> => {
+  const client = await pool.connect();
+
   try {
     const { targetUserId } = req.params;
+    await client.query("BEGIN");
 
-    const result = await pool.query(
+    const result = await client.query(
       `UPDATE usuarios SET es_admin = true WHERE id = $1 RETURNING id, es_admin`,
       [targetUserId]
     );
 
     if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ ok: false, mensaje: 'Usuario no encontrado.' });
     }
 
+    await client.query(
+      `INSERT INTO alertas_perfil (usuario_id, tipo, mensaje)
+       VALUES ($1, $2, $3)`,
+      [targetUserId, "rol_modificado", "Un administrador cambió tu cuenta a administrador."]
+    );
+    await client.query("COMMIT");
+
     return res.status(200).json({ ok: true, mensaje: 'Usuario promovido a administrador.', usuario: result.rows[0] });
   } catch (error: any) {
+    await client.query("ROLLBACK").catch(() => undefined);
     console.error('❌ Error promoviendo usuario:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error al promover usuario a administrador.' });
+  } finally {
+    client.release();
   }
 });
 
 // Delegar administrador a estudiante sin modificar sus datos de estudiante.
 router.put("/usuarios/:userId/:targetUserId/delegar", requireAdmin, async (req: Request, res: Response): Promise<any> => {
+  const client = await pool.connect();
+
   try {
     const { userId, targetUserId } = req.params;
 
@@ -420,19 +462,32 @@ router.put("/usuarios/:userId/:targetUserId/delegar", requireAdmin, async (req: 
       return res.status(400).json({ ok: false, mensaje: "No puedes delegarte a ti mismo." });
     }
 
-    const result = await pool.query(
+    await client.query("BEGIN");
+
+    const result = await client.query(
       `UPDATE usuarios SET es_admin = false WHERE id = $1 AND es_admin = true RETURNING id, es_admin`,
       [targetUserId]
     );
 
     if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ ok: false, mensaje: "El administrador no fue encontrado." });
     }
 
+    await client.query(
+      `INSERT INTO alertas_perfil (usuario_id, tipo, mensaje)
+       VALUES ($1, $2, $3)`,
+      [targetUserId, "rol_modificado", "Un administrador devolvió tu cuenta al rol de estudiante."]
+    );
+    await client.query("COMMIT");
+
     return res.status(200).json({ ok: true, mensaje: "Administrador delegado a estudiante.", usuario: result.rows[0] });
   } catch (error: any) {
+    await client.query("ROLLBACK").catch(() => undefined);
     console.error('❌ Error delegando administrador:', error);
     return res.status(500).json({ ok: false, mensaje: 'Error al delegar administrador a estudiante.' });
+  } finally {
+    client.release();
   }
 });
 
