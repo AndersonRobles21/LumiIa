@@ -12,6 +12,9 @@ void main() async {
     await Supabase.initialize(
       url: 'https://lsbnizzypdmnvppatzxp.supabase.co',
       anonKey: 'sb_publishable_KK0lsvy3EBB8WuHVg2zOiA_WOeJs6RZ', // pega tu llave completa aquí
+      authOptions: const FlutterAuthClientOptions(
+        autoRefreshToken: true,
+      ),
     );
     print("✅ Supabase inicializado correctamente.");
   } catch (e) {
@@ -21,8 +24,45 @@ void main() async {
   runApp(const LumiApp());
 }
 
-class LumiApp extends StatelessWidget {
+class LumiApp extends StatefulWidget {
   const LumiApp({super.key});
+
+  @override
+  State<LumiApp> createState() => _LumiAppState();
+}
+
+class _LumiAppState extends State<LumiApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshSession();
+    }
+  }
+
+  Future<void> _refreshSession() async {
+    final auth = Supabase.instance.client.auth;
+    if (auth.currentSession == null) return;
+
+    try {
+      await auth.refreshSession();
+    } on AuthException catch (error) {
+      debugPrint('No se pudo renovar la sesión: ${error.message}');
+    } catch (error) {
+      debugPrint('Error renovando la sesión: $error');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

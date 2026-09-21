@@ -62,7 +62,11 @@ class BiometricService {
       final available = await _auth.getAvailableBiometrics();
       if (available.isEmpty) return false;
 
-      return await _auth.authenticate(localizedReason: reason);
+      return await _auth.authenticate(
+        localizedReason: reason,
+        biometricOnly: true,
+        persistAcrossBackgrounding: true,
+      );
     } catch (_) {
       // Cubre tanto LocalAuthException local_auth 3.x como cualquierotro error de plataforma
       // esto evita q se caiga la app y si pasa hace como q el usuario no se autentificó corectamente

@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:flutter/foundation.dart';
 import '../utils/responsive.dart';
-
-// Solo importar local_auth en plataformas nativas (no web).
-// En web, usa el stub biometric_service_web.dart que provee la misma interfaz.
-import 'package:local_auth/local_auth.dart'
-    if (dart.library.html) 'biometric_service_web.dart';
 
 class OlvidarContrasena extends StatefulWidget {
   const OlvidarContrasena({super.key});
@@ -26,15 +20,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
   bool _obscureConfirm = true;
   bool _isLoading = false;
   String? _errorMessage;
-  bool _biometricAvailable = false;
 
   @override
   void initState() {
     super.initState();
-    // Solo verificar biometría en plataformas nativas (no web)
-    if (!kIsWeb) {
-      _checkBiometric();
-    }
   }
 
   @override
@@ -43,21 +32,6 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _checkBiometric() async {
-    final LocalAuthentication localAuth = LocalAuthentication();
-    try {
-      final canCheck = await localAuth.canCheckBiometrics;
-      final isSupported = await localAuth.isDeviceSupported();
-      final biometrics = await localAuth.getAvailableBiometrics();
-
-      setState(() {
-        _biometricAvailable = (canCheck || isSupported) && biometrics.isNotEmpty;
-      });
-    } catch (e) {
-      debugPrint('Error biométrico: $e');
-    }
   }
 
   // --- 1. ENVIAR CORREO REAL DE RECUPERACIÓN CON SUPABASE ---
@@ -102,27 +76,6 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
         _isLoading = false;
         _errorMessage = 'Ocurrió un error al enviar el correo. Inténtalo de nuevo.';
       });
-    }
-  }
-
-  // --- 2. AUTENTICACIÓN BIOMÉTRICA (Huella / FaceID) ---
-  Future<void> _authenticateWithBiometric() async {
-    setState(() => _errorMessage = null);
-    final LocalAuthentication localAuth = LocalAuthentication();
-    try {
-      final isAuthenticated = await localAuth.authenticate(
-        localizedReason: 'Usa tu huella dactilar para acceder y cambiar tu contraseña',
-        biometricOnly: true,
-        persistAcrossBackgrounding: true,
-      );
-
-      if (isAuthenticated) {
-        setState(() => _currentStep = 3); // Pasa directo a la pantalla de nueva contraseña
-      } else {
-        setState(() => _errorMessage = 'Autenticación biométrica rechazada.');
-      }
-    } catch (e) {
-      setState(() => _errorMessage = 'Error en autenticación biométrica: $e');
     }
   }
 
@@ -298,19 +251,6 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               _currentStep = 1;
             }),
           ),
-          if (!kIsWeb) ...[
-            const SizedBox(height: 16),
-            _buildMethodCard(
-              icon: Icons.fingerprint_rounded,
-              title: 'Huella Dactilar',
-              description: _biometricAvailable
-                  ? 'Acceso biométrico rápido para reestablecer clave.'
-                  : 'No disponible en este dispositivo.',
-              accentColor: const Color(0xFFF716DC),
-              enabled: _biometricAvailable,
-              onTap: _biometricAvailable ? _authenticateWithBiometric : null,
-            ),
-          ],
           if (_errorMessage != null) ...[
             const SizedBox(height: 16),
             _buildErrorContainer(_errorMessage!),
