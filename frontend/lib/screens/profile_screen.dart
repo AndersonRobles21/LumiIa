@@ -8,6 +8,7 @@ import 'app_bottom_navbar.dart';
 import 'app_language.dart';
 import 'edit_profile_screen.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -191,7 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFF1A1040),
+              backgroundColor: LumiAppTheme.surface(context),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -481,15 +482,13 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   Widget _timePickerTheme(Widget? child) {
+    final theme = Theme.of(context);
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
       child: Theme(
-        data: Theme.of(context).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFF44AA),
-            onPrimary: Colors.white,
-            surface: Color(0xFF1A1040),
-            onSurface: Colors.white,
+        data: theme.copyWith(
+          colorScheme: theme.colorScheme.copyWith(
+            primary: const Color(0xFFFF44AA),
           ),
           textButtonTheme: TextButtonThemeData(
             style: TextButton.styleFrom(
@@ -806,15 +805,17 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0D0D2B), Color(0xFF1A1040), Color(0xFF0D0D2B)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color(0xFF0D0D2B), Color(0xFF1A1040), Color(0xFF0D0D2B)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
@@ -918,7 +919,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               Text(
                                                 tr('Nombre', 'First Name'),
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: LumiAppTheme.primaryText(ctx),
                                                   fontSize: Responsive.tamanioTexto(ctx),
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -929,7 +930,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                               Text(
                                                 tr('Apellido', 'Last Name'),
                                                 style: TextStyle(
-                                                  color: Colors.white,
+                                                  color: LumiAppTheme.primaryText(ctx),
                                                   fontSize: Responsive.tamanioTexto(ctx),
                                                   fontWeight: FontWeight.bold,
                                                 ),
@@ -951,7 +952,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 Text(
                                                   tr('Objetivo de Estudio', 'Study Goal'),
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: LumiAppTheme.primaryText(ctx),
                                                     fontSize: Responsive.tamanioSubtitulo(ctx),
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -964,7 +965,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 Text(
                                                   '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: LumiAppTheme.primaryText(ctx),
                                                     fontSize: Responsive.tamanioSubtitulo(ctx),
                                                     fontWeight: FontWeight.bold,
                                                   ),
@@ -983,7 +984,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 Text(
                                                   tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
                                                   style: TextStyle(
-                                                    color: Colors.white,
+                                                    color: LumiAppTheme.primaryText(ctx),
                                                     fontSize: Responsive.tamanioSubtitulo(ctx),
                                                     fontWeight: FontWeight.bold,
                                                     letterSpacing: 1.5,
@@ -1012,7 +1013,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                       child: Text(
                                                         tr('Guardar Perfil', 'Save Profile'),
                                                         style: TextStyle(
-                                                          color: Colors.white,
+                                                          color: Theme.of(ctx).colorScheme.onPrimary,
                                                           fontSize: Responsive.tamanioTexto(ctx) + 2,
                                                           fontWeight: FontWeight.bold,
                                                         ),
@@ -1042,7 +1043,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         Text(
                                           tr('Nombre', 'First Name'),
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: LumiAppTheme.primaryText(ctx),
                                             fontSize: Responsive.tamanioTexto(ctx),
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -1054,7 +1055,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         Text(
                                           tr('Apellido', 'Last Name'),
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: LumiAppTheme.primaryText(ctx),
                                             fontSize: Responsive.tamanioTexto(ctx),
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -1066,7 +1067,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         Text(
                                           tr('Objetivo de Estudio', 'Study Goal'),
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: LumiAppTheme.primaryText(ctx),
                                             fontSize: Responsive.tamanioSubtitulo(ctx),
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -1078,7 +1079,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         Text(
                                           '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: LumiAppTheme.primaryText(ctx),
                                             fontSize: Responsive.tamanioSubtitulo(ctx),
                                             fontWeight: FontWeight.bold,
                                           ),
@@ -1098,7 +1099,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         Text(
                                           tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
                                           style: TextStyle(
-                                            color: Colors.white,
+                                            color: LumiAppTheme.primaryText(ctx),
                                             fontSize: Responsive.tamanioSubtitulo(ctx),
                                             fontWeight: FontWeight.bold,
                                             letterSpacing: 1.5,
@@ -1123,7 +1124,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 shadowColor: Colors.transparent,
                                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                                               ),
-                                              child: Text(tr('Guardar Perfil', 'Save Profile'), style: TextStyle(color: Colors.white, fontSize: Responsive.tamanioTexto(ctx) + 1, fontWeight: FontWeight.bold)),
+                                              child: Text(tr('Guardar Perfil', 'Save Profile'), style: TextStyle(color: Theme.of(ctx).colorScheme.onPrimary, fontSize: Responsive.tamanioTexto(ctx) + 1, fontWeight: FontWeight.bold)),
                                             ),
                                           ),
                                         ),
@@ -1150,12 +1151,12 @@ class _ProfileScreenState extends State<ProfileScreen>
   Widget _buildInputField(TextEditingController controller, String hint) {
     return TextField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
+      style: TextStyle(color: LumiAppTheme.primaryText(context)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Color(0xFF6666AA), fontSize: 14),
+        hintStyle: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 14),
         filled: true,
-        fillColor: const Color(0xFF1E1B3A),
+        fillColor: LumiAppTheme.surface(context),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
@@ -1195,7 +1196,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             decoration: BoxDecoration(
               color: tieneHoras
                   ? const Color(0xFFCC00CC).withAlpha(38)
-                  : const Color(0xFF1E1B3A),
+                  : LumiAppTheme.surface(context),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: tieneHoras
@@ -1213,7 +1214,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                   style: TextStyle(
                     color: tieneHoras
                         ? const Color(0xFFFF66FF)
-                        : Colors.white70,
+                        : LumiAppTheme.secondaryText(context),
                     fontWeight: FontWeight.bold,
                     fontSize: Responsive.tamanioTexto(context) - 3,
                   ),
@@ -1237,9 +1238,9 @@ class _ProfileScreenState extends State<ProfileScreen>
                     ),
                   )
                 else
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.only(top: 12.0),
-                    child: Icon(Icons.add, color: Colors.white38, size: 12),
+                    child: Icon(Icons.add, color: LumiAppTheme.secondaryText(context), size: 12),
                   ),
               ],
             ),

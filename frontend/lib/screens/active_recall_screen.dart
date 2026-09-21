@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class ActiveRecallScreen extends StatefulWidget {
   final String tituloTarea;
@@ -38,17 +39,17 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
     final textoRespuesta = itemActual['respuesta'] ?? itemActual['descripcion'] ?? 'Respuesta detallada no disponible.';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Active Recall',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
+          style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 22),
         ),
         centerTitle: true,
       ),
@@ -67,8 +68,8 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => Container(
                   padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(15)),
-                  child: const Text('✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  decoration: BoxDecoration(color: LumiAppTheme.surface(context), borderRadius: BorderRadius.circular(15)),
+                  child: Text('✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.', style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 12)),
                 ),
               ),
             ),

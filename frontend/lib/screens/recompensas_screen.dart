@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 import '/services/api_service.dart';
 import 'dashboard_screen.dart';
 import 'calendar_screen.dart';
@@ -108,15 +109,17 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color.fromARGB(255, 4, 0, 13), Color(0xFF0B0813)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color.fromARGB(255, 4, 0, 13), Color(0xFF0B0813)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
           ),
         ),
         child: Stack(
@@ -124,7 +127,7 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
             SafeArea(
               child: RefreshIndicator(
                 color: const Color(0xFFFF44AA),
-                backgroundColor: const Color(0xFF1F1A3A),
+                backgroundColor: LumiAppTheme.surface(context),
                 onRefresh: _cargarDatos,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
@@ -132,10 +135,10 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Recompensas',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: LumiAppTheme.primaryText(context),
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 0.5,
@@ -146,9 +149,9 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1F1A3A).withOpacity(0.45),
+                          color: LumiAppTheme.surface(context),
                           borderRadius: BorderRadius.circular(22),
-                          border: Border.all(color: Colors.white12),
+                          border: Border.all(color: LumiAppTheme.outline(context)),
                         ),
                         child: _isLoading
                             ? const Center(

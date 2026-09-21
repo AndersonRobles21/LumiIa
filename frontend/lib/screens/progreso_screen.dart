@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '/services/api_service.dart';
 import 'app_bottom_navbar.dart';
+import '../theme/app_theme.dart';
 
 const String kLumiProgresoAsset = 'logo/Lumi_progreso.png';
 
@@ -276,15 +277,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF070619),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0C0A2D), Color(0xFF070619)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color(0xFF0C0A2D), Color(0xFF070619)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
           ),
         ),
         child: SafeArea(
@@ -298,7 +301,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 ),
                 child: RefreshIndicator(
                 color: const Color(0xFF8B6BFF),
-                backgroundColor: const Color(0xFF141038),
+                backgroundColor: LumiAppTheme.surface(context),
                 onRefresh: _cargarDatos,
                 child: _isLoading
                     ? ListView(
@@ -336,12 +339,12 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
   }
 
   Widget _buildHeader() {
-    return const Padding(
+    return Padding(
       padding: EdgeInsets.only(top: 4, bottom: 4),
       child: Text(
         'Tu Progreso',
         style: TextStyle(
-          color: Colors.white,
+          color: LumiAppTheme.primaryText(context),
           fontSize: 28,
           fontWeight: FontWeight.bold,
           letterSpacing: -0.5,
@@ -377,9 +380,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0B29),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF221A52), width: 1.2),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,13 +402,13 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.check, color: Colors.white, size: 20),
+                child: Icon(Icons.check, color: LumiAppTheme.primaryText(context), size: 20),
               ),
               const SizedBox(width: 14),
               Text(
                 '$_tareasCompletadas',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
                 ),
@@ -413,10 +416,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             'Tareas completadas',
             style: TextStyle(
-              color: Color(0xFFB4ACDE),
+              color: LumiAppTheme.secondaryText(context),
               fontSize: 12,
               fontWeight: FontWeight.w500,
             ),
@@ -439,9 +442,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0B29),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF221A52), width: 1.2),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -475,8 +478,8 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                   child: Text(
                     _formatearHoras(_horasEstudio),
                     maxLines: 1,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: LumiAppTheme.primaryText(context),
                       fontSize: 34,
                       fontWeight: FontWeight.bold,
                     ),
@@ -486,18 +489,18 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Horas de estudio',
             style: TextStyle(
-              color: Colors.white,
+              color: LumiAppTheme.primaryText(context),
               fontSize: 13,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const Text(
+          Text(
             'en total acumuladas',
             style: TextStyle(
-              color: Color(0xFF867DAE),
+              color: LumiAppTheme.secondaryText(context),
               fontSize: 10,
             ),
           ),
@@ -505,7 +508,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFF18103A),
+              color: LumiAppTheme.surfaceVariant(context),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Row(
@@ -533,9 +536,9 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0B29),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF221A52), width: 1.2),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -559,13 +562,13 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.close, color: Colors.white, size: 20),
+                child: Icon(Icons.close, color: LumiAppTheme.primaryText(context), size: 20),
               ),
               const SizedBox(width: 14),
               Text(
                 '$_tareasFaltantes',
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
                   fontSize: 34,
                   fontWeight: FontWeight.bold,
                 ),
@@ -582,10 +585,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             '¡Tú puedes con ellas! 💪',
             style: TextStyle(
-              color: Colors.white70,
+              color: LumiAppTheme.secondaryText(context),
               fontSize: 11,
               fontWeight: FontWeight.w500,
             ),
@@ -616,25 +619,25 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0B29),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF221A52), width: 1.2),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Tiempo de estudio',
             style: TextStyle(
-              color: Colors.white,
+              color: LumiAppTheme.primaryText(context),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(height: 2),
-          const Text(
+          Text(
             'Horas dedicadas por día',
-            style: TextStyle(color: Color(0xFF867DAE), fontSize: 11),
+            style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -645,6 +648,8 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 valores: _horasPorDia,
                 etiquetas: _diasSemana,
                 labelFontSize: Responsive.tamanioTexto(context) - 3,
+                textColor: LumiAppTheme.primaryText(context),
+                mutedColor: LumiAppTheme.secondaryText(context),
               ),
             ),
           ),
@@ -700,17 +705,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F0B29),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF221A52), width: 1.2),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Distribución de tiempo',
             style: TextStyle(
-              color: Colors.white,
+              color: LumiAppTheme.primaryText(context),
               fontSize: 16,
               fontWeight: FontWeight.bold,
             ),
@@ -746,16 +751,16 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                               Expanded(
                                 child: Text(
                                   c.nombre,
-                                  style: const TextStyle(
-                                    color: Color(0xFFB4ACDE),
+                                  style: TextStyle(
+                                    color: LumiAppTheme.secondaryText(context),
                                     fontSize: 12,
                                   ),
                                 ),
                               ),
                               Text(
                                 '${c.porcentaje.toInt()}%',
-                                style: const TextStyle(
-                                  color: Colors.white,
+                                style: TextStyle(
+                                  color: LumiAppTheme.primaryText(context),
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -779,11 +784,15 @@ class _BarChartPainter extends CustomPainter {
   final List<double> valores;
   final List<String> etiquetas;
   final double labelFontSize;
+  final Color textColor;
+  final Color mutedColor;
 
   _BarChartPainter({
     required this.valores,
     required this.etiquetas,
     required this.labelFontSize,
+    required this.textColor,
+    required this.mutedColor,
   });
 
   String _labelHoras(double valor) {
@@ -817,7 +826,7 @@ class _BarChartPainter extends CustomPainter {
     const pasos = 4;
 
     final gridPaint = Paint()
-      ..color = Colors.white.withOpacity(0.04)
+      ..color = mutedColor.withOpacity(0.18)
       ..strokeWidth = 1;
 
     for (int i = 0; i <= pasos; i++) {
@@ -834,7 +843,7 @@ class _BarChartPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: label,
-          style: const TextStyle(color: Color(0xFF5E5785), fontSize: 10),
+          style: TextStyle(color: mutedColor, fontSize: 10),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -890,7 +899,7 @@ class _BarChartPainter extends CustomPainter {
         text: TextSpan(
           text: valLabel,
           style: TextStyle(
-            color: valor > 0 ? Colors.white : Colors.white24,
+            color: valor > 0 ? textColor : mutedColor.withOpacity(0.5),
             fontSize: labelFontSize,
             fontWeight: FontWeight.w600,
           ),
@@ -909,8 +918,8 @@ class _BarChartPainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: etiquetas[i],
-          style: const TextStyle(
-            color: Color(0xFFB4ACDE),
+          style: TextStyle(
+            color: mutedColor,
             fontSize: 11,
             fontWeight: FontWeight.w500,
           ),

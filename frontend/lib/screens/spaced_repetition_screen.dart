@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class SpacedRepetitionScreen extends StatefulWidget {
   final String tituloTarea;
@@ -46,17 +47,17 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
     final conceptoActual = listaConceptos[_conceptoActualIndex];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           'Repetición Espaciada',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: Responsive.tamanioTitulo(context)),
+          style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: Responsive.tamanioTitulo(context)),
         ),
         centerTitle: true,
       ),
@@ -72,8 +73,8 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
               fit: BoxFit.contain,
               errorBuilder: (_, __, ___) => Container(
                 padding: EdgeInsets.all(Responsive.espacio(context)),
-                decoration: BoxDecoration(color: const Color(0xFF1B163B), borderRadius: BorderRadius.circular(Responsive.radioBorde(context))),
-                child: Text('✨ ¡Repasa para tu memoria! Lumi te mostrará los conceptos en el momento ideal.', style: TextStyle(color: Colors.white70, fontSize: Responsive.tamanioTexto(context))),
+                decoration: BoxDecoration(color: LumiAppTheme.surface(context), borderRadius: BorderRadius.circular(Responsive.radioBorde(context))),
+                child: Text('✨ ¡Repasa para tu memoria! Lumi te mostrará los conceptos en el momento ideal.', style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: Responsive.tamanioTexto(context))),
               ),
             ),
             SizedBox(height: Responsive.espacio(context)),
@@ -82,18 +83,18 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
             Container(
               padding: EdgeInsets.all(Responsive.espacio(context) * 1.5),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B163B),
+                color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.assignment_outlined, color: Colors.white70, size: 28),
+                  Icon(Icons.assignment_outlined, color: LumiAppTheme.secondaryText(context), size: 28),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Repaso Activo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: Responsive.tamanioSubtitulo(context))),
-                      Text('Tienes $totalConceptos conceptos clave para repasar.', style: TextStyle(color: Colors.white54, fontSize: Responsive.tamanioTexto(context))),
+                      Text('Repaso Activo', style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: Responsive.tamanioSubtitulo(context))),
+                      Text('Tienes $totalConceptos conceptos clave para repasar.', style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: Responsive.tamanioTexto(context))),
                     ],
                   ),
                 ],
@@ -107,7 +108,7 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                 width: double.infinity,
                 padding: EdgeInsets.all(Responsive.espacio(context) * 2),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1B163B),
+                  color: LumiAppTheme.surface(context),
                   borderRadius: BorderRadius.circular(Responsive.radioBorde(context)),
                 ),
                 child: SingleChildScrollView(
@@ -118,16 +119,16 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Row(
-                            children: const [
-                              Icon(Icons.lightbulb, color: Colors.amber, size: 22),
+                            children: [
+                              const Icon(Icons.lightbulb, color: Colors.amber, size: 22),
                               SizedBox(width: 8),
                               Text(
                                 'Concepto clave',
-                                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                                style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
-                          Text('${_conceptoActualIndex + 1}/$totalConceptos', style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                          Text('${_conceptoActualIndex + 1}/$totalConceptos', style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 12)),
                         ],
                       ),
                       SizedBox(height: Responsive.espacio(context) * 2),
@@ -138,7 +139,7 @@ class _SpacedRepetitionScreenState extends State<SpacedRepetitionScreen> {
                       SizedBox(height: Responsive.espacio(context)),
                       Text(
                         'Reflexiona sobre este concepto vinculado a tu tarea "${widget.tituloTarea}". ¿Cómo lo explicarías o aplicarías en el desarrollo?',
-                        style: TextStyle(color: Colors.white70, fontSize: Responsive.tamanioTexto(context), height: 1.5),
+                        style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: Responsive.tamanioTexto(context), height: 1.5),
                       ),
                     ],
                   ),

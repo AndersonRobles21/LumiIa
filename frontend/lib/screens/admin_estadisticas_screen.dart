@@ -7,6 +7,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 import 'dart:async';
 import 'path_provider_stub.dart'
     if (dart.library.io) 'package:path_provider/path_provider.dart';
@@ -125,9 +126,9 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
     );
 
     return Scaffold(
-      backgroundColor: const Color(0xFF080D2B),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF111C4A),
+        backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         title: Text(
           'Estadísticas • $_adminName',
@@ -142,7 +143,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
             child: Center(
               child: Text(
                 'Actualizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 11, color: Colors.white70),
+                style: TextStyle(fontSize: 11, color: LumiAppTheme.secondaryText(context)),
               ),
             ),
           ),
@@ -174,7 +175,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                         Text(
                           'Panel de control - Administrador',
                           style: GoogleFonts.orbitron(
-                            color: Colors.white70,
+                            color: LumiAppTheme.secondaryText(context),
                             fontSize: 12,
                           ),
                         ),
@@ -182,7 +183,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                         Text(
                           'Reportes y Estadísticas',
                           style: GoogleFonts.orbitron(
-                            color: Colors.white,
+                            color: LumiAppTheme.primaryText(context),
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
@@ -208,7 +209,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                         width: 150,
                         height: 110,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF111C4A),
+                          color: LumiAppTheme.surface(context),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: const Color(
@@ -457,9 +458,9 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: const Color(0xFF111C4A),
+          color: LumiAppTheme.surface(context),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(color: LumiAppTheme.outline(context)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -470,7 +471,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                 Expanded(
                   child: Text(
                     label,
-                    style: const TextStyle(color: Colors.white70, fontSize: 11),
+                    style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -482,7 +483,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
             Text(
               value,
               style: GoogleFonts.orbitron(
-                color: Colors.white,
+                color: LumiAppTheme.primaryText(context),
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
               ),

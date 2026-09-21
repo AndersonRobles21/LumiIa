@@ -9,24 +9,7 @@ import 'profile_screen.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
 import 'biometric_service.dart';
-
-void main() {
-  runApp(const IniciarSesion());
-}
-
-class IniciarSesion extends StatelessWidget {
-  const IniciarSesion({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Iniciar Sesión',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(useMaterial3: true),
-      home: const LoginScreen(),
-    );
-  }
-}
+import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -204,15 +187,17 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
           ),
         ),
         child: SafeArea(
@@ -291,7 +276,7 @@ class _LoginScreenState extends State<LoginScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFFF716DC).withValues(alpha: 0.15),
+            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
             blurRadius: 50,
             spreadRadius: 10,
           ),
@@ -302,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
         width: width,
         height: height,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Icon(Icons.auto_awesome, size: 60, color: Color(0xFFF716DC)),
+        errorBuilder: (_, __, ___) => Icon(Icons.auto_awesome, size: 60, color: Theme.of(context).colorScheme.primary),
       ),
     );
   }
@@ -541,18 +526,18 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+      style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 12),
+        hintStyle: GoogleFonts.orbitron(color: LumiAppTheme.secondaryText(context), fontSize: 12),
         filled: true,
-        fillColor: const Color(0xFF1E142C).withValues(alpha: 0.7),
+        fillColor: LumiAppTheme.surface(context),
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF4A2A68), width: 1.0),
+          borderSide: BorderSide(color: LumiAppTheme.outline(context), width: 1.0),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),

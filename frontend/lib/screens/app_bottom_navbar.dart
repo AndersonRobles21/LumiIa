@@ -6,6 +6,7 @@ import 'calendar_screen.dart';
 import 'historial_ia_screen.dart';
 import 'progreso_screen.dart';
 import 'profile_screen.dart';
+import '../theme/app_theme.dart';
 
 class AppBottomNavbar extends StatelessWidget {
   final String userId;
@@ -78,12 +79,14 @@ class AppBottomNavbar extends StatelessWidget {
         child: Container(
           margin: const EdgeInsets.only(right: 14),
           padding: const EdgeInsets.fromLTRB(14, 24, 14, 18),
-          decoration: const BoxDecoration(
-            color: Color(0xFF15112E),
-            border: Border(right: BorderSide(color: Color(0xFF33285D))),
+          decoration: BoxDecoration(
+            color: LumiAppTheme.surface(context),
+            border: Border(right: BorderSide(color: LumiAppTheme.outline(context))),
             boxShadow: [
               BoxShadow(
-                color: Colors.black54,
+                color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.black54
+                  : Colors.black12,
                 blurRadius: 16,
                 offset: Offset(5, 0),
               ),
@@ -92,14 +95,14 @@ class AppBottomNavbar extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _buildBrand(),
+              _buildBrand(context),
               const SizedBox(height: 32),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.only(left: 12, bottom: 10),
                 child: Text(
                   'NAVEGACIÓN',
                   style: TextStyle(
-                    color: Colors.white38,
+                    color: LumiAppTheme.secondaryText(context),
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.4,
@@ -112,7 +115,7 @@ class AppBottomNavbar extends StatelessWidget {
               _navItem(context, index: 3, icon: Icons.bar_chart_rounded, label: 'Progreso'),
               _navItem(context, index: 4, icon: Icons.person_outline, label: 'Perfil'),
               const Spacer(),
-              _buildSidebarIllustration(),
+              _buildSidebarIllustration(context),
             ],
           ),
         ),
@@ -125,7 +128,7 @@ class AppBottomNavbar extends StatelessWidget {
         height: Responsive.altoBoton(context) + 12,
         margin: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context)),
         decoration: BoxDecoration(
-          color: const Color(0xFF1B1437),
+          color: LumiAppTheme.surface(context),
           borderRadius: BorderRadius.circular(Responsive.radioBorde(context) * 2),
           boxShadow: const [
             BoxShadow(
@@ -149,7 +152,7 @@ class AppBottomNavbar extends StatelessWidget {
     );
   }
 
-  Widget _buildBrand() {
+  Widget _buildBrand(BuildContext context) {
     return Row(
       children: [
         Container(
@@ -157,9 +160,9 @@ class AppBottomNavbar extends StatelessWidget {
           height: 42,
           padding: const EdgeInsets.all(5),
           decoration: BoxDecoration(
-            color: const Color(0xFF2A1F5A),
+            color: LumiAppTheme.surfaceVariant(context),
             borderRadius: BorderRadius.circular(13),
-            border: Border.all(color: const Color(0xFF6D43D9)),
+            border: Border.all(color: LumiAppTheme.outline(context)),
           ),
           child: Image.asset(
             'logo/chat_ia.png',
@@ -171,13 +174,13 @@ class AppBottomNavbar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        const Column(
+        Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'LUMI',
               style: TextStyle(
-                color: Colors.white,
+                color: LumiAppTheme.primaryText(context),
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 2,
@@ -185,7 +188,7 @@ class AppBottomNavbar extends StatelessWidget {
             ),
             Text(
               'Estudia mejor',
-              style: TextStyle(color: Color(0xFFAAA2C9), fontSize: 11),
+              style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
             ),
           ],
         ),
@@ -193,14 +196,14 @@ class AppBottomNavbar extends StatelessWidget {
     );
   }
 
-  Widget _buildSidebarIllustration() {
+  Widget _buildSidebarIllustration(BuildContext context) {
     return Container(
       height: 170,
       padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
       decoration: BoxDecoration(
-        color: const Color(0xFF211A42),
+        color: LumiAppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF33285D)),
+        border: Border.all(color: LumiAppTheme.outline(context)),
       ),
       child: Image.asset(
         'logo/tarea.png',
@@ -234,29 +237,29 @@ class AppBottomNavbar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           decoration: BoxDecoration(
-            color: active ? const Color(0xFF342263) : Colors.transparent,
+            color: active ? LumiAppTheme.surfaceVariant(context) : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
             border: active
-                ? const Border(left: BorderSide(color: Color(0xFFFF44AA), width: 3))
+                ? Border(left: BorderSide(color: LumiAppTheme.accent(context), width: 3))
                 : null,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.max,
           children: [
-            Icon(icon, color: active ? const Color(0xFFFF44AA) : Colors.white54, size: 21),
+            Icon(icon, color: active ? LumiAppTheme.accent(context) : LumiAppTheme.secondaryText(context), size: 21),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
                 label,
                 style: TextStyle(
-                  color: active ? Colors.white : Colors.white60,
+                  color: active ? LumiAppTheme.primaryText(context) : LumiAppTheme.secondaryText(context),
                   fontSize: 13,
                   fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                 ),
               ),
             ),
             if (active)
-              const Icon(Icons.chevron_right, color: Color(0xFFFF44AA), size: 17),
+              Icon(Icons.chevron_right, color: LumiAppTheme.accent(context), size: 17),
           ],
           ),
         ),
@@ -277,7 +280,7 @@ class AppBottomNavbar extends StatelessWidget {
         padding: EdgeInsets.all(Responsive.espacio(context)),
         child: Icon(
           icon,
-          color: active ? const Color(0xFFFF44AA) : Colors.white38,
+          color: active ? LumiAppTheme.accent(context) : LumiAppTheme.secondaryText(context),
           size: Responsive.tamanioSubtitulo(context),
         ),
       ),

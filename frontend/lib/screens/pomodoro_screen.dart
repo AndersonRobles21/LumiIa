@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final String tituloTarea;
@@ -108,18 +109,18 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         .clamp(180.0, 240.0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Técnica Pomodoro',
           style: TextStyle(
-            color: Colors.white,
+            color: LumiAppTheme.primaryText(context),
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
@@ -134,7 +135,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B163B),
+                color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: const Color(0xFFBD00FF).withOpacity(0.4)),
               ),
@@ -145,8 +146,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                   Expanded(
                     child: Text(
                       'Trabajo activo: ${widget.tituloTarea}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                                color: LumiAppTheme.primaryText(context),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -163,7 +164,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B163B),
+                color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
                   color: const Color(0xFF3B2F6E).withOpacity(0.5),
@@ -204,8 +205,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                               _esTiempoEstudio
                                   ? 'Enfoque profundo'
                                   : 'Descanso corto',
-                              style: const TextStyle(
-                                color: Colors.white70,
+                              style: TextStyle(
+                                color: LumiAppTheme.secondaryText(context),
                                 fontSize: 14,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -227,8 +228,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                       ElevatedButton.icon(
                         onPressed: _resetearTiempo,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2D255A),
-                          foregroundColor: Colors.white,
+                          backgroundColor: LumiAppTheme.surfaceVariant(context),
+                          foregroundColor: LumiAppTheme.primaryText(context),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
                             vertical: 12,

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'app_language.dart';
+import '../theme/app_theme.dart';
 
 class FormateadorHistorial {
   /// Parsea cualquier string de fecha forzando la conversión UTC a hora local
@@ -153,20 +154,20 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        title: const Text(
+        title: Text(
           'Historial IA',
           style: TextStyle(
-            color: Colors.white,
+            color: LumiAppTheme.primaryText(context),
             fontWeight: FontWeight.bold,
             fontSize: 22,
           ),
         ),
-        iconTheme: const IconThemeData(color: Colors.white),
+        iconTheme: IconThemeData(color: LumiAppTheme.primaryText(context)),
       ),
       body: Stack(
         children: [
@@ -211,7 +212,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                   // Buscador
                   TextField(
                     controller: _searchController,
-                    style: const TextStyle(color: Colors.white),
+                    style: TextStyle(color: LumiAppTheme.primaryText(context)),
                     decoration: InputDecoration(
                       hintText: 'Buscar conversaciones con Lumi',
                       hintStyle: const TextStyle(

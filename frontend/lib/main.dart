@@ -4,6 +4,8 @@ import 'package:frontend/screens/login_screen.dart';
 import 'package:frontend/screens/splash_screen.dart';
 import 'package:frontend/screens/configuracion_screen.dart';
 import 'package:frontend/screens/admin_panel_screen.dart';
+import 'package:frontend/services/theme_controller.dart';
+import 'package:frontend/theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,6 +23,7 @@ void main() async {
     print("⚠️ Supabase ya se encontraba inicializado o dio un aviso: $e");
   }
 
+  await ThemeController.instance.initialize();
   runApp(const LumiApp());
 }
 
@@ -36,12 +39,18 @@ class _LumiAppState extends State<LumiApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    ThemeController.instance.addListener(_onThemeChanged);
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    ThemeController.instance.removeListener(_onThemeChanged);
     super.dispose();
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -69,11 +78,9 @@ class _LumiAppState extends State<LumiApp> with WidgetsBindingObserver {
     return MaterialApp(
       title: 'Lumi IA',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF080D2B),
-      ),
+      theme: LumiAppTheme.light,
+      darkTheme: LumiAppTheme.dark,
+      themeMode: ThemeController.instance.themeMode,
       initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),

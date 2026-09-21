@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -115,7 +116,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          backgroundColor: const Color(0xFF1A1040),
+          backgroundColor: LumiAppTheme.surface(context),
           title: const Text(
             'Desbloquear personaje',
             style: TextStyle(color: Colors.white),
@@ -196,7 +197,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         title: const Text(
@@ -207,15 +208,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: _accent))
           : Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [
-                    Color(0xFF0D0D2B),
-                    Color(0xFF1A1040),
-                    Color(0xFF0D0D2B),
-                  ],
+                  colors: Theme.of(context).brightness == Brightness.dark
+                      ? const [Color(0xFF0D0D2B), Color(0xFF1A1040), Color(0xFF0D0D2B)]
+                      : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
                 ),
               ),
               child: Column(

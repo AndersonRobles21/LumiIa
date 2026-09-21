@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class SeleccionarMetodoScreen extends StatefulWidget {
   final String tituloTarea;
@@ -88,19 +89,19 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
     final anchoImagen = Responsive.anchoImagenMetodo(context);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF110D27),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF161331),
+        backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
               radius: 16,
-              backgroundColor: const Color(0xFF1F1A3A),
+              backgroundColor: LumiAppTheme.surfaceVariant(context),
               child: ClipOval(
                 child: Image.asset(
                   'logo/chat_ia.png',
@@ -119,8 +120,8 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
             Expanded(
               child: Text(
                 widget.tituloTarea,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -141,12 +142,12 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       SizedBox(height: 12),
                       Text(
                         'Métodos de Estudio',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: LumiAppTheme.primaryText(context),
                           fontSize: 25,
                           fontWeight: FontWeight.bold,
                         ),
@@ -155,7 +156,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                       Text(
                         'Selecciona el método que mejor se adapte a tu objetivo actual.',
                         style: TextStyle(
-                          color: Colors.white60,
+                          color: LumiAppTheme.secondaryText(context),
                           fontSize: 13,
                           height: 1.35,
                         ),
@@ -194,14 +195,14 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF231D45),
+                          color: LumiAppTheme.surface(context),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: esSeleccionado
                                 ? const Color(0xFFBD00FF)
                                 : esRecomendado
                                     ? const Color(0xFFBD00FF).withOpacity(0.6)
-                                    : const Color(0xFF382F6B),
+                                    : LumiAppTheme.outline(context),
                             width: esSeleccionado || esRecomendado ? 2 : 1,
                           ),
                           boxShadow: esSeleccionado

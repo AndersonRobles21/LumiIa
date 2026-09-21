@@ -6,6 +6,7 @@ import 'pomodoro_screen.dart';
 import 'feynman_screen.dart';
 import 'active_recall_screen.dart';
 import 'spaced_repetition_screen.dart';
+import '../theme/app_theme.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
@@ -645,12 +646,12 @@ void _inicializarMensajesChat() {
         (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF161331),
+        backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 18),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 18),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -678,14 +679,14 @@ void _inicializarMensajesChat() {
               showDialog(
                 context: context,
                 builder: (context) => AlertDialog(
-                  backgroundColor: const Color(0xFF1A1736),
-                  title: const Text(
+                  backgroundColor: LumiAppTheme.surface(context),
+                  title: Text(
                     '¿Reiniciar progreso?',
-                    style: TextStyle(color: Colors.white),
+                    style: TextStyle(color: LumiAppTheme.primaryText(context)),
                   ),
-                  content: const Text(
+                  content: Text(
                     'Esto desmarcará todos tus checkboxes y te devolverá al Paso 1. ¿Deseas continuar?',
-                    style: TextStyle(color: Colors.white70, fontSize: 13),
+                    style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13),
                   ),
                   actions: [
                     TextButton(
@@ -731,7 +732,7 @@ void _inicializarMensajesChat() {
               child: CircularProgressIndicator(color: Color(0xFF00F0FF)),
             )
           : _cambiandoMetodo
-              ? const Center(
+              ? Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -740,7 +741,7 @@ void _inicializarMensajesChat() {
                       Text(
                         'Cambiando método de estudio...\nEsto puede tardar unos segundos.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                        style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 14),
                       ),
                     ],
                   ),

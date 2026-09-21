@@ -7,6 +7,8 @@ import 'biometric_service.dart';
 import 'login_screen.dart'; 
 import 'info_screen.dart';
 import '../utils/responsive.dart';
+import '../services/theme_controller.dart';
+import '../theme/app_theme.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
   const ConfiguracionScreen({super.key});
@@ -35,6 +37,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   void initState() {
     super.initState();
     AppLanguage.instance.addListener(_onLanguageChanged);
+    ThemeController.instance.addListener(_onThemeChanged);
     _isEnglish = AppLanguage.instance.isEnglish;
     // Solo inicializar biometría en plataformas nativas (no web)
     if (!kIsWeb) {
@@ -51,6 +54,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   @override
   void dispose() {
     AppLanguage.instance.removeListener(_onLanguageChanged);
+    ThemeController.instance.removeListener(_onThemeChanged);
     super.dispose();
   }
 
@@ -58,6 +62,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     if (mounted) {
       setState(() => _isEnglish = AppLanguage.instance.isEnglish);
     }
+  }
+
+  void _onThemeChanged() {
+    if (mounted) setState(() {});
   }
 
   String _text(String spanish, String english) =>
@@ -136,15 +144,17 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     final lang = AppLanguage.instance;
 
     return Scaffold(
-      backgroundColor: bgDark,
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color.fromARGB(255, 5, 8, 36), Color(0xFF16003A), Color(0xFF080010)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color.fromARGB(255, 5, 8, 36), Color(0xFF16003A), Color(0xFF080010)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
           ),
         ),
         child: SafeArea(
@@ -248,6 +258,16 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                             onTap: () => _mostrarSelectorIdioma(context, lang),
                           ),
                           _buildNavTile(
+                            icon: ThemeController.instance.isDark
+                                ? Icons.dark_mode_outlined
+                                : Icons.light_mode_outlined,
+                            title: _text('Tema', 'Theme'),
+                            trailingText: ThemeController.instance.isDark
+                                ? _text('Oscuro', 'Dark')
+                                : _text('Claro', 'Light'),
+                            onTap: () => _mostrarSelectorTema(context),
+                          ),
+                          _buildNavTile(
                             icon: Icons.school_outlined,
                             title: _text(
                               'Métodos de estudio preferidos',
@@ -310,6 +330,42 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
+  Future<void> _mostrarSelectorTema(BuildContext context) async {
+    final selectedMode = await showModalBottomSheet<ThemeMode>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(_text('Tema', 'Theme')),
+              subtitle: Text(_text('Elige la apariencia de LUMI', 'Choose LUMI\'s appearance')),
+            ),
+            RadioListTile<ThemeMode>(
+              value: ThemeMode.dark,
+              groupValue: ThemeController.instance.themeMode,
+              title: Text(_text('Tema oscuro', 'Dark theme')),
+              secondary: const Icon(Icons.dark_mode_outlined),
+              onChanged: (mode) => Navigator.pop(sheetContext, mode),
+            ),
+            RadioListTile<ThemeMode>(
+              value: ThemeMode.light,
+              groupValue: ThemeController.instance.themeMode,
+              title: Text(_text('Tema claro', 'Light theme')),
+              secondary: const Icon(Icons.light_mode_outlined),
+              onChanged: (mode) => Navigator.pop(sheetContext, mode),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (selectedMode != null) {
+      await ThemeController.instance.setThemeMode(selectedMode);
+    }
+  }
+
   // --- Header con flecha de volver ---
   Widget _buildHeader(BuildContext context, AppLanguage lang) {
     return Padding(
@@ -317,7 +373,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            icon: Icon(Icons.arrow_back_ios_new, color: LumiAppTheme.primaryText(context)),
             onPressed: () => Navigator.pop(context),
           ),
           Expanded(
@@ -325,7 +381,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               _text('Configuración', 'Settings'),
               textAlign: TextAlign.center,
               style: GoogleFonts.orbitron(
-                color: Colors.white,
+                color: LumiAppTheme.primaryText(context),
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -343,7 +399,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       child: Text(
         text.toUpperCase(),
         style: GoogleFonts.orbitron(
-          color: textGrey,
+          color: LumiAppTheme.secondaryText(context),
           fontSize: 12,
           fontWeight: FontWeight.w600,
           letterSpacing: 1.1,
@@ -364,9 +420,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       margin: const EdgeInsets.only(bottom: 10),
       padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context) / 2, vertical: Responsive.espacio(context) * 0.75),
       decoration: BoxDecoration(
-        color: cardColor.withOpacity(0.75),
+        color: LumiAppTheme.surface(context).withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF321438), width: 1),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1),
       ),
       child: SwitchListTile(
         contentPadding: EdgeInsets.zero,
@@ -383,7 +439,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         title: Text(
           title,
             style: GoogleFonts.orbitron(
-            color: Colors.white,
+            color: LumiAppTheme.primaryText(context),
             fontSize: Responsive.tamanioSubtitulo(context),
             fontWeight: FontWeight.w500,
           ),
@@ -391,7 +447,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: GoogleFonts.orbitron(color: textGrey, fontSize: Responsive.tamanioTexto(context) - 2),
+                style: GoogleFonts.orbitron(color: LumiAppTheme.secondaryText(context), fontSize: Responsive.tamanioTexto(context) - 2),
               )
             : null,
         value: value,
@@ -410,16 +466,16 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: cardColor.withOpacity(0.75),
+        color: LumiAppTheme.surface(context).withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF321438), width: 1),
+        border: Border.all(color: LumiAppTheme.outline(context), width: 1),
       ),
       child: ListTile(
         leading: Icon(icon, color: accentPink.withOpacity(0.9)),
         title: Text(
           title,
           style: GoogleFonts.orbitron(
-            color: Colors.white,
+            color: LumiAppTheme.primaryText(context),
             fontSize: Responsive.tamanioSubtitulo(context),
             fontWeight: FontWeight.w500,
           ),
