@@ -1,5 +1,9 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../services/api_service.dart';
+import 'dashboard_screen.dart';
+import 'profile_screen.dart';
 import '../utils/responsive.dart';
 
 const Color kPurplePrimary = Color(0xFFB026FF);
@@ -75,9 +79,43 @@ class _SplashScreenState extends State<SplashScreen>
 
     _loadingController.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
-        Navigator.of(context).pushReplacementNamed('/login');
+        _restoreSession();
       }
     });
+  }
+
+  Future<void> _restoreSession() async {
+    final session = Supabase.instance.client.auth.currentSession;
+    if (session == null) {
+      if (mounted) Navigator.of(context).pushReplacementNamed('/login');
+      return;
+    }
+
+    final profile = await ApiService.getProfile(session.user.id);
+    if (!mounted) return;
+
+    final isAdmin = (profile?['es_admin'] ?? false) == true;
+    if (isAdmin) {
+      Navigator.of(context).pushReplacementNamed(
+        '/admin-panel',
+        arguments: {'userId': session.user.id},
+      );
+      return;
+    }
+
+    final name = (profile?['nombre'] ?? '').toString().trim();
+    final objective = (profile?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+    final schedules = profile?['horarios'] as List?;
+    final profileReady = name.isNotEmpty &&
+        (objective.isNotEmpty || (schedules != null && schedules.isNotEmpty));
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => profileReady
+            ? DashboardScreen(userId: session.user.id)
+            : ProfileScreen(userId: session.user.id),
+      ),
+    );
   }
 
   @override

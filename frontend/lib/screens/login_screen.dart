@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/olvidar_contraseña.dart';
@@ -7,6 +8,7 @@ import '/screens/dashboard_screen.dart';
 import 'profile_screen.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
+import 'biometric_service.dart';
 
 void main() {
   runApp(const IniciarSesion());
@@ -38,7 +40,17 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _biometricEnabled = false;
+  bool _verifyingBiometric = false;
   String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!kIsWeb) {
+      _initializeBiometricLogin();
+    }
+  }
 
   @override
   void dispose() {
@@ -47,7 +59,51 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  void _login() async {
+  Future<void> _initializeBiometricLogin() async {
+    await BiometricService.initialize();
+    if (!mounted || kIsWeb) return;
+
+    final enabled = BiometricService.isEnabled;
+    final hasSession = Supabase.instance.client.auth.currentSession != null;
+    if (!enabled || !hasSession) return;
+
+    setState(() => _biometricEnabled = true);
+    await _authenticateWithBiometric();
+  }
+
+  Future<void> _authenticateWithBiometric() async {
+    if (_verifyingBiometric || kIsWeb) return;
+
+    final hasSession = Supabase.instance.client.auth.currentSession != null;
+    if (!hasSession) {
+      setState(() => _errorMessage = 'Inicia sesión con correo y contraseña para activar este acceso.');
+      return;
+    }
+
+    setState(() {
+      _errorMessage = null;
+      _verifyingBiometric = true;
+    });
+
+    final authenticated = await BiometricService.authenticate(
+      reason: 'Confirma tu identidad para entrar a LUMI',
+    );
+
+    if (!mounted) return;
+    setState(() => _verifyingBiometric = false);
+    if (authenticated) {
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user == null) {
+        setState(() => _errorMessage = 'La sesión expiró. Usa tu correo y contraseña.');
+        return;
+      }
+      await _openAuthenticatedArea(user);
+    } else {
+      setState(() => _errorMessage = 'No se pudo verificar la huella. Usa tu correo y contraseña.');
+    }
+  }
+
+  Future<void> _login() async {
     final email = _emailController.text.trim();
     final password = _passwordController.text;
 
@@ -96,33 +152,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
 
-      final perfil = await ApiService.getProfile(userId);
-      if (!mounted) return;
-
-      final bool esAdmin = (perfil?['es_admin'] ?? false) == true;
-      final nombre = (perfil?['nombre'] ?? '').toString().trim();
-      final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
-      final horarios = perfil?['horarios'] as List?;
-      final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
-
-      if (!context.mounted) return;
-      if (esAdmin) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/admin-panel',
-          arguments: {'userId': userId},
-        );
-        return;
-      }
-
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => perfilListo
-              ? DashboardScreen(userId: userId)
-              : ProfileScreen(userId: userId),
-        ),
-      );
+      await _openAuthenticatedArea(user);
 
     } catch (e) {
       if (!mounted) return;
@@ -141,6 +171,34 @@ class _LoginScreenState extends State<LoginScreen> {
         _errorMessage = errorText;
       });
     }
+  }
+
+  Future<void> _openAuthenticatedArea(User user) async {
+    final userId = user.id;
+    final perfil = await ApiService.getProfile(userId);
+    if (!mounted) return;
+
+    setState(() => _isLoading = false);
+    final bool esAdmin = (perfil?['es_admin'] ?? false) == true;
+    final nombre = (perfil?['nombre'] ?? '').toString().trim();
+    final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+    final horarios = perfil?['horarios'] as List?;
+    final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
+
+    if (!context.mounted) return;
+    if (esAdmin) {
+      Navigator.pushReplacementNamed(context, '/admin-panel', arguments: {'userId': userId});
+      return;
+    }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (context) => perfilListo
+            ? DashboardScreen(userId: userId)
+            : ProfileScreen(userId: userId),
+      ),
+    );
   }
 
   @override
@@ -396,6 +454,23 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
 
         SizedBox(height: Responsive.espacio(context) * 2),
+
+        if (!kIsWeb && _biometricEnabled) ...[
+          SizedBox(
+            width: isDesktop ? Responsive.anchoBoton(context) : double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading || _verifyingBiometric ? null : _authenticateWithBiometric,
+              icon: _verifyingBiometric
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.fingerprint),
+              label: Text(
+                _verifyingBiometric ? 'Verificando huella...' : 'Usar huella',
+                style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+          SizedBox(height: Responsive.espacio(context) * 2),
+        ],
 
         Center(
           child: TextButton(

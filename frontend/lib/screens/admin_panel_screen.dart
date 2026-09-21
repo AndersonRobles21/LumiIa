@@ -22,6 +22,7 @@ class AdminPanelScreen extends StatefulWidget {
 class _AdminPanelScreenState extends State<AdminPanelScreen> {
   bool _loading = true;
   Map<String, dynamic> _summary = {};
+  List<dynamic> _profileAlerts = [];
   List<dynamic> _usuarios = [];
   String? _errorMessage;
   late Timer _refreshTimer;
@@ -86,11 +87,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
     try {
       final summary = await ApiService.getAdminSummary(widget.userId);
+      final profileAlerts = await ApiService.getProfileAlerts(widget.userId);
 
       if (!mounted) return;
 
       setState(() {
         _summary = summary ?? {};
+        _profileAlerts = profileAlerts;
         _loading = false;
         _lastUpdate = DateTime.now();
       });
@@ -215,21 +218,26 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                         // Banner de Bienvenida Estilo Cyberpunk
                         _buildHeaderCard(width),
                         const SizedBox(height: 24),
+                        _buildProfileAlerts(),
+                        if (_profileAlerts.isNotEmpty) const SizedBox(height: 24),
 
                         // Cuadrícula de Estadísticas
-                        GridView.count(
+                        GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
-                          crossAxisCount: crossCount,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: isDesktop ? 2.1 : 1.6,
-                          children: [
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossCount,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            mainAxisExtent: isDesktop ? 144 : 142,
+                          ),
+                          itemCount: 4,
+                          itemBuilder: (context, index) => [
                             _buildStatCard('Estudiantes totales', _getLabel(_summary['totalUsuarios']), Icons.school_outlined, 'Registrados'),
                             _buildStatCard('Estudiantes activos', _getLabel(_summary['estudiantes']), Icons.verified_user_outlined, 'En línea ahora'),
                             _buildStatCard('Planes generados', _getLabel(_summary['totalPlanes']), Icons.assignment_outlined, 'IA activa'),
                             _buildStatCard('Estado del sistema', 'Óptimo', Icons.psychology_outlined, 'Latencia: 42ms'),
-                          ],
+                          ][index],
                         ),
                         const SizedBox(height: 28),
 
@@ -402,6 +410,45 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 width: isDesktop ? 110 : 80,
                 height: isDesktop ? 110 : 80,
                 fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileAlerts() {
+    if (_profileAlerts.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF241A4A),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFF44AA).withValues(alpha: 0.55)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.notifications_active_outlined, color: Color(0xFFFF8ACB)),
+              SizedBox(width: 8),
+              Text(
+                'Alertas de tu perfil',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ..._profileAlerts.map(
+            (alert) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
+                style: const TextStyle(color: Color(0xFFE5DDF7), fontSize: 13),
               ),
             ),
           ),

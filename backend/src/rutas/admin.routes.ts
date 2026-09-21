@@ -477,7 +477,7 @@ router.put("/usuarios/:userId/:targetUserId/delegar", requireAdmin, async (req: 
     await client.query(
       `INSERT INTO alertas_perfil (usuario_id, tipo, mensaje)
        VALUES ($1, $2, $3)`,
-      [targetUserId, "rol_modificado", "Un administrador devolvió tu cuenta al rol de estudiante."]
+      [targetUserId, "rol_modificado", "Un administrador cambió tu cuenta a estudiante."]
     );
     await client.query("COMMIT");
 
