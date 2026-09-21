@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import 'admin_usuario_detalle_screen.dart';
+import '../theme/app_theme.dart';
 
 class AdminUsuariosListV2 extends StatefulWidget {
   final String adminUserId;
@@ -96,9 +97,9 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
     final tituloPanel = widget.onlyAdmins ? 'Panel de Administradores' : 'Panel de Estudiantes';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF16003A),
+        backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         title: Text(
           widget.onlyAdmins ? 'Administradores' : 'Estudiantes',
@@ -108,11 +109,13 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
           ),
         ),
         child: SafeArea(
@@ -128,9 +131,9 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E142C).withValues(alpha: 0.75),
+                          color: LumiAppTheme.surface(context),
                           borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.5)),
+                          border: Border.all(color: LumiAppTheme.outline(context)),
                         ),
                         child: Row(
                           children: [
@@ -150,7 +153,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                   Text(
                                     tituloPanel,
                                     style: GoogleFonts.orbitron(
-                                      color: Colors.white,
+                                      color: LumiAppTheme.primaryText(context),
                                       fontWeight: FontWeight.w700,
                                       fontSize: 15,
                                     ),
@@ -159,7 +162,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                   Text(
                                     'Gestión y visualización de registros activos',
                                     style: GoogleFonts.orbitron(
-                                      color: const Color(0xFFB0AEC4),
+                                      color: LumiAppTheme.secondaryText(context),
                                       fontSize: 11,
                                     ),
                                   ),
@@ -177,12 +180,12 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                           Expanded(
                             child: TextField(
                               controller: _searchController,
-                              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+                              style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
                               decoration: InputDecoration(
                                 hintText: 'Buscar por nombre o correo...',
                                 hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 12),
                                 filled: true,
-                                fillColor: const Color(0xFF1E142C).withValues(alpha: 0.6),
+                                fillColor: LumiAppTheme.surface(context),
                                 prefixIcon: const Icon(Icons.search_rounded, color: Color(0xFFB0AEC4), size: 20),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 enabledBorder: OutlineInputBorder(

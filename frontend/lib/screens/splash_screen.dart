@@ -128,8 +128,10 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    // El Splash es una excepción visual intencional: conserva el fondo negro
+    // diseñado para sus imágenes, independientemente del tema seleccionado.
     return Scaffold(
-      backgroundColor: kBackgroundDark,
+      backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -182,7 +184,7 @@ class _SplashScreenState extends State<SplashScreen>
 
                         SizedBox(height: height * 0.16),
 
-                        const Text(
+                        Text(
                           'LUMI',
                           style: TextStyle(
                             fontSize: 48,
@@ -196,8 +198,9 @@ class _SplashScreenState extends State<SplashScreen>
 
                         RichText(
                           textAlign: TextAlign.center,
-                          text: const TextSpan(
+                          text: TextSpan(
                             style: TextStyle(
+                              color: Colors.white,
                               fontSize: 11,
                               letterSpacing: 1.1,
                               fontWeight: FontWeight.w600,
@@ -205,7 +208,7 @@ class _SplashScreenState extends State<SplashScreen>
                             children: [
                               TextSpan(
                                 text: 'LA ',
-                                style: TextStyle(color: Colors.white),
+                                style: const TextStyle(color: Colors.white),
                               ),
                               TextSpan(
                                 text: 'PROCRASTINACIÓN ',
@@ -213,7 +216,7 @@ class _SplashScreenState extends State<SplashScreen>
                               ),
                               TextSpan(
                                 text: 'TERMINA ',
-                                style: TextStyle(color: Colors.white),
+                                style: const TextStyle(color: Colors.white),
                               ),
                               TextSpan(
                                 text: 'AQUÍ',
@@ -267,7 +270,7 @@ class _InfoCard extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+          Icon(
             Icons.school,
             color: Colors.white70,
             size: 32,
@@ -275,7 +278,7 @@ class _InfoCard extends StatelessWidget {
           SizedBox(width: Responsive.espacio(context) * 2),
           Flexible(
             child: RichText(
-              text: const TextSpan(
+              text: TextSpan(
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 12,

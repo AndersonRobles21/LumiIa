@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 import 'admin_estadisticas_screen.dart';
 import 'admin_usuario_detalle_screen.dart';
 import 'admin_usuarios_list_v2.dart';
@@ -128,9 +129,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       final crossCount = (width ~/ 260).clamp(2, 4);
 
       return Scaffold(
-        backgroundColor: const Color(0xFF0B0813),
+        backgroundColor: LumiAppTheme.pageBackground(context),
         appBar: AppBar(
-          backgroundColor: const Color(0xFF16003A),
+          backgroundColor: LumiAppTheme.surface(context),
           elevation: 0,
           title: Text(
             'Panel de control • Administrador',
@@ -147,13 +148,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E142C),
+                    color: LumiAppTheme.surfaceVariant(context),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.5)),
                   ),
                   child: Text(
                     'Sincronizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
-                    style: GoogleFonts.orbitron(fontSize: 11, color: const Color(0xFFB0AEC4)),
+                    style: GoogleFonts.orbitron(fontSize: 11, color: LumiAppTheme.secondaryText(context)),
                   ),
                 ),
               ),
@@ -168,11 +169,13 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
         body: Container(
           width: double.infinity,
           height: double.infinity,
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+                colors: Theme.of(context).brightness == Brightness.dark
+                  ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
+                  : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
             ),
           ),
           child: SafeArea(
@@ -203,7 +206,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                                 Expanded(
                                   child: Text(
                                     _errorMessage!,
-                                    style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13),
+                                    style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
                                   ),
                                 ),
                                 IconButton(
@@ -337,7 +340,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E142C).withValues(alpha: 0.7),
+                    color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.6)),
         boxShadow: [
@@ -357,7 +360,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 Text(
                   _getFormattedDate(),
                   style: GoogleFonts.orbitron(
-                    color: const Color(0xFFB0AEC4),
+                    color: LumiAppTheme.secondaryText(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -375,7 +378,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 Text(
                   'Bienvenido otra vez, $_adminName',
                   style: GoogleFonts.orbitron(
-                    color: Colors.white,
+                    color: LumiAppTheme.primaryText(context),
                     fontSize: isDesktop ? 26 : 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -384,7 +387,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 Text(
                   'Monitoreo del sistema de LUMI a tiempo real',
                   style: GoogleFonts.orbitron(
-                    color: const Color(0xFFB0AEC4),
+                    color: LumiAppTheme.secondaryText(context),
                     fontSize: 13,
                   ),
                 ),
@@ -425,20 +428,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF241A4A),
+        color: LumiAppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFFF44AA).withValues(alpha: 0.55)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(Icons.notifications_active_outlined, color: Color(0xFFFF8ACB)),
               SizedBox(width: 8),
               Text(
                 'Alertas de tu perfil',
-                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -448,7 +451,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
-                style: const TextStyle(color: Color(0xFFE5DDF7), fontSize: 13),
+                style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 13),
               ),
             ),
           ),
@@ -461,7 +464,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E142C).withValues(alpha: 0.6),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.4)),
         boxShadow: [
@@ -483,7 +486,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 child: Text(
                   titulo,
                   style: GoogleFonts.orbitron(
-                    color: const Color(0xFFB0AEC4),
+                    color: LumiAppTheme.secondaryText(context),
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
                   ),
@@ -495,7 +498,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           Text(
             valor,
             style: GoogleFonts.orbitron(
-              color: Colors.white,
+              color: LumiAppTheme.primaryText(context),
               fontSize: 28,
               fontWeight: FontWeight.w700,
             ),
@@ -503,7 +506,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           Text(
             subtitle,
             style: GoogleFonts.orbitron(
-              color: Colors.grey[500],
+              color: LumiAppTheme.secondaryText(context),
               fontSize: 11,
             ),
           ),

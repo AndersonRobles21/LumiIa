@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 const String kLumiAsset = 'logo/lumi_gamificacion.png';
 const String kRachaAsset = 'logo/racha.png';
@@ -372,13 +373,15 @@ class _GamificationScreenState extends State<GamificationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color.fromARGB(255, 7, 5, 25), Color(0xFF0E0B2E)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color.fromARGB(255, 7, 5, 25), Color(0xFF0E0B2E)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
           ),
         ),
         child: SafeArea(
@@ -388,7 +391,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                 )
               : RefreshIndicator(
                   color: const Color(0xFF8B6BFF),
-                  backgroundColor: const Color.fromARGB(255, 18, 14, 58),
+                  backgroundColor: LumiAppTheme.surface(context),
                   onRefresh: _cargarDatos,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
@@ -405,10 +408,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
                         if (_seleccionado != null)
                           _buildFeaturedCard(_seleccionado!),
                         const SizedBox(height: 26),
-                        const Text(
+                        Text(
                           'Todas las insignias',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: LumiAppTheme.primaryText(context),
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.2,
@@ -430,7 +433,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         Expanded(
@@ -439,10 +442,10 @@ class _GamificationScreenState extends State<GamificationScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Gamificación',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: LumiAppTheme.primaryText(context),
                     fontSize: 24,
                     fontWeight: FontWeight.w800,
                   ),
@@ -452,7 +455,7 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   'Supera tus metas, mantén tu racha activa y desbloquea\n'
                   'insignias a medida que avanzas en tu camino de aprendizaje.',
                   style: TextStyle(
-                    color: Colors.white.withOpacity(0.65),
+                    color: LumiAppTheme.secondaryText(context),
                     fontSize: 12.5,
                     height: 1.35,
                   ),
@@ -609,9 +612,9 @@ class _GamificationScreenState extends State<GamificationScreen> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1748).withOpacity(0.7),
+        color: LumiAppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: LumiAppTheme.outline(context)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -923,9 +926,9 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B1748),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: LumiAppTheme.outline(context)),
       ),
       child: child,
     );

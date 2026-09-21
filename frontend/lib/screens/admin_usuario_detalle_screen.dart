@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
+import '../theme/app_theme.dart';
 
 class AdminUsuarioDetalleScreen extends StatefulWidget {
   final String adminUserId;
@@ -56,18 +57,18 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF1E142C),
+          backgroundColor: LumiAppTheme.surface(context),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.3)),
           ),
-          title: Text('Editar nombre', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+          title: Text('Editar nombre', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nombreCtrl,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: LumiAppTheme.primaryText(context)),
                 decoration: InputDecoration(
                   labelText: 'Nombre',
                   labelStyle: const TextStyle(color: Color(0xFFB0AEC4)),
@@ -136,12 +137,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E142C),
+          backgroundColor: LumiAppTheme.surface(context),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
         ),
-        title: Text('Eliminar usuario', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text('Eliminar usuario', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
           'Esta acción elimina el perfil, planes, tareas y dependencias asociadas al usuario. ¿Continuar?',
           style: TextStyle(color: Color(0xFFB0AEC4)),
@@ -182,12 +183,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E142C),
+        backgroundColor: LumiAppTheme.surface(ctx),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: const Color(0xFF00C2FF).withValues(alpha: 0.5)),
         ),
-        title: Text('Delegar administrador', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+        title: Text('Delegar administrador', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
         content: const Text(
           'El usuario volverá a ser estudiante. Se conservarán su perfil, foto, tareas, planes y progreso.',
           style: TextStyle(color: Color(0xFFB0AEC4)),
@@ -238,11 +239,11 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
     final esAdmin = (_usuario['es_admin'] ?? false) == true;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF16003A),
+        backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
-        foregroundColor: Colors.white,
+        foregroundColor: LumiAppTheme.primaryText(context),
         title: Text(
           esAdmin ? 'Detalle de Administrador' : 'Detalle de Estudiante',
           style: GoogleFonts.orbitron(fontWeight: FontWeight.w700, fontSize: 16),
@@ -259,12 +260,12 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
                 final confirmar = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E142C),
+                    backgroundColor: LumiAppTheme.surface(ctx),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                       side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.5)),
                     ),
-                    title: Text('Promover a administrador', style: GoogleFonts.orbitron(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                    title: Text('Promover a administrador', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
                     content: const Text('¿Deseas promover este usuario a administrador?', style: TextStyle(color: Color(0xFFB0AEC4))),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4)))),
@@ -309,11 +310,13 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)],
+            colors: Theme.of(context).brightness == Brightness.dark
+              ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
+              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
           ),
         ),
         child: _loading

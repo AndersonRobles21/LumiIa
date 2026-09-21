@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 class AgregarTareaScreen extends StatefulWidget {
   final String userId;
@@ -38,10 +39,9 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
       firstDate: DateTime.now(),
       lastDate: DateTime(2027),
       builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Color(0xFFFF44AA),
-            surface: Color(0xFF1E1B3A),
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: const Color(0xFFFF44AA),
           ),
         ),
         child: child!,
@@ -115,12 +115,12 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B0813),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context)),
           onPressed: () => Navigator.pop(context),
         ),
       ),
@@ -140,19 +140,19 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Nueva tarea',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: LumiAppTheme.primaryText(context),
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 6),
-                          const Text(
+                          Text(
                             'Organiza tu próximo objetivo de estudio',
                             style: TextStyle(
-                              color: Colors.white54,
+                              color: LumiAppTheme.secondaryText(context),
                               fontSize: 13,
                               height: 1.3,
                             ),
@@ -202,8 +202,8 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               // Título
               TextField(
                 controller: _tituloController,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('Título del trabajo'),
+                style: TextStyle(color: LumiAppTheme.primaryText(context)),
+                decoration: _inputDecoration(context, 'Título del trabajo'),
               ),
               const SizedBox(height: 15),
 
@@ -211,8 +211,8 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               TextField(
                 controller: _descController,
                 maxLines: 4,
-                style: const TextStyle(color: Colors.white),
-                decoration: _inputDecoration('Descripción o rúbrica....'),
+                style: TextStyle(color: LumiAppTheme.primaryText(context)),
+                decoration: _inputDecoration(context, 'Descripción o rúbrica....'),
               ),
               const SizedBox(height: 20),
 
@@ -222,27 +222,27 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF16003A),
+                    color: LumiAppTheme.surface(context),
                     borderRadius: BorderRadius.circular(15),
                   ),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.calendar_month,
                         color: Color(0xFFFF44AA),
                       ),
                       const SizedBox(width: 12),
                       Text(
                         'Fecha Límite: ${DateFormat('dd / MMM / yyyy').format(_fechaSeleccionada)}',
-                        style: const TextStyle(
-                          color: Colors.white,
+                        style: TextStyle(
+                          color: LumiAppTheme.primaryText(context),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                       const Spacer(),
-                      const Icon(
+                      Icon(
                         Icons.edit_calendar,
-                        color: Colors.white38,
+                        color: LumiAppTheme.secondaryText(context),
                         size: 20,
                       ),
                     ],
@@ -252,23 +252,23 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               const SizedBox(height: 20),
 
               // Nivel de Dificultad
-              const Text(
+              Text(
                 'Nivel de Dificultad Percibido',
-                style: TextStyle(color: Colors.white70, fontSize: 13),
+                style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13),
               ),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF16003A),
+                  color: LumiAppTheme.surface(context),
                   borderRadius: BorderRadius.circular(15),
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _nivelDificultad,
-                    dropdownColor: const Color(0xFF1E1B3A),
-                    style: const TextStyle(color: Colors.white),
-                    icon: const Icon(
+                    dropdownColor: LumiAppTheme.surface(context),
+                    style: TextStyle(color: LumiAppTheme.primaryText(context)),
+                    icon: Icon(
                       Icons.arrow_drop_down,
                       color: Color(0xFFFF44AA),
                     ),
@@ -304,8 +304,9 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               // Enfoque adicional para la IA
               TextField(
                 controller: _enfoqueController,
-                style: const TextStyle(color: Colors.white),
+                style: TextStyle(color: LumiAppTheme.primaryText(context)),
                 decoration: _inputDecoration(
+                  context,
                   'Enfoque especial (Ej. Práctica en código, lectura, resumen)',
                 ),
               ),
@@ -350,12 +351,12 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                     errorBuilder: (context, error, stackTrace) => Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1B3A),
+                        color: LumiAppTheme.surface(context),
                         borderRadius: BorderRadius.circular(15),
                       ),
-                      child: const Text(
+                      child: Text(
                         'Cuéntame qué tienes que hacer y yo te ayudo a organizarlo.',
-                        style: TextStyle(color: Colors.white70, fontSize: 12),
+                        style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 12),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -370,11 +371,11 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
     );
   }
 
-  InputDecoration _inputDecoration(String hint) => InputDecoration(
+  InputDecoration _inputDecoration(BuildContext context, String hint) => InputDecoration(
     hintText: hint,
-    hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+    hintStyle: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13),
     filled: true,
-    fillColor: const Color(0xFF16003A),
+    fillColor: LumiAppTheme.surface(context),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(15),
       borderSide: BorderSide.none,

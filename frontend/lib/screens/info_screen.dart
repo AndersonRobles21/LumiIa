@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../utils/responsive.dart';
+import '../theme/app_theme.dart';
 
 /// Un bloque de contenido dentro de InfoScreen.
 /// Si [items] viene lleno, se pinta como una lista tipo FAQ (acordeón).
@@ -141,7 +142,7 @@ class InfoScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: bgDark,
+      backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
         width: double.infinity,
         height: double.infinity,
@@ -166,7 +167,7 @@ class InfoScreen extends StatelessWidget {
                         vertical: Responsive.espacio(context),
                       ),
                       children: [
-                        for (final section in sections) _buildSection(section),
+                        for (final section in sections) _buildSection(context, section),
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -186,7 +187,7 @@ class InfoScreen extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+            icon: Icon(Icons.arrow_back_ios_new, color: LumiAppTheme.primaryText(context)),
             onPressed: () => Navigator.pop(context),
           ),
           Icon(icon, color: accentPink, size: 20),
@@ -195,7 +196,7 @@ class InfoScreen extends StatelessWidget {
             child: Text(
               title,
               style: GoogleFonts.orbitron(
-                color: Colors.white,
+                color: LumiAppTheme.primaryText(context),
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
               ),
@@ -207,7 +208,7 @@ class InfoScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSection(InfoSection section) {
+  Widget _buildSection(BuildContext context, InfoSection section) {
     if (section.items != null) {
       return Container(
         margin: const EdgeInsets.only(bottom: 14),
@@ -220,19 +221,19 @@ class InfoScreen extends StatelessWidget {
               (item) => Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 decoration: BoxDecoration(
-                  color: cardColor.withOpacity(0.75),
+                  color: LumiAppTheme.surface(context).withOpacity(0.9),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFF321438), width: 1),
                 ),
                 child: Theme(
-                  data: ThemeData(dividerColor: Colors.transparent),
+                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
                   child: ExpansionTile(
                     iconColor: accentPink,
                     collapsedIconColor: textGrey,
                     title: Text(
                       item.key,
                       style: GoogleFonts.orbitron(
-                        color: Colors.white,
+                        color: LumiAppTheme.primaryText(context),
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
                       ),
@@ -263,7 +264,7 @@ class InfoScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: cardColor.withOpacity(0.75),
+        color: LumiAppTheme.surface(context).withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF321438), width: 1),
       ),

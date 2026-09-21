@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '/services/api_service.dart'; // Asegúrate de tener tu ApiService importado
+import '../theme/app_theme.dart';
 
 class FeynmanScreen extends StatefulWidget {
   final String tituloTarea;
@@ -129,17 +130,17 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
     const int minimoRequerido = 40;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0D0B1E),
+      backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Técnica Feynman',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22),
+          style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 22),
         ),
         centerTitle: true,
       ),
@@ -156,17 +157,17 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
+                children: [
                   Icon(Icons.lightbulb_outline, color: Color(0xFFFF44AA), size: 14),
                   SizedBox(width: 6),
-                  Text('Domina un concepto con IA', style: TextStyle(color: Colors.white, fontSize: 11)),
+                  Text('Domina un concepto con IA', style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 11)),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
+            Text(
               'Enseñar es la mejor forma de aprender.\nLumi evaluará tu explicación.',
-              style: TextStyle(color: Colors.white60, fontSize: 13, height: 1.3),
+              style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13, height: 1.3),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -182,10 +183,10 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                       child: ChoiceChip(
                         label: Text('Concepto ${index + 1}'),
                         selected: esSel,
-                        selectedColor: const Color(0xFFBD00FF),
-                        backgroundColor: const Color(0xFF26204E),
+                        selectedColor: Theme.of(context).colorScheme.primary,
+                        backgroundColor: LumiAppTheme.surfaceVariant(context),
                         labelStyle: TextStyle(
-                          color: esSel ? Colors.white : Colors.white60,
+                          color: esSel ? Theme.of(context).colorScheme.onPrimary : LumiAppTheme.secondaryText(context),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -207,7 +208,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B163B),
+                color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -217,9 +218,9 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                     children: [
                       _buildAvatarLumiSmall(),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'Tu concepto a explicar',
-                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -228,12 +229,12 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF26204E),
+                      color: LumiAppTheme.surfaceVariant(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       conceptoActual,
-                      style: const TextStyle(color: Color(0xFF00F0FF), fontSize: 15, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 15, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -245,7 +246,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1B163B),
+                color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Column(
@@ -255,9 +256,9 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                     children: [
                       _buildAvatarLumiSmall(),
                       const SizedBox(width: 10),
-                      const Text(
+                      Text(
                         'Explícalo con tus propias palabras',
-                        style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -265,7 +266,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                   TextField(
                     controller: _explicacionController,
                     maxLines: 5,
-                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Escribe una explicación seria y detallada del concepto...',
                       hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
