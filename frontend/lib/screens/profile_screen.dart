@@ -13,6 +13,7 @@ import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
+
   const ProfileScreen({super.key, required this.userId});
 
   @override
@@ -55,355 +56,15 @@ class _ProfileScreenState extends State<ProfileScreen>
     if (parts.length < 2) return null;
     final hour = int.tryParse(parts[0]);
     final minute = int.tryParse(parts[1]);
-    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    if (hour == null ||
+        minute == null ||
+        hour < 0 ||
+        hour > 23 ||
+        minute < 0 ||
+        minute > 59) {
+      return null;
+    }
     return hour * 60 + minute;
-  }
-
-  final List<String> _days = ScheduleDayMapper.keys;
-  late final List<List<String>> _scheduleData = List.generate(_days.length, (_) => []);
-
-  String _dayLabel(int index) => ScheduleDayMapper.labels[index].toUpperCase();
-
-  String _formatHoraAmPm(int hour, int minute) {
-    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
-    return '$hour12:${minute.toString().padLeft(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}';
-  }
-
-  int _convertTimeToMinutes(String value, BuildContext context) {
-    final normalized = value.trim().toUpperCase();
-    final parts = normalized.replaceAll(RegExp(r'[^0-9:APM]'), '').split(':');
-    if (parts.length < 2) return 0;
-    var hour = int.tryParse(parts[0]) ?? 0;
-    final minute = int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-    if (normalized.contains('PM') && hour < 12) hour += 12;
-    if (normalized.contains('AM') && hour == 12) hour = 0;
-    return hour * 60 + minute;
-  }
-
-  bool _verificarChoqueHorario(int dayIndex, int inicio, int fin, {int? excluirIndex}) {
-    for (var index = 0; index < _scheduleData[dayIndex].length; index++) {
-      if (index == excluirIndex) continue;
-      final parts = _scheduleData[dayIndex][index].split(' - ');
-      if (parts.length == 2 && inicio < _convertTimeToMinutes(parts[1], context) && fin > _convertTimeToMinutes(parts[0], context)) return true;
-    }
-    return false;
-  }
-
-
-  Future<void> _configurarTiemposMultiples(int dayIndex) async {
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: LumiAppTheme.surface(context),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${tr('HORARIOS', 'SCHEDULE')}: ${_dayLabel(dayIndex)}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(
-                      Icons.add_circle,
-                      color: Color(0xFFFF44AA),
-                      size: 28,
-                    ),
-                    onPressed: () =>
-                        _abrirSelectorReloj(dayIndex, null, setDialogState),
-                  ),
-                ],
-              ),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: _scheduleData[dayIndex].isEmpty
-                    ? Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 20.0),
-                        child: Text(
-                          tr(
-                            'No hay tiempos agregados.\nToca el "+" arriba para añadir varios.',
-                            'No time blocks added yet.\nTap "+" above to add some.',
-                          ),
-                          style: const TextStyle(
-                            color: Colors.white54,
-                            fontSize: 13,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: _scheduleData[dayIndex].length,
-                        itemBuilder: (context, index) {
-                          return Container(
-                            margin: const EdgeInsets.only(bottom: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2A1F5A),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: ListTile(
-                              dense: true,
-                              leading: const Icon(
-                                Icons.access_time_filled,
-                                color: Color(0xFFFF44AA),
-                                size: 18,
-                              ),
-                              title: Text(
-                                _scheduleData[dayIndex][index],
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.edit,
-                                      color: Colors.cyanAccent,
-                                      size: 18,
-                                    ),
-                                    onPressed: () => _abrirSelectorReloj(
-                                      dayIndex,
-                                      index,
-                                      setDialogState,
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(
-                                      Icons.delete,
-                                      color: Colors.redAccent,
-                                      size: 18,
-                                    ),
-                                    onPressed: () {
-                                      showDialog(
-                                        context: context,
-                                        builder: (BuildContext dialogContext) {
-                                          return AlertDialog(
-                                            backgroundColor: const Color(
-                                              0xFF1A1040,
-                                            ),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            title: Text(
-                                              tr(
-                                                '¿Eliminar bloque?',
-                                                'Delete block?',
-                                              ),
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            content: Text(
-                                              tr(
-                                                'Este horario se borrará por completo de la lista actual.',
-                                                'This time block will be completely removed from the current list.',
-                                              ),
-                                              style: const TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            actions: [
-                                              TextButton(
-                                                onPressed: () => Navigator.pop(
-                                                  dialogContext,
-                                                ),
-                                                child: Text(
-                                                  tr('CANCELAR', 'CANCEL'),
-                                                  style: const TextStyle(
-                                                    color: Colors.white54,
-                                                  ),
-                                                ),
-                                              ),
-                                              TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(dialogContext);
-                                                  setDialogState(() {
-                                                    _scheduleData[dayIndex]
-                                                        .removeAt(index);
-                                                  });
-                                                },
-                                                child: Text(
-                                                  tr('ELIMINAR', 'DELETE'),
-                                                  style: const TextStyle(
-                                                    color: Colors.redAccent,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        },
-                                      );
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              actions: [
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFCC00CC),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 24,
-                      vertical: 12,
-                    ),
-                  ),
-                  onPressed: () {
-                    setState(() {});
-                    Navigator.pop(context);
-                  },
-                  child: Text(
-                    tr('LISTO', 'DONE'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<void> _abrirSelectorReloj(
-    int dayIndex,
-    int? editarIndex,
-    StateSetter setDialogState,
-  ) async {
-    TimeOfDay horaInicio = TimeOfDay.now();
-
-    if (editarIndex != null) {
-      try {
-        final partes = _scheduleData[dayIndex][editarIndex].split(' - ');
-        final inicioPartes = partes[0].split(':');
-        int h = int.parse(inicioPartes[0]);
-        int m = int.parse(inicioPartes[1].replaceAll(RegExp(r'[^\d]'), ''));
-        if (partes[0].toLowerCase().contains('pm') && h < 12) h += 12;
-        horaInicio = TimeOfDay(hour: h, minute: m);
-      } catch (_) {}
-    }
-
-    final TimeOfDay? pickedInicio = await showTimePicker(
-      context: context,
-      initialTime: horaInicio,
-      helpText: editarIndex == null
-          ? tr('HORA INICIO', 'START TIME')
-          : tr('EDITAR INICIO', 'EDIT START TIME'),
-      builder: (context, child) => _timePickerTheme(child),
-    );
-    if (pickedInicio == null) return;
-
-    TimeOfDay horaFin = TimeOfDay(
-      hour: (pickedInicio.hour + 2) % 24,
-      minute: pickedInicio.minute,
-    );
-
-    if (editarIndex != null) {
-      try {
-        final partes = _scheduleData[dayIndex][editarIndex].split(' - ');
-        final finPartes = partes[1].split(':');
-        int h = int.parse(finPartes[0]);
-        int m = int.parse(finPartes[1].replaceAll(RegExp(r'[^\d]'), ''));
-        if (partes[1].toLowerCase().contains('pm') && h < 12) h += 12;
-        horaFin = TimeOfDay(hour: h, minute: m);
-      } catch (_) {}
-    }
-
-    final TimeOfDay? pickedFin = await showTimePicker(
-      context: context,
-      initialTime: horaFin,
-      helpText: editarIndex == null
-          ? tr('HORA FIN', 'END TIME')
-          : tr('EDITAR FIN', 'EDIT END TIME'),
-      builder: (context, child) => _timePickerTheme(child),
-    );
-    if (pickedFin == null) return;
-
-    final int nuevoInicioMin = (pickedInicio.hour * 60) + pickedInicio.minute;
-    final int nuevoFinMin = (pickedFin.hour * 60) + pickedFin.minute;
-
-    if (nuevoInicioMin >= nuevoFinMin) {
-      _showSnackBar(
-        tr(
-          'La hora de fin debe ser mayor a la de inicio.',
-          'End time must be after start time.',
-        ),
-      );
-      return;
-    }
-    if (_verificarChoqueHorario(
-      dayIndex,
-      nuevoInicioMin,
-      nuevoFinMin,
-      excluirIndex: editarIndex,
-    )) {
-      _showSnackBar(
-        tr(
-          'Ya tienes un horario que se cruza o coincide en este mismo día.',
-          'You already have an overlapping time block on this day.',
-        ),
-      );
-      return;
-    }
-
-    final String nuevoRango =
-        '${_formatHoraAmPm(pickedInicio.hour, pickedInicio.minute)} - '
-        '${_formatHoraAmPm(pickedFin.hour, pickedFin.minute)}';
-    setDialogState(() {
-      if (editarIndex == null) {
-        _scheduleData[dayIndex].add(nuevoRango);
-      } else {
-        _scheduleData[dayIndex][editarIndex] = nuevoRango;
-      }
-    });
-  }
-
-  Widget _timePickerTheme(Widget? child) {
-    final theme = Theme.of(context);
-    return MediaQuery(
-      data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
-      child: Theme(
-        data: theme.copyWith(
-          colorScheme: theme.colorScheme.copyWith(
-            primary: const Color(0xFFFF44AA),
-          ),
-          textButtonTheme: TextButtonThemeData(
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFCC00CC),
-            ),
-          ),
-        ),
-        child: child!,
-      ),
-    );
   }
 
   Future<void> _seleccionarNuevaImagen() async {
@@ -463,14 +124,21 @@ class _ProfileScreenState extends State<ProfileScreen>
           if (item is Map<String, dynamic>) {
             final String dia = item['dia']?.toString() ?? '';
             final dayIndex = ScheduleDayMapper.indexForServerDay(dia);
-            final inicio = _parseServerMinutes(item['hora_inicio']?.toString() ?? '');
+            final inicio = _parseServerMinutes(
+              item['hora_inicio']?.toString() ?? '',
+            );
             final fin = _parseServerMinutes(item['hora_fin']?.toString() ?? '');
-            if (dayIndex >= 0 && inicio != null && fin != null && fin > inicio) {
-              scheduleFromServer.add(ScheduleSlot(
-                dayKey: ScheduleDayMapper.keys[dayIndex],
-                startMinutes: inicio,
-                endMinutes: fin,
-              ));
+            if (dayIndex >= 0 &&
+                inicio != null &&
+                fin != null &&
+                fin > inicio) {
+              scheduleFromServer.add(
+                ScheduleSlot(
+                  dayKey: ScheduleDayMapper.keys[dayIndex],
+                  startMinutes: inicio,
+                  endMinutes: fin,
+                ),
+              );
             }
           }
         }
@@ -585,12 +253,20 @@ class _ProfileScreenState extends State<ProfileScreen>
             height: imageSize,
             fit: BoxFit.cover,
             errorBuilder: (context, error, stackTrace) {
-              return Icon(Icons.broken_image, size: imageSize * 0.5, color: Colors.white54);
+              return Icon(
+                Icons.broken_image,
+                size: imageSize * 0.5,
+                color: Colors.white54,
+              );
             },
           ),
         );
       } catch (e) {
-        avatarChild = Icon(Icons.person, size: avatarRadius * 0.6, color: Colors.white30);
+        avatarChild = Icon(
+          Icons.person,
+          size: avatarRadius * 0.6,
+          color: Colors.white30,
+        );
       }
     }
 
@@ -624,19 +300,23 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Future<void> _handleSend(List<ScheduleSlot> scheduleSlots) async {
+  Future<bool> _handleSend(List<ScheduleSlot> scheduleSlots) async {
     if (_nameController.text.trim().isEmpty) {
       _showSnackBar(
         tr('Por favor, ingresa tu nombre.', 'Please enter your name.'),
       );
-      return;
+      return false;
     }
     setState(() => _isLoading = true);
-    final horarioParaBackend = scheduleSlots.map((slot) => {
-      'dia': ScheduleDayMapper.serverNameForKey(slot.dayKey),
-      'hora_inicio': _formatMinutesForBackend(slot.startMinutes),
-      'hora_fin': _formatMinutesForBackend(slot.endMinutes),
-    }).toList();
+    final horarioParaBackend = scheduleSlots
+        .map(
+          (slot) => {
+            'dia': ScheduleDayMapper.serverNameForKey(slot.dayKey),
+            'hora_inicio': _formatMinutesForBackend(slot.startMinutes),
+            'hora_fin': _formatMinutesForBackend(slot.endMinutes),
+          },
+        )
+        .toList();
     final minutosDisponibles = scheduleSlots.fold<int>(
       0,
       (total, slot) => total + slot.endMinutes - slot.startMinutes,
@@ -667,6 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen>
               : 'Profile and habits saved successfully!',
         ),
       );
+      return true;
     } else {
       _showSnackBar(
         tr(
@@ -674,6 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           'Error trying to save changes.',
         ),
       );
+      return false;
     }
   }
 
@@ -701,8 +383,16 @@ class _ProfileScreenState extends State<ProfileScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0D0D2B), Color(0xFF1A1040), Color(0xFF0D0D2B)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
+                ? const [
+                    Color(0xFF0D0D2B),
+                    Color(0xFF1A1040),
+                    Color(0xFF0D0D2B),
+                  ]
+                : const [
+                    Color(0xFFF8F5FC),
+                    Color(0xFFF0E4F8),
+                    Color(0xFFF8F5FC),
+                  ],
             stops: [0.0, 0.5, 1.0],
           ),
         ),
@@ -716,252 +406,441 @@ class _ProfileScreenState extends State<ProfileScreen>
                       : 0,
                 ),
                 child: _isLoading
-                  ? const Center(
-                      child: CircularProgressIndicator(
-                        color: Color(0xFFCC00CC),
-                      ),
-                    )
-                  : Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20.0,
-                            vertical: 16.0,
-                          ),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Text(
-                                tr('MI PERFIL', 'MY PROFILE'),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 2,
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      tooltip: 'Editar personaje',
-                                      icon: const Icon(
-                                        Icons.face_retouching_natural,
-                                        color: Colors.white70,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              EditProfileScreen(
-                                                userId: _userId,
-                                              ),
-                                        ),
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.settings,
-                                        color: Colors.white70,
-                                        size: 20,
-                                      ),
-                                      onPressed: () => Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              const ConfiguracionScreen(),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: Color(0xFFCC00CC),
                         ),
-                        Expanded(
-                          child: Center(
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(maxWidth: Responsive.esEscritorio(context) ? 1100 : 600),
-                              child: Builder(
-                                builder: (ctx) {
-                                  final isDesktop = Responsive.esEscritorio(ctx);
-                                  if (isDesktop) {
-                                    // Desktop: avatar and name on left, rest of profile on right
-                                    return Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Left column: avatar and basic name info
-                                        Container(
-                                          width: 300,
-                                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                                          child: Column(
-                                            children: [
-                                              const SizedBox(height: 8),
-                                              _buildAvatar(),
-                                              SizedBox(height: Responsive.espacio(ctx) * 1.5),
-                                              Text(
-                                                tr('Nombre', 'First Name'),
-                                                style: TextStyle(
-                                                  color: LumiAppTheme.primaryText(ctx),
-                                                  fontSize: Responsive.tamanioTexto(ctx),
-                                                  fontWeight: FontWeight.bold,
+                      )
+                    : Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20.0,
+                              vertical: 16.0,
+                            ),
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Text(
+                                  tr('MI PERFIL', 'MY PROFILE'),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        tooltip: 'Editar personaje',
+                                        icon: const Icon(
+                                          Icons.face_retouching_natural,
+                                          color: Colors.white70,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                EditProfileScreen(
+                                                  userId: _userId,
                                                 ),
-                                              ),
-                                              SizedBox(height: Responsive.espacio(ctx) / 2),
-                                              _buildInputField(_nameController, tr('Ingresa tu nombre', 'Enter your first name')),
-                                              SizedBox(height: Responsive.espacio(ctx) * 1.25),
-                                              Text(
-                                                tr('Apellido', 'Last Name'),
-                                                style: TextStyle(
-                                                  color: LumiAppTheme.primaryText(ctx),
-                                                  fontSize: Responsive.tamanioTexto(ctx),
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              SizedBox(height: Responsive.espacio(ctx) / 2),
-                                              _buildInputField(_apellidoController, tr('Ingresa tu apellido', 'Enter your last name')),
-                                            ],
                                           ),
                                         ),
-                                        const SizedBox(width: 18),
-                                        // Right column: rest of editable fields
-                                        Expanded(
-                                          child: SingleChildScrollView(
-                                            padding: EdgeInsets.only(right: Responsive.paddingHorizontalRecomendado(ctx), bottom: 90),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.settings,
+                                          color: Colors.white70,
+                                          size: 20,
+                                        ),
+                                        onPressed: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const ConfiguracionScreen(),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            child: Center(
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxWidth: Responsive.esEscritorio(context)
+                                      ? 1100
+                                      : 600,
+                                ),
+                                child: Builder(
+                                  builder: (ctx) {
+                                    final isDesktop = Responsive.esEscritorio(
+                                      ctx,
+                                    );
+                                    if (isDesktop) {
+                                      // Desktop: avatar and name on left, rest of profile on right
+                                      return Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          // Left column: avatar and basic name info
+                                          Container(
+                                            width: 300,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 24,
+                                            ),
                                             child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
                                               children: [
-                                                SizedBox(height: 8),
+                                                const SizedBox(height: 8),
+                                                _buildAvatar(),
+                                                SizedBox(
+                                                  height:
+                                                      Responsive.espacio(ctx) *
+                                                      1.5,
+                                                ),
                                                 Text(
-                                                  tr('Objetivo de Estudio', 'Study Goal'),
+                                                  tr('Nombre', 'First Name'),
                                                   style: TextStyle(
-                                                    color: LumiAppTheme.primaryText(ctx),
-                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
+                                                    color:
+                                                        LumiAppTheme.primaryText(
+                                                          ctx,
+                                                        ),
+                                                    fontSize:
+                                                        Responsive.tamanioTexto(
+                                                          ctx,
+                                                        ),
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                SizedBox(height: Responsive.espacio(ctx) / 2),
-                                                _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
-                                                SizedBox(height: Responsive.espacio(ctx) * 1.5),
-
+                                                SizedBox(
+                                                  height:
+                                                      Responsive.espacio(ctx) /
+                                                      2,
+                                                ),
+                                                _buildInputField(
+                                                  _nameController,
+                                                  tr(
+                                                    'Ingresa tu nombre',
+                                                    'Enter your first name',
+                                                  ),
+                                                ),
+                                                SizedBox(
+                                                  height:
+                                                      Responsive.espacio(ctx) *
+                                                      1.25,
+                                                ),
                                                 Text(
-                                                  '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                                  tr('Apellido', 'Last Name'),
                                                   style: TextStyle(
-                                                    color: LumiAppTheme.primaryText(ctx),
-                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
+                                                    color:
+                                                        LumiAppTheme.primaryText(
+                                                          ctx,
+                                                        ),
+                                                    fontSize:
+                                                        Responsive.tamanioTexto(
+                                                          ctx,
+                                                        ),
                                                     fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
-                                                Slider(
-                                                  value: _nivelProcrastinacion.toDouble(),
-                                                  min: 1,
-                                                  max: 10,
-                                                  divisions: 9,
-                                                  activeColor: const Color(0xFFFF44AA),
-                                                  inactiveColor: const Color(0xFF1F1B2E),
-                                                  onChanged: (value) => setState(() => _nivelProcrastinacion = value.toInt()),
+                                                SizedBox(
+                                                  height:
+                                                      Responsive.espacio(ctx) /
+                                                      2,
                                                 ),
-                                                SizedBox(height: Responsive.espacio(ctx) * 1.5),
-
-                                                ScheduleSetupFlow(
-                                                  key: ValueKey(_scheduleRevision),
-                                                  initialSlots: _scheduleSlots,
-                                                  onSave: _handleSend,
+                                                _buildInputField(
+                                                  _apellidoController,
+                                                  tr(
+                                                    'Ingresa tu apellido',
+                                                    'Enter your last name',
+                                                  ),
                                                 ),
                                               ],
                                             ),
                                           ),
-                                        ),
-                                      ],
+                                          const SizedBox(width: 18),
+                                          // Right column: rest of editable fields
+                                          Expanded(
+                                            child: SingleChildScrollView(
+                                              padding: EdgeInsets.only(
+                                                right:
+                                                    Responsive.paddingHorizontalRecomendado(
+                                                      ctx,
+                                                    ),
+                                                bottom: 90,
+                                              ),
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  SizedBox(height: 8),
+                                                  Text(
+                                                    tr(
+                                                      'Objetivo de Estudio',
+                                                      'Study Goal',
+                                                    ),
+                                                    style: TextStyle(
+                                                      color:
+                                                          LumiAppTheme.primaryText(
+                                                            ctx,
+                                                          ),
+                                                      fontSize:
+                                                          Responsive.tamanioSubtitulo(
+                                                            ctx,
+                                                          ),
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  SizedBox(
+                                                    height:
+                                                        Responsive.espacio(
+                                                          ctx,
+                                                        ) /
+                                                        2,
+                                                  ),
+                                                  _buildInputField(
+                                                    _objetivoController,
+                                                    tr(
+                                                      "Ej: Certificarme como programadora",
+                                                      "Ex: Get certified as a developer",
+                                                    ),
+                                                  ),
+                                                  SizedBox(
+                                                    height:
+                                                        Responsive.espacio(
+                                                          ctx,
+                                                        ) *
+                                                        1.5,
+                                                  ),
+
+                                                  Text(
+                                                    '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                                    style: TextStyle(
+                                                      color:
+                                                          LumiAppTheme.primaryText(
+                                                            ctx,
+                                                          ),
+                                                      fontSize:
+                                                          Responsive.tamanioSubtitulo(
+                                                            ctx,
+                                                          ),
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  Slider(
+                                                    value: _nivelProcrastinacion
+                                                        .toDouble(),
+                                                    min: 1,
+                                                    max: 10,
+                                                    divisions: 9,
+                                                    activeColor: const Color(
+                                                      0xFFFF44AA,
+                                                    ),
+                                                    inactiveColor: const Color(
+                                                      0xFF1F1B2E,
+                                                    ),
+                                                    onChanged: (value) => setState(
+                                                      () =>
+                                                          _nivelProcrastinacion =
+                                                              value.toInt(),
+                                                    ),
+                                                  ),
+                                                  SizedBox(
+                                                    height:
+                                                        Responsive.espacio(
+                                                          ctx,
+                                                        ) *
+                                                        1.5,
+                                                  ),
+
+                                                  ScheduleSetupFlow(
+                                                    key: ValueKey(
+                                                      _scheduleRevision,
+                                                    ),
+                                                    initialSlots:
+                                                        _scheduleSlots,
+                                                    onSave: _handleSend,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }
+
+                                    // Mobile / tablet: original column but responsive
+                                    return SingleChildScrollView(
+                                      padding: EdgeInsets.only(
+                                        left:
+                                            Responsive.paddingHorizontalRecomendado(
+                                              ctx,
+                                            ),
+                                        right:
+                                            Responsive.paddingHorizontalRecomendado(
+                                              ctx,
+                                            ),
+                                        bottom: 90,
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          SizedBox(height: 8),
+                                          Center(child: _buildAvatar()),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) * 3,
+                                          ),
+
+                                          Text(
+                                            tr('Nombre', 'First Name'),
+                                            style: TextStyle(
+                                              color: LumiAppTheme.primaryText(
+                                                ctx,
+                                              ),
+                                              fontSize: Responsive.tamanioTexto(
+                                                ctx,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) / 2,
+                                          ),
+                                          _buildInputField(
+                                            _nameController,
+                                            tr(
+                                              'Ingresa tu nombre',
+                                              'Enter your first name',
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height:
+                                                Responsive.espacio(ctx) * 1.5,
+                                          ),
+
+                                          Text(
+                                            tr('Apellido', 'Last Name'),
+                                            style: TextStyle(
+                                              color: LumiAppTheme.primaryText(
+                                                ctx,
+                                              ),
+                                              fontSize: Responsive.tamanioTexto(
+                                                ctx,
+                                              ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) / 2,
+                                          ),
+                                          _buildInputField(
+                                            _apellidoController,
+                                            tr(
+                                              'Ingresa tu apellido',
+                                              'Enter your last name',
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height:
+                                                Responsive.espacio(ctx) * 1.5,
+                                          ),
+
+                                          Text(
+                                            tr(
+                                              'Objetivo de Estudio',
+                                              'Study Goal',
+                                            ),
+                                            style: TextStyle(
+                                              color: LumiAppTheme.primaryText(
+                                                ctx,
+                                              ),
+                                              fontSize:
+                                                  Responsive.tamanioSubtitulo(
+                                                    ctx,
+                                                  ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) / 2,
+                                          ),
+                                          _buildInputField(
+                                            _objetivoController,
+                                            tr(
+                                              "Ej: Certificarme como programadora",
+                                              "Ex: Get certified as a developer",
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            height:
+                                                Responsive.espacio(ctx) * 1.5,
+                                          ),
+
+                                          Text(
+                                            '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                            style: TextStyle(
+                                              color: LumiAppTheme.primaryText(
+                                                ctx,
+                                              ),
+                                              fontSize:
+                                                  Responsive.tamanioSubtitulo(
+                                                    ctx,
+                                                  ),
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          Slider(
+                                            value: _nivelProcrastinacion
+                                                .toDouble(),
+                                            min: 1,
+                                            max: 10,
+                                            divisions: 9,
+                                            activeColor: const Color(
+                                              0xFFFF44AA,
+                                            ),
+                                            inactiveColor: const Color(
+                                              0xFF1F1B2E,
+                                            ),
+                                            onChanged: (value) => setState(
+                                              () => _nivelProcrastinacion =
+                                                  value.toInt(),
+                                            ),
+                                          ),
+
+                                          SizedBox(
+                                            height:
+                                                Responsive.espacio(ctx) * 1.5,
+                                          ),
+                                          ScheduleSetupFlow(
+                                            key: ValueKey(_scheduleRevision),
+                                            initialSlots: _scheduleSlots,
+                                            onSave: _handleSend,
+                                          ),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) * 3,
+                                          ),
+                                        ],
+                                      ),
                                     );
-                                  }
-
-                                  // Mobile / tablet: original column but responsive
-                                  return SingleChildScrollView(
-                                    padding: EdgeInsets.only(left: Responsive.paddingHorizontalRecomendado(ctx), right: Responsive.paddingHorizontalRecomendado(ctx), bottom: 90),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(height: 8),
-                                        Center(child: _buildAvatar()),
-                                        SizedBox(height: Responsive.espacio(ctx) * 3),
-
-                                        Text(
-                                          tr('Nombre', 'First Name'),
-                                          style: TextStyle(
-                                            color: LumiAppTheme.primaryText(ctx),
-                                            fontSize: Responsive.tamanioTexto(ctx),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: Responsive.espacio(ctx) / 2),
-                                        _buildInputField(_nameController, tr('Ingresa tu nombre', 'Enter your first name')),
-                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
-
-                                        Text(
-                                          tr('Apellido', 'Last Name'),
-                                          style: TextStyle(
-                                            color: LumiAppTheme.primaryText(ctx),
-                                            fontSize: Responsive.tamanioTexto(ctx),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: Responsive.espacio(ctx) / 2),
-                                        _buildInputField(_apellidoController, tr('Ingresa tu apellido', 'Enter your last name')),
-                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
-
-                                        Text(
-                                          tr('Objetivo de Estudio', 'Study Goal'),
-                                          style: TextStyle(
-                                            color: LumiAppTheme.primaryText(ctx),
-                                            fontSize: Responsive.tamanioSubtitulo(ctx),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        SizedBox(height: Responsive.espacio(ctx) / 2),
-                                        _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
-                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
-
-                                        Text(
-                                          '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
-                                          style: TextStyle(
-                                            color: LumiAppTheme.primaryText(ctx),
-                                            fontSize: Responsive.tamanioSubtitulo(ctx),
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Slider(
-                                          value: _nivelProcrastinacion.toDouble(),
-                                          min: 1,
-                                          max: 10,
-                                          divisions: 9,
-                                          activeColor: const Color(0xFFFF44AA),
-                                          inactiveColor: const Color(0xFF1F1B2E),
-                                          onChanged: (value) => setState(() => _nivelProcrastinacion = value.toInt()),
-                                        ),
-
-                                        SizedBox(height: Responsive.espacio(ctx) * 1.5),
-                                        ScheduleSetupFlow(
-                                          key: ValueKey(_scheduleRevision),
-                                          initialSlots: _scheduleSlots,
-                                          onSave: _handleSend,
-                                        ),
-                                        SizedBox(height: Responsive.espacio(ctx) * 3),
-                                      ],
-                                    ),
-                                  );
-                                },
+                                  },
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
+                        ],
+                      ),
+              ),
               AppBottomNavbar(userId: _userId, currentIndex: 4),
             ],
           ),
@@ -976,7 +855,10 @@ class _ProfileScreenState extends State<ProfileScreen>
       style: TextStyle(color: LumiAppTheme.primaryText(context)),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 14),
+        hintStyle: TextStyle(
+          color: LumiAppTheme.secondaryText(context),
+          fontSize: 14,
+        ),
         filled: true,
         fillColor: LumiAppTheme.surface(context),
         contentPadding: const EdgeInsets.symmetric(
@@ -998,5 +880,4 @@ class _ProfileScreenState extends State<ProfileScreen>
       ),
     );
   }
-
 }
