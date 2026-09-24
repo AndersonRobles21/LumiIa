@@ -7,6 +7,7 @@ import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'app_language.dart';
 import 'edit_profile_screen.dart';
+import 'schedule_setup_flow.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
 
@@ -28,17 +29,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   bool _isLoading = true;
   String get _userId => widget.userId;
 
-  // Claves intactas para indexar _scheduleData y mapear con el backend
-  final List<String> _days = ['lun', 'mar', 'mie', 'jue', 'vie', 'sab', 'dom'];
-
-  // Etiqueta traducida de cada día para mostrar en la UI.
-  String _dayLabel(int index) {
-    const es = ['LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB', 'DOM'];
-    const en = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
-    return AppLanguage.instance.isEnglish ? en[index] : es[index];
-  }
-
-  late List<List<String>> _scheduleData;
+  List<ScheduleSlot> _scheduleSlots = [];
+  int _scheduleRevision = 0;
 
   File? _imageFile;
   String? _base64Image;
@@ -47,7 +39,6 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void initState() {
     super.initState();
-    _scheduleData = List.generate(_days.length, (_) => []);
     _cargarDatosDeBaseDeDatos();
   }
 
@@ -59,131 +50,45 @@ class _ProfileScreenState extends State<ProfileScreen>
     super.dispose();
   }
 
+  int? _parseServerMinutes(String value) {
+    final parts = value.trim().split(':');
+    if (parts.length < 2) return null;
+    final hour = int.tryParse(parts[0]);
+    final minute = int.tryParse(parts[1]);
+    if (hour == null || minute == null || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+    return hour * 60 + minute;
+  }
+
+  final List<String> _days = ScheduleDayMapper.keys;
+  late final List<List<String>> _scheduleData = List.generate(_days.length, (_) => []);
+
+  String _dayLabel(int index) => ScheduleDayMapper.labels[index].toUpperCase();
+
   String _formatHoraAmPm(int hour, int minute) {
-    final period = hour >= 12 ? 'PM' : 'AM';
-    int hour12 = hour % 12;
-    if (hour12 == 0) hour12 = 12;
-    final minuteStr = minute.toString().padLeft(2, '0');
-    return '$hour12:$minuteStr $period';
+    final hour12 = hour % 12 == 0 ? 12 : hour % 12;
+    return '$hour12:${minute.toString().padLeft(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}';
   }
 
-  String _horaA24h(String horaAmPm) {
-    final minutosTotales = _convertTimeToMinutes(horaAmPm, context);
-    final hour = minutosTotales ~/ 60;
-    final minute = minutosTotales % 60;
-    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  int _convertTimeToMinutes(String value, BuildContext context) {
+    final normalized = value.trim().toUpperCase();
+    final parts = normalized.replaceAll(RegExp(r'[^0-9:APM]'), '').split(':');
+    if (parts.length < 2) return 0;
+    var hour = int.tryParse(parts[0]) ?? 0;
+    final minute = int.tryParse(parts[1].replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
+    if (normalized.contains('PM') && hour < 12) hour += 12;
+    if (normalized.contains('AM') && hour == 12) hour = 0;
+    return hour * 60 + minute;
   }
 
-  String _horaServerA12h(String horaServer) {
-    if (horaServer.trim().isEmpty) return '';
-    try {
-      final partes = horaServer.trim().split(':');
-      final int hour = int.parse(partes[0]);
-      final int minute = int.parse(partes[1]);
-      return _formatHoraAmPm(hour, minute);
-    } catch (_) {
-      return '';
-    }
-  }
-
-  int _convertTimeToMinutes(String timeStr, BuildContext context) {
-    try {
-      final timeOfDay = TimeOfDay.fromDateTime(
-        DateTime.parse("2026-01-01 $timeStr"),
-      );
-      return (timeOfDay.hour * 60) + timeOfDay.minute;
-    } catch (_) {
-      final cleanStr = timeStr.replaceAll(RegExp(r'[^\d:]'), '').trim();
-      final parts = cleanStr.split(':');
-      int hour = int.parse(parts[0]);
-      int minute = int.parse(parts[1]);
-      if (timeStr.toLowerCase().contains('pm') && hour < 12) hour += 12;
-      if (timeStr.toLowerCase().contains('am') && hour == 12) hour = 0;
-      return (hour * 60) + minute;
-    }
-  }
-
-  bool _verificarChoqueHorario(
-    int dayIndex,
-    int nuevoInicioMin,
-    int nuevoFinMin, {
-    int? excluirIndex,
-  }) {
-    for (int i = 0; i < _scheduleData[dayIndex].length; i++) {
-      if (excluirIndex != null && i == excluirIndex) continue;
-      final rangoExistente = _scheduleData[dayIndex][i];
-      final partes = rangoExistente.split(' - ');
-      if (partes.length != 2) continue;
-      int extInicioMin = _convertTimeToMinutes(partes[0], context);
-      int extFinMin = _convertTimeToMinutes(partes[1], context);
-      if (nuevoInicioMin < extFinMin && nuevoFinMin > extInicioMin) {
-        return true;
-      }
+  bool _verificarChoqueHorario(int dayIndex, int inicio, int fin, {int? excluirIndex}) {
+    for (var index = 0; index < _scheduleData[dayIndex].length; index++) {
+      if (index == excluirIndex) continue;
+      final parts = _scheduleData[dayIndex][index].split(' - ');
+      if (parts.length == 2 && inicio < _convertTimeToMinutes(parts[1], context) && fin > _convertTimeToMinutes(parts[0], context)) return true;
     }
     return false;
   }
 
-  int _minutosDisponiblesSemanales() {
-    var minutosTotales = 0;
-    for (final horariosDelDia in _scheduleData) {
-      for (final rango in horariosDelDia) {
-        final partes = rango.split(' - ');
-        if (partes.length != 2) continue;
-        final inicio = _convertTimeToMinutes(partes[0].trim(), context);
-        final fin = _convertTimeToMinutes(partes[1].trim(), context);
-        if (fin > inicio) minutosTotales += fin - inicio;
-      }
-    }
-    return minutosTotales;
-  }
-
-  Widget _buildWeeklyAvailabilitySummary() {
-    final minutosTotales = _minutosDisponiblesSemanales();
-    final horas = minutosTotales ~/ 60;
-    final minutos = minutosTotales % 60;
-    final detalle = minutosTotales == 0
-        ? tr('Aún no has agregado bloques de estudio.', 'No study blocks added yet.')
-        : minutos == 0
-            ? tr('$horas h disponibles aproximadamente esta semana', '$horas h available approximately this week')
-            : tr('$horas h $minutos min disponibles aproximadamente esta semana', '$horas h $minutos min available approximately this week');
-
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF211A42),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF6D43D9).withValues(alpha: 0.7)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.schedule, color: Color(0xFFFF44AA), size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  tr('Tu disponibilidad semanal', 'Your weekly availability'),
-                  style: const TextStyle(color: Colors.white70, fontSize: 12),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  detalle,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   Future<void> _configurarTiemposMultiples(int dayIndex) async {
     await showDialog(
@@ -536,10 +441,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final data = await ApiService.getProfile(_userId);
 
     if (data != null) {
-      final scheduleFromServer = List<List<String>>.generate(
-        _days.length,
-        (_) => [],
-      );
+      final scheduleFromServer = <ScheduleSlot>[];
 
       if (data['perfil_estudio'] != null) {
         var fotoServidor = data['perfil_estudio']['foto_perfil'];
@@ -560,22 +462,15 @@ class _ProfileScreenState extends State<ProfileScreen>
         for (final item in horarioServer) {
           if (item is Map<String, dynamic>) {
             final String dia = item['dia']?.toString() ?? '';
-            String horaInicio = item['hora_inicio']?.toString() ?? '';
-            String horaFin = item['hora_fin']?.toString() ?? '';
-
-            if (horaInicio.length > 5) horaInicio = horaInicio.substring(0, 5);
-            if (horaFin.length > 5) horaFin = horaFin.substring(0, 5);
-
-            final String horaInicio12h = _horaServerA12h(horaInicio);
-            final String horaFin12h = _horaServerA12h(horaFin);
-
-            final int dayIndex = _days.indexOf(
-              dia.toLowerCase().trim().substring(0, 3),
-            );
-            if (dayIndex != -1 &&
-                horaInicio12h.isNotEmpty &&
-                horaFin12h.isNotEmpty) {
-              scheduleFromServer[dayIndex].add('$horaInicio12h - $horaFin12h');
+            final dayIndex = ScheduleDayMapper.indexForServerDay(dia);
+            final inicio = _parseServerMinutes(item['hora_inicio']?.toString() ?? '');
+            final fin = _parseServerMinutes(item['hora_fin']?.toString() ?? '');
+            if (dayIndex >= 0 && inicio != null && fin != null && fin > inicio) {
+              scheduleFromServer.add(ScheduleSlot(
+                dayKey: ScheduleDayMapper.keys[dayIndex],
+                startMinutes: inicio,
+                endMinutes: fin,
+              ));
             }
           }
         }
@@ -584,7 +479,8 @@ class _ProfileScreenState extends State<ProfileScreen>
       setState(() {
         _nameController.text = data['nombre'] ?? '';
         _apellidoController.text = data['apellido'] ?? '';
-        _scheduleData = scheduleFromServer;
+        _scheduleSlots = scheduleFromServer;
+        _scheduleRevision++;
       });
     }
     setState(() => _isLoading = false);
@@ -728,7 +624,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  void _handleSend() async {
+  Future<void> _handleSend(List<ScheduleSlot> scheduleSlots) async {
     if (_nameController.text.trim().isEmpty) {
       _showSnackBar(
         tr('Por favor, ingresa tu nombre.', 'Please enter your name.'),
@@ -736,34 +632,15 @@ class _ProfileScreenState extends State<ProfileScreen>
       return;
     }
     setState(() => _isLoading = true);
-    final horarioParaBackend = <Map<String, String>>[];
-    final minutosDisponibles = _minutosDisponiblesSemanales();
-    const nombresDias = [
-      'lunes',
-      'martes',
-      'miercoles',
-      'jueves',
-      'viernes',
-      'sabado',
-      'domingo',
-    ];
-    for (int i = 0; i < _scheduleData.length; i++) {
-      final String diaCompleto = i < nombresDias.length
-          ? nombresDias[i]
-          : 'lunes';
-
-      for (final rango in _scheduleData[i]) {
-        final partes = rango.split(' - ');
-        if (partes.length == 2) {
-          horarioParaBackend.add({
-            'dia':
-                diaCompleto, // Se mantiene intacto en español para Backend/DB
-            'hora_inicio': _horaA24h(partes[0].trim()),
-            'hora_fin': _horaA24h(partes[1].trim()),
-          });
-        }
-      }
-    }
+    final horarioParaBackend = scheduleSlots.map((slot) => {
+      'dia': ScheduleDayMapper.serverNameForKey(slot.dayKey),
+      'hora_inicio': _formatMinutesForBackend(slot.startMinutes),
+      'hora_fin': _formatMinutesForBackend(slot.endMinutes),
+    }).toList();
+    final minutosDisponibles = scheduleSlots.fold<int>(
+      0,
+      (total, slot) => total + slot.endMinutes - slot.startMinutes,
+    );
     final resultado = await ApiService.updateProfile(
       userId: _userId,
       nombre: _nameController.text.trim(),
@@ -776,6 +653,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
     setState(() => _isLoading = false);
     if (resultado != null) {
+      setState(() {
+        _scheduleSlots = List<ScheduleSlot>.from(scheduleSlots);
+        _scheduleRevision++;
+      });
       _showSnackBar(
         tr(
           resultado['reajuste_en_proceso'] == true
@@ -794,6 +675,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       );
     }
+  }
+
+  String _formatMinutesForBackend(int minutes) {
+    final hour = minutes ~/ 60;
+    final minute = minutes % 60;
+    return '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
   }
 
   void _showSnackBar(String message) {
@@ -961,7 +848,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 _buildInputField(_objetivoController, tr("Ej: Certificarme como programadora", "Ex: Get certified as a developer")),
                                                 SizedBox(height: Responsive.espacio(ctx) * 1.5),
 
-                                                _buildWeeklyAvailabilitySummary(),
                                                 Text(
                                                   '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
                                                   style: TextStyle(
@@ -981,47 +867,11 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                 ),
                                                 SizedBox(height: Responsive.espacio(ctx) * 1.5),
 
-                                                Text(
-                                                  tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
-                                                  style: TextStyle(
-                                                    color: LumiAppTheme.primaryText(ctx),
-                                                    fontSize: Responsive.tamanioSubtitulo(ctx),
-                                                    fontWeight: FontWeight.bold,
-                                                    letterSpacing: 1.5,
-                                                  ),
+                                                ScheduleSetupFlow(
+                                                  key: ValueKey(_scheduleRevision),
+                                                  initialSlots: _scheduleSlots,
+                                                  onSave: _handleSend,
                                                 ),
-                                                SizedBox(height: Responsive.espacio(ctx)),
-                                                _buildGridSchedule(),
-                                                SizedBox(height: Responsive.espacio(ctx) * 2),
-                                                SizedBox(
-                                                  width: double.infinity,
-                                                  height: Responsive.altoBoton(ctx) + 8,
-                                                  child: DecoratedBox(
-                                                    decoration: BoxDecoration(
-                                                      gradient: const LinearGradient(
-                                                        colors: [Color(0xFFCC00CC), Color(0xFFFF44AA)],
-                                                      ),
-                                                      borderRadius: BorderRadius.circular(30),
-                                                    ),
-                                                    child: ElevatedButton(
-                                                      onPressed: _handleSend,
-                                                      style: ElevatedButton.styleFrom(
-                                                        backgroundColor: Colors.transparent,
-                                                        shadowColor: Colors.transparent,
-                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                                      ),
-                                                      child: Text(
-                                                        tr('Guardar Perfil', 'Save Profile'),
-                                                        style: TextStyle(
-                                                          color: Theme.of(ctx).colorScheme.onPrimary,
-                                                          fontSize: Responsive.tamanioTexto(ctx) + 2,
-                                                          fontWeight: FontWeight.bold,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                SizedBox(height: Responsive.espacio(ctx) * 2),
                                               ],
                                             ),
                                           ),
@@ -1095,38 +945,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                         ),
 
                                         SizedBox(height: Responsive.espacio(ctx) * 1.5),
-                                        _buildWeeklyAvailabilitySummary(),
-                                        Text(
-                                          tr('HORARIO DISPONIBLE', 'AVAILABLE SCHEDULE'),
-                                          style: TextStyle(
-                                            color: LumiAppTheme.primaryText(ctx),
-                                            fontSize: Responsive.tamanioSubtitulo(ctx),
-                                            fontWeight: FontWeight.bold,
-                                            letterSpacing: 1.5,
-                                          ),
-                                        ),
-                                        SizedBox(height: Responsive.espacio(ctx)),
-                                        _buildGridSchedule(),
-
-                                        SizedBox(height: Responsive.espacio(ctx) * 2.5),
-                                        SizedBox(
-                                          width: double.infinity,
-                                          height: Responsive.altoBoton(ctx) + 6,
-                                          child: DecoratedBox(
-                                            decoration: BoxDecoration(
-                                              gradient: const LinearGradient(colors: [Color(0xFFCC00CC), Color(0xFFFF44AA)]),
-                                              borderRadius: BorderRadius.circular(30),
-                                            ),
-                                            child: ElevatedButton(
-                                              onPressed: _handleSend,
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.transparent,
-                                                shadowColor: Colors.transparent,
-                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                                              ),
-                                              child: Text(tr('Guardar Perfil', 'Save Profile'), style: TextStyle(color: Theme.of(ctx).colorScheme.onPrimary, fontSize: Responsive.tamanioTexto(ctx) + 1, fontWeight: FontWeight.bold)),
-                                            ),
-                                          ),
+                                        ScheduleSetupFlow(
+                                          key: ValueKey(_scheduleRevision),
+                                          initialSlots: _scheduleSlots,
+                                          onSave: _handleSend,
                                         ),
                                         SizedBox(height: Responsive.espacio(ctx) * 3),
                                       ],
@@ -1177,76 +999,4 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  Widget _buildGridSchedule() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: _days.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: Responsive.esMovil(context) ? 3 : 4,
-        childAspectRatio: Responsive.esMovil(context) ? 0.95 : 0.85,
-        crossAxisSpacing: Responsive.esMovil(context) ? 8 : 6,
-        mainAxisSpacing: 8,
-      ),
-      itemBuilder: (context, index) {
-        final tieneHoras = _scheduleData[index].isNotEmpty;
-        return GestureDetector(
-          onTap: () => _configurarTiemposMultiples(index),
-          child: Container(
-            decoration: BoxDecoration(
-              color: tieneHoras
-                  ? const Color(0xFFCC00CC).withAlpha(38)
-                  : LumiAppTheme.surface(context),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: tieneHoras
-                    ? const Color(0xFFFF44AA)
-                    : Colors.transparent,
-                width: 1,
-              ),
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                Text(
-                  _dayLabel(index), // Muestra LUN/MON según el idioma activo
-                  style: TextStyle(
-                    color: tieneHoras
-                        ? const Color(0xFFFF66FF)
-                        : LumiAppTheme.secondaryText(context),
-                    fontWeight: FontWeight.bold,
-                    fontSize: Responsive.tamanioTexto(context) - 3,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                if (tieneHoras)
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _scheduleData[index].length,
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 2.0),
-                      itemBuilder: (ctx, bIdx) => Text(
-                        _scheduleData[index][bIdx],
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.cyanAccent,
-                          fontSize: Responsive.tamanioTexto(context) - 5,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  )
-                else
-                  Padding(
-                    padding: EdgeInsets.only(top: 12.0),
-                    child: Icon(Icons.add, color: LumiAppTheme.secondaryText(context), size: 12),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
 }

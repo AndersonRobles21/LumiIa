@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import 'info_screen.dart';
 import '../utils/responsive.dart';
 import '../services/theme_controller.dart';
+import '../services/task_notification_service.dart';
 import '../theme/app_theme.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
@@ -18,9 +19,10 @@ class ConfiguracionScreen extends StatefulWidget {
 }
 
 class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
-  //  Estado local de las preferencias (luego puedes persistirlas) ---
-  bool _notificacionesPush = true;
+  bool _notificacionesTareas = true;
   bool _recordatoriosDiarios = true;
+  String _horaNotificacion = '18:00';
+  bool _cargandoNotificaciones = false;
   bool _autenticacionBiometrica = false;
   bool _verificandoBiometria = false;
   bool _cerrandoSesion = false;
@@ -39,6 +41,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     AppLanguage.instance.addListener(_onLanguageChanged);
     ThemeController.instance.addListener(_onThemeChanged);
     _isEnglish = AppLanguage.instance.isEnglish;
+    _initializeNotificationSettings();
     // Solo inicializar biometría en plataformas nativas (no web)
     if (!kIsWeb) {
       _initializeBiometrics();
@@ -49,6 +52,61 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     await BiometricService.initialize();
     if (!mounted) return;
     setState(() => _autenticacionBiometrica = BiometricService.isEnabled);
+  }
+
+  Future<void> _initializeNotificationSettings() async {
+    final service = TaskNotificationService.instance;
+    final enabled = await service.isEnabled();
+    final time = await service.getReminderTime();
+    if (!mounted) return;
+    setState(() {
+      _notificacionesTareas = enabled;
+      _horaNotificacion = time;
+    });
+  }
+
+  Future<void> _onTaskNotificationsChanged(bool value) async {
+    setState(() => _cargandoNotificaciones = true);
+    final enabled = await TaskNotificationService.instance.setEnabled(value);
+    if (!mounted) return;
+    setState(() {
+      _notificacionesTareas = enabled;
+      _cargandoNotificaciones = false;
+    });
+    if (value && !enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _text(
+              'Las notificaciones del sistema están desactivadas.',
+              'System notifications are disabled.',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  Future<void> _seleccionarHoraNotificacion() async {
+    final partes = _horaNotificacion.split(':');
+    final initialTime = TimeOfDay(
+      hour: int.tryParse(partes.first) ?? 18,
+      minute: int.tryParse(partes.length > 1 ? partes[1] : '') ?? 0,
+    );
+    final selected = await showTimePicker(
+      context: context,
+      initialTime: initialTime,
+    );
+    if (selected == null) return;
+
+    final value =
+        '${selected.hour.toString().padLeft(2, '0')}:${selected.minute.toString().padLeft(2, '0')}';
+    await TaskNotificationService.instance.setReminderTime(
+      selected.hour,
+      selected.minute,
+    );
+    if (!mounted) return;
+    setState(() => _horaNotificacion = value);
   }
 
   @override
@@ -179,16 +237,16 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           _buildSwitchTile(
                             icon: Icons.notifications_active_outlined,
                             title: _text(
-                              'Notificaciones push',
-                              'Push notifications',
+                              'Notificaciones de tareas',
+                              'Task notifications',
                             ),
                             subtitle: _text(
-                              'Avisos de actividades y tareas pendientes',
-                              'Alerts for activities and pending tasks',
+                              'Avisos locales de tareas pendientes',
+                              'Local alerts for pending tasks',
                             ),
-                            value: _notificacionesPush,
-                            onChanged: (v) =>
-                                setState(() => _notificacionesPush = v),
+                            value: _notificacionesTareas,
+                            loading: _cargandoNotificaciones,
+                            onChanged: _onTaskNotificationsChanged,
                           ),
                           _buildSwitchTile(
                             icon: Icons.alarm_outlined,
@@ -203,6 +261,15 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                             value: _recordatoriosDiarios,
                             onChanged: (v) =>
                                 setState(() => _recordatoriosDiarios = v),
+                          ),
+                          _buildNavTile(
+                            icon: Icons.schedule_outlined,
+                            title: _text(
+                              'Hora de recordatorio',
+                              'Reminder time',
+                            ),
+                            trailingText: _horaNotificacion,
+                            onTap: _seleccionarHoraNotificacion,
                           ),
 
                           const SizedBox(height: 12),
