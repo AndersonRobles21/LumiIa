@@ -137,11 +137,35 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final tareasManuales =
         await ApiService.getPlanesEstudio(widget.userId) ?? [];
-    unawaited(TaskNotificationService.instance.syncTasks(tareasManuales));
     final historialIA = await ApiService.obtenerHistorial(widget.userId) ?? [];
     final historialConFecha = await _completarFechasHistorial(historialIA);
 
     if (!mounted) return;
+
+    final tieneTareasManualesValidas = tareasManuales.whereType<Map>().any((task) {
+      final id = task['id']?.toString().trim();
+      final fecha = task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+      return id != null && id.isNotEmpty && fecha != null;
+    });
+    final tareasParaNotificar = tieneTareasManualesValidas
+        ? tareasManuales
+        : historialConFecha.whereType<Map>().map((plan) {
+            return <String, dynamic>{
+              'id': plan['id'],
+              'nombre': plan['nombre'] ?? plan['titulo'],
+              'fecha_entrega': plan['fecha_entrega'] ?? plan['fechaEntrega'],
+              'completada': plan['completado_en'] != null,
+              'estado': plan['estado'],
+            };
+          }).toList();
+    final fuenteNotificaciones = tieneTareasManualesValidas
+        ? 'tareasManuales'
+        : 'historialConFecha (fallback)';
+    debugPrint(
+      '[LUMI notifications] fuente seleccionada: $fuenteNotificaciones; '
+      'elementos enviados=${tareasParaNotificar.length}',
+    );
+    unawaited(TaskNotificationService.instance.syncTasks(tareasParaNotificar));
 
     final todasLasTareas = <dynamic>[...tareasManuales, ...historialConFecha];
 

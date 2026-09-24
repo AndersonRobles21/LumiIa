@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,14 +22,25 @@ class TaskNotificationService {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _initialized = false;
+  Future<void>? _initializationFuture;
 
   Future<void> initialize() async {
+    debugPrint('[LUMI notifications] initialize() comienza');
     if (_initialized) return;
+    if (_initializationFuture != null) return _initializationFuture!;
 
+    _initializationFuture = _initialize();
+    return _initializationFuture!;
+  }
+
+  Future<void> _initialize() async {
     try {
       tz_data.initializeTimeZones();
       final localTimezone = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(localTimezone.identifier));
+      debugPrint(
+        '[LUMI notifications] timezone configurado: ${localTimezone.identifier}',
+      );
 
       const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
       const darwinSettings = DarwinInitializationSettings(
@@ -69,13 +81,19 @@ class TaskNotificationService {
           await cancelDailyReminder();
         }
       }
-    } catch (_) {
+      debugPrint('[LUMI notifications] initialize() terminó correctamente');
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.initialize failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       _initialized = false;
+    } finally {
+      if (!_initialized) _initializationFuture = null;
     }
   }
 
   Future<bool> requestPermissions() async {
     try {
+      debugPrint('[LUMI notifications] solicitando permisos');
       final android = _plugin.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       final androidGranted = await android?.requestNotificationsPermission();
@@ -88,20 +106,29 @@ class TaskNotificationService {
         sound: true,
       );
 
-      return (androidGranted ?? iosGranted ?? true) == true;
-    } catch (_) {
+      final granted = (androidGranted ?? iosGranted ?? true) == true;
+      debugPrint(
+        '[LUMI notifications] permisos resultado: granted=$granted '
+        'android=$androidGranted ios=$iosGranted',
+      );
+      return granted;
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.requestPermissions failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       return false;
     }
   }
 
   Future<bool> setEnabled(bool enabled) async {
     try {
+      debugPrint('[LUMI notifications] setEnabled($enabled) comienza');
       await initialize();
       final prefs = await SharedPreferences.getInstance();
 
       if (!enabled) {
         await prefs.setBool(enabledKey, false);
         await cancelDailyReminder();
+        debugPrint('[LUMI notifications] setEnabled(false) aplicado');
         return false;
       }
 
@@ -112,8 +139,13 @@ class TaskNotificationService {
       } else {
         await cancelDailyReminder();
       }
+      debugPrint(
+        '[LUMI notifications] setEnabled($enabled) resultado: $permitted',
+      );
       return permitted;
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.setEnabled failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
       return false;
     }
   }
@@ -129,21 +161,32 @@ class TaskNotificationService {
   }
 
   Future<void> setReminderTime(int hour, int minute) async {
+    debugPrint(
+      '[LUMI notifications] cambio de hora solicitado: '
+      '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}',
+    );
     await initialize();
     final prefs = await SharedPreferences.getInstance();
     final value = '${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
     await prefs.setString(timeKey, value);
     await _syncCachedTasks();
+    debugPrint('[LUMI notifications] hora guardada y recordatorio sincronizado: $value');
   }
 
   Future<void> syncTasks(List<dynamic> tasks) async {
     try {
+      debugPrint(
+        '[LUMI notifications] syncTasks() comienza; tareas recibidas=${tasks.length}',
+      );
       await initialize();
       final normalized = tasks
           .whereType<Map>()
           .map(_normalizeTask)
           .whereType<Map<String, dynamic>>()
           .toList();
+      debugPrint(
+        '[LUMI notifications] tareas válidas y pendientes=${normalized.length}',
+      );
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_tasksCacheKey, jsonEncode(normalized));
 
@@ -153,14 +196,20 @@ class TaskNotificationService {
       }
 
       await _scheduleDailyReminder(normalized);
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.syncTasks failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> cancelDailyReminder() async {
     try {
       await initialize();
       await _plugin.cancel(_dailyReminderId);
-    } catch (_) {}
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.cancelDailyReminder failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Map<String, dynamic>? _normalizeTask(Map task) {
@@ -200,6 +249,10 @@ class TaskNotificationService {
       timeParts.length > 1 ? timeParts[1] : 0,
     );
     if (!scheduled.isAfter(now)) scheduled = scheduled.add(const Duration(days: 1));
+    debugPrint(
+      '[LUMI notifications] programando fecha/hora=${scheduled.toIso8601String()} '
+      'timezone=${tz.local.name} horaConfigurada=$time',
+    );
 
     final details = NotificationDetails(
       android: const AndroidNotificationDetails(
@@ -217,6 +270,7 @@ class TaskNotificationService {
     );
 
     await cancelDailyReminder();
+    debugPrint('[LUMI notifications] llamando a zonedSchedule()');
     await _plugin.zonedSchedule(
       _dailyReminderId,
       '🔔 LUMI',
@@ -227,6 +281,7 @@ class TaskNotificationService {
       payload: _payload,
       matchDateTimeComponents: DateTimeComponents.time,
     );
+    debugPrint('[LUMI notifications] zonedSchedule() terminó correctamente');
   }
 
   Future<void> _syncCachedTasks() async {
