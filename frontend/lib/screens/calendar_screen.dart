@@ -142,9 +142,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (!mounted) return;
 
-    final tieneTareasManualesValidas = tareasManuales.whereType<Map>().any((task) {
+    final tieneTareasManualesValidas = tareasManuales.whereType<Map>().any((
+      task,
+    ) {
       final id = task['id']?.toString().trim();
-      final fecha = task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+      final fecha =
+          task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
       return id != null && id.isNotEmpty && fecha != null;
     });
     final tareasParaNotificar = tieneTareasManualesValidas
@@ -331,7 +334,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.28),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.10),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -378,7 +391,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       Text(
                         'Gamificación',
                         style: TextStyle(
-                            color: LumiAppTheme.primaryText(context),
+                          color: LumiAppTheme.primaryText(context),
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
@@ -538,7 +551,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 SizedBox(height: 4),
                 Text(
                   'Organiza tu tiempo y alcanza tus metas',
-                  style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13),
+                  style: TextStyle(
+                    color: LumiAppTheme.secondaryText(context),
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
@@ -548,7 +564,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               decoration: BoxDecoration(
                 color: LumiAppTheme.surface(context).withOpacity(0.9),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+                border: Border.all(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.24),
+                  width: 0.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+                    blurRadius: 14,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -574,7 +600,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     calendarStyle: CalendarStyle(
                       outsideDaysVisible: true,
                       outsideTextStyle: TextStyle(
-                        color: LumiAppTheme.secondaryText(context).withOpacity(0.5),
+                        color: LumiAppTheme.secondaryText(
+                          context,
+                        ).withOpacity(0.5),
                         fontSize: 14,
                       ),
                       weekendTextStyle: TextStyle(
@@ -692,7 +720,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
               decoration: BoxDecoration(
                 color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+                border: Border.all(
+                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.24),
+                  width: 0.8,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+                    blurRadius: 12,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,7 +761,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         decoration: BoxDecoration(
                           color: LumiAppTheme.surfaceVariant(context),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: LumiAppTheme.outline(context)),
+                          border: Border.all(
+                            color: LumiAppTheme.outline(context),
+                          ),
                         ),
                         child: Text(
                           '${selectedTasks.length} ${selectedTasks.length == 1 ? 'trabajo' : 'trabajos'}',
@@ -754,7 +794,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           children: [
                             Icon(
                               Icons.event_available_outlined,
-                              color: LumiAppTheme.secondaryText(context).withOpacity(0.5),
+                              color: LumiAppTheme.secondaryText(
+                                context,
+                              ).withOpacity(0.5),
                               size: 40,
                             ),
                             const SizedBox(height: 8),
@@ -844,7 +886,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            color: LumiAppTheme.primaryText(context),
+                                            color: LumiAppTheme.primaryText(
+                                              context,
+                                            ),
                                             fontSize: 14.5,
                                             fontWeight: FontWeight.w700,
                                             decoration: completada
@@ -859,7 +903,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: TextStyle(
-                                              color: LumiAppTheme.secondaryText(context),
+                                              color: LumiAppTheme.secondaryText(
+                                                context,
+                                              ),
                                               fontSize: 11.5,
                                             ),
                                           ),
@@ -904,7 +950,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                               colorScheme: Theme.of(context)
                                                   .colorScheme
                                                   .copyWith(
-                                                    primary: const Color(0xFF9D4EDD),
+                                                    primary: const Color(
+                                                      0xFF9D4EDD,
+                                                    ),
                                                   ),
                                             ),
                                             child: child!,
@@ -1087,8 +1135,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0D061A), Color(0xFF03020A)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
+                ? const [Color(0xFF0D061A), Color(0xFF03020A)]
+                : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
           ),
         ),
         child: esPantallaGrande

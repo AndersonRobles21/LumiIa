@@ -4,11 +4,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 import 'app_language.dart';
 import 'biometric_service.dart';
-import 'login_screen.dart'; 
+import 'login_screen.dart';
 import 'info_screen.dart';
+import '../services/api_service.dart';
 import '../utils/responsive.dart';
 import '../services/theme_controller.dart';
 import '../services/task_notification_service.dart';
+import '../services/sound_service.dart';
 import '../theme/app_theme.dart';
 
 class ConfiguracionScreen extends StatefulWidget {
@@ -27,6 +29,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   bool _verificandoBiometria = false;
   bool _cerrandoSesion = false;
   bool _isEnglish = false;
+  bool _isAdmin = false;
+  bool _sonidosActivados = true;
 
   // Colores reutilizados del resto de la app (mismo look que login/perfil)
   static const Color bgDark = Color(0xFF0B0813);
@@ -41,10 +45,30 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     AppLanguage.instance.addListener(_onLanguageChanged);
     ThemeController.instance.addListener(_onThemeChanged);
     _isEnglish = AppLanguage.instance.isEnglish;
+    _initializeAdminStatus();
     _initializeNotificationSettings();
+    _initializeSoundSettings();
     // Solo inicializar biometría en plataformas nativas (no web)
     if (!kIsWeb) {
       _initializeBiometrics();
+    }
+  }
+
+  Future<void> _initializeAdminStatus() async {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    if (userId == null) {
+      if (!mounted) return;
+      setState(() => _isAdmin = false);
+      return;
+    }
+
+    try {
+      final profile = await ApiService.getProfile(userId);
+      if (!mounted) return;
+      setState(() => _isAdmin = (profile?['es_admin'] ?? false) == true);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isAdmin = false);
     }
   }
 
@@ -63,6 +87,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       _notificacionesTareas = enabled;
       _horaNotificacion = time;
     });
+  }
+
+  Future<void> _initializeSoundSettings() async {
+    final enabled = await SoundService.instance.isEnabled();
+    if (!mounted) return;
+    setState(() => _sonidosActivados = enabled);
+  }
+
+  Future<void> _onSoundChanged(bool value) async {
+    final enabled = await SoundService.instance.setEnabled(value);
+    if (!mounted) return;
+    setState(() => _sonidosActivados = enabled);
   }
 
   Future<void> _onTaskNotificationsChanged(bool value) async {
@@ -159,12 +195,11 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       return;
     }
 
-    // Pedimos una huella de confirmación antes de activarla, para
-    // asegurarnos de que el usuario realmente puede usarla luego en login.
+    // Pedimos una verificación antes de activar la autorización biométrica.
     final exito = await BiometricService.authenticate(
       reason: _text(
-        'Confirma tu huella para activar el inicio con biometría',
-        'Confirm your fingerprint to enable biometric login',
+        'Confirma tu identidad para activar la verificación biométrica',
+        'Confirm your identity to enable biometric verification',
       ),
     );
 
@@ -189,7 +224,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           content: Text(
             _text(
               'Biometría activada correctamente.',
-              'Biometric login turned on.',
+              'Biometric verification turned on.',
             ),
           ),
         ),
@@ -211,66 +246,80 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color.fromARGB(255, 5, 8, 36), Color(0xFF16003A), Color(0xFF080010)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
+                ? const [
+                    Color.fromARGB(255, 5, 8, 36),
+                    Color(0xFF16003A),
+                    Color(0xFF080010),
+                  ]
+                : const [
+                    Color(0xFFF8F5FC),
+                    Color(0xFFF0E4F8),
+                    Color(0xFFF8F5FC),
+                  ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
+              constraints: BoxConstraints(
+                maxWidth: Responsive.anchoMaximoContenido(context),
+              ),
               child: Column(
                 children: [
                   _buildHeader(context, lang),
                   Expanded(
                     child: SingleChildScrollView(
                       padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.paddingHorizontalRecomendado(context),
+                        horizontal: Responsive.paddingHorizontalRecomendado(
+                          context,
+                        ),
                         vertical: Responsive.espacio(context),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildSectionTitle(
-                            _text('Notificaciones', 'Notifications'),
-                          ),
-                          _buildSwitchTile(
-                            icon: Icons.notifications_active_outlined,
-                            title: _text(
-                              'Notificaciones de tareas',
-                              'Task notifications',
+                          if (!_isAdmin) ...[
+                            _buildSectionTitle(
+                              _text('Notificaciones', 'Notifications'),
                             ),
-                            subtitle: _text(
-                              'Avisos locales de tareas pendientes',
-                              'Local alerts for pending tasks',
+                            _buildSwitchTile(
+                              icon: Icons.notifications_active_outlined,
+                              title: _text(
+                                'Notificaciones de tareas',
+                                'Task notifications',
+                              ),
+                              subtitle: _text(
+                                'Avisos locales de tareas pendientes',
+                                'Local alerts for pending tasks',
+                              ),
+                              value: _notificacionesTareas,
+                              loading: _cargandoNotificaciones,
+                              onChanged: _onTaskNotificationsChanged,
                             ),
-                            value: _notificacionesTareas,
-                            loading: _cargandoNotificaciones,
-                            onChanged: _onTaskNotificationsChanged,
-                          ),
-                          _buildSwitchTile(
-                            icon: Icons.alarm_outlined,
-                            title: _text(
-                              'Recordatorios diarios',
-                              'Daily reminders',
+                            _buildSwitchTile(
+                              icon: Icons.alarm_outlined,
+                              title: _text(
+                                'Recordatorios diarios',
+                                'Daily reminders',
+                              ),
+                              subtitle: _text(
+                                'Recibe un recordatorio de tu horario de estudio',
+                                'Get a reminder of your study schedule',
+                              ),
+                              value: _recordatoriosDiarios,
+                              onChanged: (v) =>
+                                  setState(() => _recordatoriosDiarios = v),
                             ),
-                            subtitle: _text(
-                              'Recibe un recordatorio de tu horario de estudio',
-                              'Get a reminder of your study schedule',
+                            _buildNavTile(
+                              icon: Icons.schedule_outlined,
+                              title: _text(
+                                'Hora de recordatorio',
+                                'Reminder time',
+                              ),
+                              trailingText: _horaNotificacion,
+                              onTap: _seleccionarHoraNotificacion,
                             ),
-                            value: _recordatoriosDiarios,
-                            onChanged: (v) =>
-                                setState(() => _recordatoriosDiarios = v),
-                          ),
-                          _buildNavTile(
-                            icon: Icons.schedule_outlined,
-                            title: _text(
-                              'Hora de recordatorio',
-                              'Reminder time',
-                            ),
-                            trailingText: _horaNotificacion,
-                            onTap: _seleccionarHoraNotificacion,
-                          ),
+                          ],
 
                           const SizedBox(height: 12),
                           _buildSectionTitle(_text('Seguridad', 'Security')),
@@ -278,12 +327,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                             _buildSwitchTile(
                               icon: Icons.fingerprint,
                               title: _text(
-                                'Inicio con biometría',
-                                'Biometric login',
+                                'Verificación biométrica',
+                                'Biometric verification',
                               ),
                               subtitle: _text(
-                                'Usa huella o Face ID para entrar a Lumi',
-                                'Use fingerprint or Face ID to sign in to Lumi',
+                                'Confirma cambios sensibles con huella o Face ID',
+                                'Confirm sensitive changes with fingerprint or Face ID',
                               ),
                               value: _autenticacionBiometrica,
                               loading: _verificandoBiometria,
@@ -334,25 +383,44 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                                 : _text('Claro', 'Light'),
                             onTap: () => _mostrarSelectorTema(context),
                           ),
-                          _buildNavTile(
-                            icon: Icons.school_outlined,
-                            title: _text(
-                              'Métodos de estudio preferidos',
-                              'Preferred study methods',
+                          _buildSwitchTile(
+                            icon: Icons.volume_up_outlined,
+                            title: _text('Sonidos', 'Sounds'),
+                            subtitle: _text(
+                              'Reproduce sonidos discretos en eventos importantes',
+                              'Play discreet sounds for important events',
                             ),
-                            onTap: () => _mostrarProximamente(
-                              context,
-                              lang,
-                              _text(
+                            value: _sonidosActivados,
+                            onChanged: _onSoundChanged,
+                          ),
+                          if (!_isAdmin)
+                            _buildNavTile(
+                              icon: Icons.school_outlined,
+                              title: _text(
                                 'Métodos de estudio preferidos',
                                 'Preferred study methods',
                               ),
-                              _text(
-                                'Podrás elegir y guardar tus métodos de estudio favoritos (Pomodoro, mapas mentales, práctica activa, etc.) directamente desde aquí en una próxima actualización.',
-                                'You\'ll be able to choose and save your favorite study methods (Pomodoro, mind maps, active recall, etc.) right from here in an upcoming update.',
+                              onTap: () => _mostrarProximamente(
+                                context,
+                                lang,
+                                _text(
+                                  'Métodos de estudio preferidos',
+                                  'Preferred study methods',
+                                ),
+                                _text(
+                                  'Podrás elegir y guardar tus métodos de estudio favoritos (Pomodoro, mapas mentales, práctica activa, etc.) directamente desde aquí en una próxima actualización.',
+                                  'You\'ll be able to choose and save your favorite study methods (Pomodoro, mind maps, active recall, etc.) right from here in an upcoming update.',
+                                ),
                               ),
                             ),
-                          ),
+
+                          if (_isAdmin) ...[
+                            const SizedBox(height: 12),
+                            _buildSectionTitle(
+                              _text('Administración', 'Administration'),
+                            ),
+                            _buildAdminDescription(),
+                          ],
 
                           const SizedBox(height: 12),
                           _buildSectionTitle(_text('Soporte', 'Support')),
@@ -407,7 +475,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           children: [
             ListTile(
               title: Text(_text('Tema', 'Theme')),
-              subtitle: Text(_text('Elige la apariencia de LUMI', 'Choose LUMI\'s appearance')),
+              subtitle: Text(
+                _text(
+                  'Elige la apariencia de LUMI',
+                  'Choose LUMI\'s appearance',
+                ),
+              ),
             ),
             RadioListTile<ThemeMode>(
               value: ThemeMode.dark,
@@ -440,7 +513,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.arrow_back_ios_new, color: LumiAppTheme.primaryText(context)),
+            icon: Icon(
+              Icons.arrow_back_ios_new,
+              color: LumiAppTheme.primaryText(context),
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           Expanded(
@@ -475,6 +551,42 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     );
   }
 
+  Widget _buildAdminDescription() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.surface(context).withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: LumiAppTheme.outline(context)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline_rounded,
+            color: accentPink.withValues(alpha: 0.9),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _text(
+                'Desde el panel administrativo puedes gestionar usuarios y aprendices, gestionar administradores, consultar estadísticas generales y revisar la información y el progreso de los usuarios, junto con las demás funciones administrativas disponibles en LUMI.',
+                'From the admin panel you can manage users and learners, manage administrators, view general statistics, and review user information and progress, along with the other administrative features available in LUMI.',
+              ),
+              style: GoogleFonts.orbitron(
+                color: LumiAppTheme.secondaryText(context),
+                fontSize: Responsive.tamanioTexto(context),
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSwitchTile({
     required IconData icon,
     required String title,
@@ -485,7 +597,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context) / 2, vertical: Responsive.espacio(context) * 0.75),
+      padding: EdgeInsets.symmetric(
+        horizontal: Responsive.paddingHorizontalRecomendado(context) / 2,
+        vertical: Responsive.espacio(context) * 0.75,
+      ),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context).withOpacity(0.9),
         borderRadius: BorderRadius.circular(16),
@@ -505,7 +620,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
             : Icon(icon, color: accentPink.withOpacity(0.9)),
         title: Text(
           title,
-            style: GoogleFonts.orbitron(
+          style: GoogleFonts.orbitron(
             color: LumiAppTheme.primaryText(context),
             fontSize: Responsive.tamanioSubtitulo(context),
             fontWeight: FontWeight.w500,
@@ -514,7 +629,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
         subtitle: subtitle != null
             ? Text(
                 subtitle,
-                style: GoogleFonts.orbitron(color: LumiAppTheme.secondaryText(context), fontSize: Responsive.tamanioTexto(context) - 2),
+                style: GoogleFonts.orbitron(
+                  color: LumiAppTheme.secondaryText(context),
+                  fontSize: Responsive.tamanioTexto(context) - 2,
+                ),
               )
             : null,
         value: value,
@@ -555,7 +673,10 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                 padding: const EdgeInsets.only(right: 6),
                 child: Text(
                   trailingText,
-                  style: GoogleFonts.orbitron(color: textGrey, fontSize: Responsive.tamanioTexto(context) - 2),
+                  style: GoogleFonts.orbitron(
+                    color: textGrey,
+                    fontSize: Responsive.tamanioTexto(context) - 2,
+                  ),
                 ),
               ),
             const Icon(Icons.chevron_right, color: textGrey),
@@ -650,21 +771,18 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
     }
   }
 
-  // --- Cambiar contraseña: envía un correo real de restablecimiento
-  // usando el usuario que ya inició sesión en Supabase. ---
+  // --- Cambio de contraseña autorizado por biometría y sesión Supabase. ---
   Future<void> _cambiarContrasena(
     BuildContext context,
     AppLanguage lang,
   ) async {
-    final String? email = Supabase.instance.client.auth.currentUser?.email;
-
-    if (email == null || email.isEmpty) {
+    if (kIsWeb) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
             _text(
-              'No se encontró un correo asociado a tu cuenta.',
-              'No email associated with your account was found.',
+              'La autenticación biométrica no está disponible en Web.',
+              'Biometric authentication is not available on Web.',
             ),
           ),
         ),
@@ -672,71 +790,260 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
       return;
     }
 
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: cardColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text(
-          _text('Cambiar contraseña', 'Change password'),
-          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
-        ),
+    final autorizado = await _autorizarCambioConBiometria(context);
+    if (!autorizado || !mounted) return;
+
+    final actualizado = await _mostrarFormularioNuevaContrasena(context);
+    if (actualizado != true || !mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(
           _text(
-            'Te enviaremos un correo a $email con un enlace para restablecer tu contraseña. ¿Deseas continuar?',
-            'We\'ll send an email to $email with a link to reset your password. Continue?',
+            'Contraseña actualizada correctamente.',
+            'Password updated successfully.',
           ),
-          style: GoogleFonts.orbitron(color: textGrey, fontSize: 12.5),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(
-              _text('Cancelar', 'Cancel'),
-              style: GoogleFonts.orbitron(color: textGrey),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(
-              _text('Enviar correo', 'Send email'),
-              style: GoogleFonts.orbitron(
-                color: accentPink,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
       ),
     );
+  }
 
-    if (confirmar != true || !mounted) return;
+  Future<bool> _autorizarCambioConBiometria(BuildContext context) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            backgroundColor: cardColor,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
+            title: Text(
+              _text(
+                'Cambio de contraseña por biometría',
+                'Password change by biometric authentication',
+              ),
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+            ),
+            content: Text(
+              _text(
+                'Autoriza este cambio con la biometría configurada en tu dispositivo.',
+                'Authorize this change with the biometrics configured on your device.',
+              ),
+              style: GoogleFonts.orbitron(color: textGrey, fontSize: 12.5),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: Text(
+                  _text('Cancelar', 'Cancel'),
+                  style: GoogleFonts.orbitron(color: textGrey),
+                ),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final soportado = await BiometricService.isDeviceSupported();
+                  if (!soportado) {
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext, false);
+                    }
+                    return;
+                  }
+
+                  final autenticado = await BiometricService.authenticate(
+                    reason: _text(
+                      'Autoriza el cambio de contraseña en LUMI',
+                      'Authorize the password change in LUMI',
+                    ),
+                  );
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext, autenticado);
+                  }
+                },
+                child: Text(
+                  _text('Verificar biometría', 'Verify biometrics'),
+                  style: GoogleFonts.orbitron(
+                    color: accentPink,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<bool?> _mostrarFormularioNuevaContrasena(BuildContext context) async {
+    final nuevaController = TextEditingController();
+    final confirmacionController = TextEditingController();
 
     try {
-      await Supabase.instance.client.auth.resetPasswordForEmail(email);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'Te enviamos un correo a $email para cambiar tu contraseña.',
-              'We sent an email to $email to reset your password.',
+      return await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) {
+          var obscureNueva = true;
+          var obscureConfirmacion = true;
+          var guardando = false;
+          String? error;
+
+          return StatefulBuilder(
+            builder: (context, setDialogState) => AlertDialog(
+              backgroundColor: cardColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+              title: Text(
+                _text('Nueva contraseña', 'New password'),
+                style: GoogleFonts.orbitron(color: Colors.white, fontSize: 16),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: nuevaController,
+                      obscureText: obscureNueva,
+                      enabled: !guardando,
+                      decoration: InputDecoration(
+                        labelText: _text('Nueva contraseña', 'New password'),
+                        suffixIcon: IconButton(
+                          onPressed: guardando
+                              ? null
+                              : () => setDialogState(
+                                  () => obscureNueva = !obscureNueva,
+                                ),
+                          icon: Icon(
+                            obscureNueva
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmacionController,
+                      obscureText: obscureConfirmacion,
+                      enabled: !guardando,
+                      decoration: InputDecoration(
+                        labelText: _text(
+                          'Confirmar nueva contraseña',
+                          'Confirm new password',
+                        ),
+                        suffixIcon: IconButton(
+                          onPressed: guardando
+                              ? null
+                              : () => setDialogState(
+                                  () => obscureConfirmacion =
+                                      !obscureConfirmacion,
+                                ),
+                          icon: Icon(
+                            obscureConfirmacion
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (error != null) ...[
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          error!,
+                          style: const TextStyle(color: Colors.redAccent),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: guardando
+                      ? null
+                      : () => Navigator.pop(dialogContext, false),
+                  child: Text(_text('Cancelar', 'Cancel')),
+                ),
+                FilledButton(
+                  onPressed: guardando
+                      ? null
+                      : () async {
+                          final nueva = nuevaController.text;
+                          final confirmacion = confirmacionController.text;
+                          final passwordRegex = RegExp(
+                            r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$',
+                          );
+
+                          String? validationError;
+                          if (nueva.isEmpty || confirmacion.isEmpty) {
+                            validationError = _text(
+                              'Completa ambos campos.',
+                              'Complete both fields.',
+                            );
+                          } else if (!passwordRegex.hasMatch(nueva)) {
+                            validationError = _text(
+                              'Mín. 8 caracteres, incluir mayúscula, minúscula y número.',
+                              'At least 8 characters with uppercase, lowercase, and number.',
+                            );
+                          } else if (nueva != confirmacion) {
+                            validationError = _text(
+                              'Las contraseñas no coinciden.',
+                              'Passwords do not match.',
+                            );
+                          }
+
+                          if (validationError != null) {
+                            setDialogState(() => error = validationError);
+                            return;
+                          }
+
+                          setDialogState(() {
+                            error = null;
+                            guardando = true;
+                          });
+
+                          try {
+                            await Supabase.instance.client.auth.updateUser(
+                              UserAttributes(password: nueva),
+                            );
+                            if (dialogContext.mounted) {
+                              Navigator.pop(dialogContext, true);
+                            }
+                          } on AuthException catch (exception) {
+                            if (dialogContext.mounted) {
+                              setDialogState(() {
+                                guardando = false;
+                                error = exception.message;
+                              });
+                            }
+                          } catch (_) {
+                            if (dialogContext.mounted) {
+                              setDialogState(() {
+                                guardando = false;
+                                error = _text(
+                                  'No se pudo actualizar la contraseña.',
+                                  'The password could not be updated.',
+                                );
+                              });
+                            }
+                          }
+                        },
+                  child: guardando
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Text(_text('Guardar', 'Save')),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        },
       );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            _text(
-              'No se pudo enviar el correo. Intenta de nuevo más tarde.',
-              'Could not send the email. Please try again later.',
-            ),
-          ),
-        ),
-      );
+    } finally {
+      nuevaController.dispose();
+      confirmacionController.dispose();
     }
   }
 

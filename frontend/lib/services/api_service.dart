@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'sound_service.dart';
 
 class ApiService {
   static String get _backendHost {
@@ -510,7 +511,11 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
         body: jsonEncode({'completada': completada}),
       );
 
-      return response.statusCode == 200;
+      final completed = response.statusCode == 200;
+      if (completed && completada) {
+        SoundService.instance.play(LumiSound.taskCompleted);
+      }
+      return completed;
     } catch (e) {
       print('Error completarTarea: $e');
       return false;

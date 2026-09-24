@@ -426,7 +426,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
         content: Text(
           '¿Estás seguro de que quieres eliminar "${plan.title}"? Esta acción no se puede deshacer.',
-          style: TextStyle(color: LumiAppTheme.secondaryText(ctx), fontSize: 13),
+          style: TextStyle(
+            color: LumiAppTheme.secondaryText(ctx),
+            fontSize: 13,
+          ),
         ),
         actions: [
           TextButton(
@@ -474,8 +477,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
 
-        final tareasActualizadas =
-            await ApiService.getPlanesEstudio(widget.userId);
+        final tareasActualizadas = await ApiService.getPlanesEstudio(
+          widget.userId,
+        );
         if (tareasActualizadas != null) {
           debugPrint(
             '[LUMI notifications] eliminación exitosa; sincronizando tareas desde DashboardScreen',
@@ -570,18 +574,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF44AA).withValues(alpha: 0.55)),
+        border: Border.all(
+          color: const Color(0xFFFF44AA).withValues(alpha: 0.55),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.notifications_active_outlined, color: Color(0xFFFF8ACB)),
+              Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFFFF8ACB),
+              ),
               SizedBox(width: 8),
               Text(
                 'Alertas de tu perfil',
-                style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -591,7 +603,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
-                style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 13),
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -604,7 +619,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Container(
       height: Responsive.esEscritorio(context) ? 260 : 185,
       width: double.infinity,
-        color: Theme.of(context).brightness == Brightness.dark
+      color: Theme.of(context).brightness == Brightness.dark
           ? const Color(0xFF55588D)
           : Theme.of(context).colorScheme.surfaceContainerHighest,
       child: Stack(
@@ -642,7 +657,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     'Tu asistente personal',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 8),
+                    style: TextStyle(
+                      color: LumiAppTheme.primaryText(context),
+                      fontSize: 8,
+                    ),
                   ),
                 ],
               ),
@@ -666,7 +684,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           Row(
             children: [
-              Expanded(child: Divider(color: LumiAppTheme.outline(context), thickness: 2)),
+              Expanded(
+                child: Divider(
+                  color: LumiAppTheme.outline(context),
+                  thickness: 2,
+                ),
+              ),
               Padding(
                 padding: EdgeInsets.symmetric(
                   horizontal: Responsive.espacio(context) * 1.5,
@@ -680,7 +703,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
               ),
-              Expanded(child: Divider(color: LumiAppTheme.outline(context), thickness: 2)),
+              Expanded(
+                child: Divider(
+                  color: LumiAppTheme.outline(context),
+                  thickness: 2,
+                ),
+              ),
             ],
           ),
           SizedBox(height: Responsive.espacio(context) * 1.25),
@@ -695,7 +723,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SizedBox(height: Responsive.espacio(context) / 2),
           Text(
             '¿Listo para aprender hoy?',
-            style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
+            style: TextStyle(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: 11,
+            ),
           ),
         ],
       ),
@@ -713,7 +744,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: EdgeInsets.all(Responsive.espacio(context) * 1.5),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
-        border: Border.all(color: LumiAppTheme.outline(context)),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.24),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -778,7 +820,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           padding: EdgeInsets.all(Responsive.espacio(context)),
           decoration: BoxDecoration(
             color: LumiAppTheme.surfaceVariant(context),
-            border: Border.all(color: LumiAppTheme.outline(context)),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.20),
+              width: 0.8,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6D4BC1).withValues(alpha: 0.06),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: Row(
             children: [
@@ -816,7 +869,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       child: LinearProgressIndicator(
                         value: plan.progress.clamp(0.0, 1.0),
                         minHeight: 6,
-                        backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                        backgroundColor: Theme.of(
+                          context,
+                        ).colorScheme.surfaceContainerHighest,
                         valueColor: const AlwaysStoppedAnimation(
                           Color(0xFFC23CFF),
                         ),
@@ -828,7 +883,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               SizedBox(width: Responsive.espacio(context)),
               Text(
                 '${(plan.progress * 100).round()}%',
-                style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 8),
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontSize: 8,
+                ),
               ),
             ],
           ),
@@ -843,7 +901,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
-        border: Border.all(color: LumiAppTheme.outline(context)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.24),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -859,11 +928,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           SizedBox(height: Responsive.espacio(context)),
           Text(
             'Usa la IA de Lumi para generar planes personalizados.',
-            style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 9),
+            style: TextStyle(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: 9,
+            ),
           ),
           SizedBox(height: Responsive.espacio(context) * 1.5),
           SizedBox(
             width: double.infinity,
+            height: 44,
             child: ElevatedButton.icon(
               onPressed: _openAddTaskScreen,
               icon: const Icon(Icons.add, size: 18),
@@ -871,9 +944,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD72CFA),
                 foregroundColor: Colors.white,
-                padding: EdgeInsets.symmetric(
-                  vertical: Responsive.altoBoton(context) - 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                minimumSize: const Size(0, 44),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

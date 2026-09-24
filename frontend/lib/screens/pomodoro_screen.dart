@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
+import '../services/sound_service.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final String tituloTarea;
@@ -63,6 +64,9 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
   }
 
   void _siguienteCiclo() {
+    if (_esTiempoEstudio) {
+      SoundService.instance.play(LumiSound.pomodoroCompleted);
+    }
     setState(() {
       if (_esTiempoEstudio) {
         _esTiempoEstudio = false; // Pasar a descanso

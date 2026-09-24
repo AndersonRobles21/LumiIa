@@ -486,196 +486,240 @@ class _ProfileScreenState extends State<ProfileScreen>
                                       ctx,
                                     );
                                     if (isDesktop) {
-                                      // Desktop: avatar and name on left, rest of profile on right
-                                      return Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          // Left column: avatar and basic name info
-                                          Container(
-                                            width: 300,
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 24,
-                                            ),
-                                            child: Column(
-                                              children: [
-                                                const SizedBox(height: 8),
-                                                _buildAvatar(),
-                                                SizedBox(
-                                                  height:
-                                                      Responsive.espacio(ctx) *
-                                                      1.5,
-                                                ),
-                                                Text(
-                                                  tr('Nombre', 'First Name'),
-                                                  style: TextStyle(
-                                                    color:
-                                                        LumiAppTheme.primaryText(
-                                                          ctx,
+                                      // Desktop: keep the profile form compact but let the schedule panel use the available width.
+                                      return LayoutBuilder(
+                                        builder: (layoutContext, constraints) {
+                                          final leftWidth =
+                                              constraints.maxWidth > 1200
+                                              ? 260.0
+                                              : 230.0;
+                                          return Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              SizedBox(
+                                                width: leftWidth,
+                                                child: Padding(
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        horizontal: 18,
+                                                      ),
+                                                  child: Column(
+                                                    children: [
+                                                      const SizedBox(height: 8),
+                                                      _buildAvatar(),
+                                                      SizedBox(
+                                                        height:
+                                                            Responsive.espacio(
+                                                              layoutContext,
+                                                            ) *
+                                                            1.5,
+                                                      ),
+                                                      Text(
+                                                        tr(
+                                                          'Nombre',
+                                                          'First Name',
                                                         ),
-                                                    fontSize:
-                                                        Responsive.tamanioTexto(
-                                                          ctx,
+                                                        style: TextStyle(
+                                                          color:
+                                                              LumiAppTheme.primaryText(
+                                                                layoutContext,
+                                                              ),
+                                                          fontSize:
+                                                              Responsive.tamanioTexto(
+                                                                layoutContext,
+                                                              ),
+                                                          fontWeight:
+                                                              FontWeight.bold,
                                                         ),
-                                                    fontWeight: FontWeight.bold,
+                                                      ),
+                                                      SizedBox(
+                                                        height:
+                                                            Responsive.espacio(
+                                                              layoutContext,
+                                                            ) /
+                                                            2,
+                                                      ),
+                                                      _buildInputField(
+                                                        _nameController,
+                                                        tr(
+                                                          'Ingresa tu nombre',
+                                                          'Enter your first name',
+                                                        ),
+                                                      ),
+                                                      SizedBox(
+                                                        height:
+                                                            Responsive.espacio(
+                                                              layoutContext,
+                                                            ) *
+                                                            1.25,
+                                                      ),
+                                                      Text(
+                                                        tr(
+                                                          'Apellido',
+                                                          'Last Name',
+                                                        ),
+                                                        style: TextStyle(
+                                                          color:
+                                                              LumiAppTheme.primaryText(
+                                                                layoutContext,
+                                                              ),
+                                                          fontSize:
+                                                              Responsive.tamanioTexto(
+                                                                layoutContext,
+                                                              ),
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      SizedBox(
+                                                        height:
+                                                            Responsive.espacio(
+                                                              layoutContext,
+                                                            ) /
+                                                            2,
+                                                      ),
+                                                      _buildInputField(
+                                                        _apellidoController,
+                                                        tr(
+                                                          'Ingresa tu apellido',
+                                                          'Enter your last name',
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
                                                 ),
-                                                SizedBox(
-                                                  height:
-                                                      Responsive.espacio(ctx) /
-                                                      2,
-                                                ),
-                                                _buildInputField(
-                                                  _nameController,
-                                                  tr(
-                                                    'Ingresa tu nombre',
-                                                    'Enter your first name',
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  height:
-                                                      Responsive.espacio(ctx) *
-                                                      1.25,
-                                                ),
-                                                Text(
-                                                  tr('Apellido', 'Last Name'),
-                                                  style: TextStyle(
-                                                    color:
-                                                        LumiAppTheme.primaryText(
-                                                          ctx,
-                                                        ),
-                                                    fontSize:
-                                                        Responsive.tamanioTexto(
-                                                          ctx,
-                                                        ),
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                SizedBox(
-                                                  height:
-                                                      Responsive.espacio(ctx) /
-                                                      2,
-                                                ),
-                                                _buildInputField(
-                                                  _apellidoController,
-                                                  tr(
-                                                    'Ingresa tu apellido',
-                                                    'Enter your last name',
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          const SizedBox(width: 18),
-                                          // Right column: rest of editable fields
-                                          Expanded(
-                                            child: SingleChildScrollView(
-                                              padding: EdgeInsets.only(
-                                                right:
-                                                    Responsive.paddingHorizontalRecomendado(
-                                                      ctx,
-                                                    ),
-                                                bottom: 90,
                                               ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  SizedBox(height: 8),
-                                                  Text(
-                                                    tr(
-                                                      'Objetivo de Estudio',
-                                                      'Study Goal',
-                                                    ),
-                                                    style: TextStyle(
-                                                      color:
-                                                          LumiAppTheme.primaryText(
-                                                            ctx,
+                                              const SizedBox(width: 18),
+                                              Expanded(
+                                                child: Align(
+                                                  alignment:
+                                                      Alignment.topCenter,
+                                                  child: ConstrainedBox(
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          maxWidth: 860,
+                                                        ),
+                                                    child: SingleChildScrollView(
+                                                      padding: EdgeInsets.only(
+                                                        right:
+                                                            Responsive.paddingHorizontalRecomendado(
+                                                              layoutContext,
+                                                            ),
+                                                        bottom: 90,
+                                                      ),
+                                                      child: Column(
+                                                        crossAxisAlignment:
+                                                            CrossAxisAlignment
+                                                                .start,
+                                                        children: [
+                                                          SizedBox(height: 8),
+                                                          Text(
+                                                            tr(
+                                                              'Objetivo de Estudio',
+                                                              'Study Goal',
+                                                            ),
+                                                            style: TextStyle(
+                                                              color:
+                                                                  LumiAppTheme.primaryText(
+                                                                    layoutContext,
+                                                                  ),
+                                                              fontSize:
+                                                                  Responsive.tamanioSubtitulo(
+                                                                    layoutContext,
+                                                                  ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
                                                           ),
-                                                      fontSize:
-                                                          Responsive.tamanioSubtitulo(
-                                                            ctx,
+                                                          SizedBox(
+                                                            height:
+                                                                Responsive.espacio(
+                                                                  layoutContext,
+                                                                ) /
+                                                                2,
                                                           ),
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    height:
-                                                        Responsive.espacio(
-                                                          ctx,
-                                                        ) /
-                                                        2,
-                                                  ),
-                                                  _buildInputField(
-                                                    _objetivoController,
-                                                    tr(
-                                                      "Ej: Certificarme como programadora",
-                                                      "Ex: Get certified as a developer",
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    height:
-                                                        Responsive.espacio(
-                                                          ctx,
-                                                        ) *
-                                                        1.5,
-                                                  ),
+                                                          _buildInputField(
+                                                            _objetivoController,
+                                                            tr(
+                                                              "Ej: Certificarme como programadora",
+                                                              "Ex: Get certified as a developer",
+                                                            ),
+                                                          ),
+                                                          SizedBox(
+                                                            height:
+                                                                Responsive.espacio(
+                                                                  layoutContext,
+                                                                ) *
+                                                                1.5,
+                                                          ),
 
-                                                  Text(
-                                                    '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
-                                                    style: TextStyle(
-                                                      color:
-                                                          LumiAppTheme.primaryText(
-                                                            ctx,
+                                                          Text(
+                                                            '${tr('Nivel de Procrastinación', 'Procrastination Level')}: $_nivelProcrastinacion',
+                                                            style: TextStyle(
+                                                              color:
+                                                                  LumiAppTheme.primaryText(
+                                                                    layoutContext,
+                                                                  ),
+                                                              fontSize:
+                                                                  Responsive.tamanioSubtitulo(
+                                                                    layoutContext,
+                                                                  ),
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
                                                           ),
-                                                      fontSize:
-                                                          Responsive.tamanioSubtitulo(
-                                                            ctx,
+                                                          Slider(
+                                                            value:
+                                                                _nivelProcrastinacion
+                                                                    .toDouble(),
+                                                            min: 1,
+                                                            max: 10,
+                                                            divisions: 9,
+                                                            activeColor:
+                                                                const Color(
+                                                                  0xFFFF44AA,
+                                                                ),
+                                                            inactiveColor:
+                                                                const Color(
+                                                                  0xFF1F1B2E,
+                                                                ),
+                                                            onChanged:
+                                                                (
+                                                                  value,
+                                                                ) => setState(
+                                                                  () => _nivelProcrastinacion =
+                                                                      value
+                                                                          .toInt(),
+                                                                ),
                                                           ),
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                                  ),
-                                                  Slider(
-                                                    value: _nivelProcrastinacion
-                                                        .toDouble(),
-                                                    min: 1,
-                                                    max: 10,
-                                                    divisions: 9,
-                                                    activeColor: const Color(
-                                                      0xFFFF44AA,
-                                                    ),
-                                                    inactiveColor: const Color(
-                                                      0xFF1F1B2E,
-                                                    ),
-                                                    onChanged: (value) => setState(
-                                                      () =>
-                                                          _nivelProcrastinacion =
-                                                              value.toInt(),
-                                                    ),
-                                                  ),
-                                                  SizedBox(
-                                                    height:
-                                                        Responsive.espacio(
-                                                          ctx,
-                                                        ) *
-                                                        1.5,
-                                                  ),
+                                                          SizedBox(
+                                                            height:
+                                                                Responsive.espacio(
+                                                                  layoutContext,
+                                                                ) *
+                                                                1.5,
+                                                          ),
 
-                                                  ScheduleSetupFlow(
-                                                    key: ValueKey(
-                                                      _scheduleRevision,
+                                                          ScheduleSetupFlow(
+                                                            key: ValueKey(
+                                                              _scheduleRevision,
+                                                            ),
+                                                            initialSlots:
+                                                                _scheduleSlots,
+                                                            onSave: _handleSend,
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
-                                                    initialSlots:
-                                                        _scheduleSlots,
-                                                    onSave: _handleSend,
                                                   ),
-                                                ],
+                                                ),
                                               ),
-                                            ),
-                                          ),
-                                        ],
+                                            ],
+                                          );
+                                        },
                                       );
                                     }
 
@@ -871,7 +915,10 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.20),
+            width: 0.8,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),

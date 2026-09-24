@@ -489,6 +489,33 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
   }
 
   Widget _buildCurrentSchedule() {
+    final isDesktop = Responsive.esEscritorio(context);
+    final daysContent = isDesktop
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 880 ? 4 : 3;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: ScheduleDayMapper.keys.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 1.8,
+                ),
+                itemBuilder: (context, index) {
+                  final dayKey = ScheduleDayMapper.keys[index];
+                  return _buildReadOnlyDayCard(dayKey);
+                },
+              );
+            },
+          )
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: ScheduleDayMapper.keys.map(_buildReadOnlyDay).toList(),
+          );
+
     return _buildShell(
       title: tr('Mi horario actual', 'My current schedule'),
       subtitle: tr(
@@ -499,7 +526,7 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ...ScheduleDayMapper.keys.map(_buildReadOnlyDay),
+          daysContent,
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: _startEditing,
@@ -563,6 +590,60 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
                             style: const TextStyle(
                               color: Color(0xFFFF44AA),
                               fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadOnlyDayCard(String dayKey) {
+    final slots = _slotsByDay[dayKey]!;
+    final isEmpty = slots.isEmpty;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.pageBackground(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: LumiAppTheme.outline(context).withValues(alpha: 0.18),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _dayLabel(dayKey),
+            style: TextStyle(
+              color: LumiAppTheme.primaryText(context),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: isEmpty
+                ? Text(
+                    tr('Sin disponibilidad', 'No availability'),
+                    style: TextStyle(
+                      color: LumiAppTheme.secondaryText(context),
+                    ),
+                  )
+                : Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: slots
+                        .map(
+                          (slot) => Text(
+                            '${_formatMinutes(slot.startMinutes)} - ${_formatMinutes(slot.endMinutes)}',
+                            style: const TextStyle(
+                              color: Color(0xFFFF44AA),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
                           ),
                         )
@@ -758,6 +839,34 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
   }
 
   Widget _buildSummaryStep() {
+    final isDesktop = Responsive.esEscritorio(context);
+    final daysWidget = isDesktop
+        ? LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 900 ? 2 : 1;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: ScheduleDayMapper.keys.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  mainAxisSpacing: 10,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 2.2,
+                ),
+                itemBuilder: (context, index) {
+                  final dayKey = ScheduleDayMapper.keys[index];
+                  return _summaryDayCard(dayKey);
+                },
+              );
+            },
+          )
+        : Column(
+            children: ScheduleDayMapper.keys
+                .map((dayKey) => _summaryDay(dayKey))
+                .toList(),
+          );
+
     return _buildShell(
       title: tr('Resumen de tu horario', 'Schedule summary'),
       subtitle: tr(
@@ -766,7 +875,7 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
       ),
       child: Column(
         children: [
-          ...ScheduleDayMapper.keys.map((dayKey) => _summaryDay(dayKey)),
+          daysWidget,
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
@@ -848,6 +957,56 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
                             style: const TextStyle(
                               color: Color(0xFFFF44AA),
                               fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryDayCard(String dayKey) {
+    final slots = _slotsByDay[dayKey]!;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.pageBackground(context),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _dayLabel(dayKey),
+            style: TextStyle(
+              color: LumiAppTheme.primaryText(context),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: slots.isEmpty
+                ? Text(
+                    tr('Sin disponibilidad', 'No availability'),
+                    style: TextStyle(
+                      color: LumiAppTheme.secondaryText(context),
+                    ),
+                  )
+                : Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: slots
+                        .map(
+                          (slot) => Text(
+                            '${_formatMinutes(slot.startMinutes)} - ${_formatMinutes(slot.endMinutes)}',
+                            style: const TextStyle(
+                              color: Color(0xFFFF44AA),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
                           ),
                         )

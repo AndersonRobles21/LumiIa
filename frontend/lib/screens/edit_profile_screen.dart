@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -213,8 +214,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: Theme.of(context).brightness == Brightness.dark
-                      ? const [Color(0xFF0D0D2B), Color(0xFF1A1040), Color(0xFF0D0D2B)]
-                      : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
+                      ? const [
+                          Color(0xFF0D0D2B),
+                          Color(0xFF1A1040),
+                          Color(0xFF0D0D2B),
+                        ]
+                      : const [
+                          Color(0xFFF8F5FC),
+                          Color(0xFFF0E4F8),
+                          Color(0xFFF8F5FC),
+                        ],
                 ),
               ),
               child: Column(
@@ -239,13 +248,16 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Expanded(
                     child: GridView.builder(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: .78,
-                          ),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: Responsive.esEscritorio(context)
+                            ? 5
+                            : 3,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        childAspectRatio: Responsive.esEscritorio(context)
+                            ? 0.92
+                            : 0.78,
+                      ),
                       itemCount: _characters.length,
                       itemBuilder: (context, index) {
                         final character = _characters[index];
