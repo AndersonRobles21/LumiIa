@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/login_screen.dart';
@@ -6,9 +8,11 @@ import 'package:frontend/screens/configuracion_screen.dart';
 import 'package:frontend/screens/admin_panel_screen.dart';
 import 'package:frontend/services/theme_controller.dart';
 import 'package:frontend/theme/app_theme.dart';
+import 'package:frontend/services/task_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  unawaited(TaskNotificationService.instance.initialize());
 
   try {
     await Supabase.initialize(

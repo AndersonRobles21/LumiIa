@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import '/services/api_service.dart';
@@ -5,6 +7,7 @@ import 'gamification_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../theme/app_theme.dart';
+import '../services/task_notification_service.dart';
 
 const String kLumiBannerAsset = 'logo/lumi_gamificacion.png';
 
@@ -134,6 +137,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final tareasManuales =
         await ApiService.getPlanesEstudio(widget.userId) ?? [];
+    unawaited(TaskNotificationService.instance.syncTasks(tareasManuales));
     final historialIA = await ApiService.obtenerHistorial(widget.userId) ?? [];
     final historialConFecha = await _completarFechasHistorial(historialIA);
 
