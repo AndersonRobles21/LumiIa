@@ -1,8 +1,11 @@
 //authRoutes.ts
   import { Router, Request, Response } from "express";
   import { pool } from "../config/db";
-  import { generarPlanIA } from "../services/gemini.service";
-  import { calcularCapacidadPlan, HorarioDisponible } from "../services/disponibilidad.service";
+  import {
+    distribuirUnidadesEnFranjas,
+    franjasDisponiblesEntreFechas,
+    HorarioSemanal,
+  } from "../services/disponibilidad.service";
 
   const router = Router();
 
@@ -104,141 +107,176 @@
     }
   });
 
-  function normalizarHorarios(horarios: any[]): HorarioDisponible[] {
+  function normalizarHorarios(horarios: any[]): HorarioSemanal[] {
     return horarios
-      .filter((horario) => horario && horario.hora_inicio && horario.hora_fin)
+      .filter((horario) => horario && horario.dia && horario.hora_inicio && horario.hora_fin)
       .map((horario) => ({
+        dia: String(horario.dia).trim().toLowerCase(),
         hora_inicio: String(horario.hora_inicio),
         hora_fin: String(horario.hora_fin),
       }));
   }
 
-  async function reajustarPlanesPorHorario(
-    usuarioId: string,
-    horariosAnteriores: HorarioDisponible[],
-    horariosNuevos: HorarioDisponible[]
-  ): Promise<void> {
-    const tareasResult = await pool.query(
-      `
-      SELECT t.id AS tarea_id, t.completada, a.fecha, p.id AS plan_id,
-             p.nombre, p.descripcion, p.usuario_id,
-             u.nombre AS nombre_usuario, pe.objetivo,
-             pe.nivel_procrastinacion, pia.metodo_estudio,
-             pia.dificultad, pia.tiempo_estimado_total, pia.pasos
-      FROM tareas t
-      JOIN actividades a ON a.id = t.actividad_id
-      JOIN planes_estudio p ON p.id = a.plan_id
-      JOIN usuarios u ON u.id = p.usuario_id
-      LEFT JOIN perfiles_estudio pe ON pe.usuario_id = p.usuario_id
-      JOIN planes_ia pia ON pia.plan_id = p.id
-      WHERE p.usuario_id = $1
-        AND t.completada = false
-        AND a.fecha IS NOT NULL
-        AND a.fecha >= CURRENT_DATE
-      `,
-      [usuarioId]
-    );
+  function firmaHorarios(horarios: HorarioSemanal[]): string {
+    return horarios
+      .map((horario) => `${horario.dia}|${horario.hora_inicio.slice(0, 5)}|${horario.hora_fin.slice(0, 5)}`)
+      .sort()
+      .join(";");
+  }
 
-    let revisadas = 0;
-    let actualizadas = 0;
-    let fallidas = 0;
+  const diasHorarioValidos = new Set([
+    "lun", "mar", "mie", "jue", "vie", "sab", "dom",
+    "lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo",
+  ]);
+  const diaHorarioCanonico: Record<string, string> = {
+    lun: "lunes", mar: "martes", mie: "miercoles", jue: "jueves",
+    vie: "viernes", sab: "sabado", dom: "domingo",
+    lunes: "lunes", martes: "martes", miercoles: "miercoles", jueves: "jueves",
+    viernes: "viernes", sabado: "sabado", domingo: "domingo",
+  };
 
-    for (const tarea of tareasResult.rows) {
-      const capacidadAnterior = calcularCapacidadPlan(
-        tarea.fecha,
-        horariosAnteriores,
-        Number(tarea.tiempo_estimado_total)
-      );
-      const capacidadNueva = calcularCapacidadPlan(
-        tarea.fecha,
-        horariosNuevos,
-        Number(tarea.tiempo_estimado_total)
-      );
+  function minutosHorario(valor: unknown): number | null {
+    if (typeof valor !== "string" || !/^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(valor.trim())) return null;
+    const [hora, minuto] = valor.trim().split(":").map(Number);
+    if (hora > 23 || minuto > 59) return null;
+    return hora * 60 + minuto;
+  }
 
-      if (capacidadAnterior.minutosDisponibles === capacidadNueva.minutosDisponibles) continue;
-      revisadas++;
+  function validarHorarios(horarios: unknown[]): string | null {
+    const vistos = new Set<string>();
+    const porDia = new Map<string, Array<{ inicio: number; fin: number }>>();
 
-      try {
-        const pasosAnteriores = typeof tarea.pasos === "string"
-          ? JSON.parse(tarea.pasos)
-          : (tarea.pasos ?? []);
-        const planNuevo = await generarPlanIA({
-          titulo: tarea.nombre,
-          descripcion: tarea.descripcion ?? "",
-          fechaEntrega: new Date(tarea.fecha).toISOString().slice(0, 10),
-          metodoEstudio: tarea.metodo_estudio,
-          dificultad: tarea.dificultad ?? "Media",
-          enfoqueAdicional: "Reorganiza la planificación porque cambió la disponibilidad semanal del estudiante. Conserva el método de estudio y reutiliza los pasos que sigan siendo válidos.",
-          nombreUsuario: tarea.nombre_usuario,
-          objetivo: tarea.objetivo ?? "",
-          horasDisponibles: capacidadNueva.horasPorDia,
-          nivelProcrastinacion: tarea.nivel_procrastinacion ?? 3,
-          diasRestantes: capacidadNueva.diasRestantes,
-          minutosDisponibles: capacidadNueva.minutosDisponibles,
-          mensajeUsuario: "",
-        });
+    for (const horario of horarios) {
+      if (!horario || typeof horario !== "object") return "Cada horario debe ser un objeto válido.";
+      const bloque = horario as Record<string, unknown>;
+      const diaRecibido = typeof bloque.dia === "string" ? bloque.dia.trim().toLowerCase() : "";
+      const inicioTexto = typeof bloque.hora_inicio === "string" ? bloque.hora_inicio.trim() : "";
+      const finTexto = typeof bloque.hora_fin === "string" ? bloque.hora_fin.trim() : "";
+      if (!diaRecibido || !inicioTexto || !finTexto) return "Cada horario debe incluir día, hora de inicio y hora de fin.";
+      if (!diasHorarioValidos.has(diaRecibido)) return `Día inválido: ${diaRecibido}.`;
+      const dia = diaHorarioCanonico[diaRecibido];
 
-        const progresoPorId = new Map<string, boolean>();
-        for (const paso of Array.isArray(pasosAnteriores) ? pasosAnteriores : []) {
-          for (const subpaso of paso?.subpasos ?? []) {
-            if (subpaso?.id != null) progresoPorId.set(String(subpaso.id), subpaso.completado === true);
-          }
-        }
-        for (const paso of Array.isArray(planNuevo.pasos) ? planNuevo.pasos : []) {
-          for (const subpaso of paso?.subpasos ?? []) {
-            if (progresoPorId.has(String(subpaso.id))) {
-              subpaso.completado = progresoPorId.get(String(subpaso.id)) ?? false;
-            }
-          }
-        }
+      const inicio = minutosHorario(inicioTexto);
+      const fin = minutosHorario(finTexto);
+      if (inicio === null || fin === null) return `Formato de hora inválido para ${dia}. Usa HH:mm.`;
+      if (fin <= inicio) return `La hora de fin debe ser mayor que la hora de inicio en ${dia}.`;
 
-        const client = await pool.connect();
-        try {
-          await client.query("BEGIN");
-          await client.query(
-            `UPDATE planes_ia SET justificacion = $1, tiempo_estimado_total = $2,
-             consejos = $3, recursos = $4, resumen_final = $5, pasos = $6,
-             conceptos_clave = $7, preguntas_recall = $8, actualizado_en = NOW()
-             WHERE plan_id = $9`,
-            [planNuevo.justificacion ?? "", planNuevo.tiempo_estimado_total,
-              JSON.stringify(planNuevo.consejos ?? []), JSON.stringify(planNuevo.recursos ?? []),
-              planNuevo.resumen_final ?? "", JSON.stringify(planNuevo.pasos ?? []),
-              JSON.stringify(planNuevo.conceptos_clave ?? []), JSON.stringify(planNuevo.preguntas_recall ?? []),
-              tarea.plan_id]
-          );
-          await client.query(
-            `INSERT INTO historial_ia (usuario_id, plan_id, pregunta, respuesta)
-             VALUES ($1, $2, $3, $4)`,
-            [usuarioId, tarea.plan_id, JSON.stringify({
-              nombre: tarea.nombre,
-              descripcion: tarea.descripcion,
-              fecha_entrega: new Date(tarea.fecha).toISOString().slice(0, 10),
-              metodo_estudio: tarea.metodo_estudio,
-              motivo: "cambio_de_horario",
-            }), JSON.stringify(planNuevo)]
-          );
-          await client.query("COMMIT");
-          actualizadas++;
-        } catch (error) {
-          await client.query("ROLLBACK");
-          throw error;
-        } finally {
-          client.release();
-        }
-      } catch (error) {
-        fallidas++;
-        console.error(`No se pudo reajustar la tarea ${tarea.tarea_id} tras cambiar horarios:`, error);
+      const clave = `${dia}|${inicio}|${fin}`;
+      if (vistos.has(clave)) return `El bloque ${inicioTexto} - ${finTexto} está duplicado en ${dia}.`;
+      vistos.add(clave);
+
+      const bloquesDelDia = porDia.get(dia) ?? [];
+      if (bloquesDelDia.some((existente) => inicio < existente.fin && fin > existente.inicio)) {
+        return `Los bloques de ${dia} se solapan.`;
       }
+      bloquesDelDia.push({ inicio, fin });
+      porDia.set(dia, bloquesDelDia);
     }
+    return null;
+  }
 
-    if (revisadas > 0) {
-      const mensaje = fallidas > 0
-        ? `Tu horario se actualizó. Se ajustaron ${actualizadas} planes, pero ${fallidas} no pudieron reorganizarse. Puedes intentarlo nuevamente.`
-        : `Tu disponibilidad fue actualizada. Se revisaron ${revisadas} tareas y se ajustaron ${actualizadas} planes.`;
-      await pool.query(
-        "INSERT INTO notificaciones (usuario_id, mensaje) VALUES ($1, $2)",
-        [usuarioId, mensaje]
+  async function reajustarPlanesPorHorarioDeterminista(
+    usuarioId: string,
+    horariosNuevos: HorarioSemanal[]
+  ): Promise<{ planes: number; actividades: number }> {
+    const client = await pool.connect();
+    try {
+      const actividadesResult = await client.query(
+        `
+        SELECT a.id AS actividad_id, a.plan_id, a.fecha,
+               p.nombre AS plan_nombre,
+               COALESCE(
+                 (
+                   SELECT (h.pregunta::json)->>'fecha_entrega'
+                   FROM historial_ia h
+                   WHERE h.plan_id = a.plan_id
+                   ORDER BY h.fecha DESC
+                   LIMIT 1
+                 ),
+                 MAX(a.fecha) OVER (PARTITION BY a.plan_id)::text
+               ) AS fecha_limite
+        FROM actividades a
+        JOIN planes_estudio p ON p.id = a.plan_id
+        WHERE p.usuario_id = $1
+          AND a.fecha >= CURRENT_DATE
+          AND COALESCE(a.estado, 'PENDIENTE') <> 'COMPLETADA'
+          AND EXISTS (
+            SELECT 1
+            FROM tareas t
+            WHERE t.actividad_id = a.id
+              AND t.completada = false
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM tareas t
+            WHERE t.actividad_id = a.id
+              AND t.completada = true
+          )
+        ORDER BY a.plan_id, a.fecha, a.id
+        `,
+        [usuarioId]
       );
+
+      const porPlan = new Map<string, any[]>();
+      for (const actividad of actividadesResult.rows) {
+        const actividadesDelPlan = porPlan.get(actividad.plan_id) ?? [];
+        actividadesDelPlan.push(actividad);
+        porPlan.set(actividad.plan_id, actividadesDelPlan);
+      }
+      if (porPlan.size === 0) return { planes: 0, actividades: 0 };
+
+      const fechaInicio = new Date();
+      fechaInicio.setUTCHours(0, 0, 0, 0);
+      fechaInicio.setUTCDate(fechaInicio.getUTCDate() + 1);
+      const fechaInicioISO = fechaInicio.toISOString().slice(0, 10);
+
+      await client.query("BEGIN");
+      let actividadesActualizadas = 0;
+
+      for (const [planId, actividades] of porPlan.entries()) {
+        const fechaLimite = String(actividades[0].fecha_limite).slice(0, 10);
+        const franjas = franjasDisponiblesEntreFechas(horariosNuevos, fechaInicioISO, fechaLimite);
+        const unidades = actividades.map((actividad) => ({
+          clave: String(actividad.actividad_id),
+          duracionMinutos: 1,
+        }));
+        const segmentos = distribuirUnidadesEnFranjas(unidades, franjas);
+
+        if (segmentos.length !== actividades.length) {
+          throw new Error(`No se pudieron redistribuir todas las actividades del plan ${planId}.`);
+        }
+
+        for (const segmento of segmentos) {
+          await client.query(
+            "UPDATE actividades SET fecha = $1 WHERE id = $2",
+            [segmento.fecha, segmento.clave]
+          );
+          actividadesActualizadas++;
+        }
+
+        await client.query(
+          `INSERT INTO historial_ia (usuario_id, plan_id, pregunta, respuesta)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            usuarioId,
+            planId,
+            JSON.stringify({
+              motivo: "cambio_de_horario",
+              fecha: new Date().toISOString(),
+              fecha_entrega: fechaLimite,
+            }),
+            JSON.stringify({ actividades_actualizadas: actividades.length, fechas_recalculadas: true }),
+          ]
+        );
+      }
+
+      await client.query("COMMIT");
+      return { planes: porPlan.size, actividades: actividadesActualizadas };
+    } catch (error) {
+      try { await client.query("ROLLBACK"); } catch { }
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -394,6 +432,15 @@
     const { id } = req.params;
     const { nombre, apellido, horas_disponibles, objetivo, nivel_procrastinacion, foto_perfil, horario } = req.body;
     const usuarioId = Array.isArray(id) ? id[0] ?? "" : id;
+
+    if (Object.prototype.hasOwnProperty.call(req.body, "horario")) {
+      if (!Array.isArray(horario)) {
+        return res.status(400).json({ mensaje: "El formato de horarios es inválido." });
+      }
+      const errorHorario = validarHorarios(horario);
+      if (errorHorario) return res.status(400).json({ mensaje: errorHorario });
+    }
+
     const client = await pool.connect();
     try {
       const horarioAnteriorResult = await client.query(
@@ -405,7 +452,7 @@
         ? normalizarHorarios(horario)
         : horariosAnteriores;
       const cambioHorario = horario && Array.isArray(horario) &&
-        JSON.stringify(horariosAnteriores) !== JSON.stringify(horariosNuevos);
+        firmaHorarios(horariosAnteriores) !== firmaHorarios(horariosNuevos);
 
       await client.query("BEGIN");
 
@@ -441,7 +488,8 @@
 
       await client.query("COMMIT");
       if (cambioHorario) {
-        void reajustarPlanesPorHorario(usuarioId, horariosAnteriores, horariosNuevos)
+        void reajustarPlanesPorHorarioDeterminista(usuarioId, horariosNuevos)
+          .then((resultado) => console.log("Reajuste determinista de horario completado:", resultado))
           .catch((error) => console.error("Error general reajustando planes por cambio de horario:", error));
       }
       return res.status(200).json({

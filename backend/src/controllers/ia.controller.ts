@@ -1,8 +1,78 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
 import { generarPlanIA } from "../services/gemini.service";
-import { calcularCapacidadPlan } from "../services/disponibilidad.service";
+import {
+  calcularCapacidadPlan,
+  distribuirUnidadesEnFranjas,
+  franjasDisponiblesEntreFechas,
+  UnidadPlanificable,
+} from "../services/disponibilidad.service";
 import { GEMINI_MODEL, gemini } from "../config/ia/gemini.config";
+
+function fechaUTCISO(fecha: Date): string {
+  return fecha.toISOString().slice(0, 10);
+}
+
+function fechaMananaUTC(): string {
+  const manana = new Date();
+  manana.setUTCHours(0, 0, 0, 0);
+  manana.setUTCDate(manana.getUTCDate() + 1);
+  return fechaUTCISO(manana);
+}
+
+function normalizarTituloActividad(valor: string): string {
+  const titulo = valor.trim().replace(/\s+/g, " ");
+  if (titulo.length <= 200) return titulo;
+
+  const limite = titulo.slice(0, 197);
+  const ultimoEspacio = limite.lastIndexOf(" ");
+  const cuerpo = ultimoEspacio >= 80 ? limite.slice(0, ultimoEspacio) : limite;
+  return `${cuerpo.trim()}...`;
+}
+
+function construirUnidadesPlan(planIA: any): Array<UnidadPlanificable & {
+  titulo: string;
+  descripcion: string;
+}> {
+  const pasos = Array.isArray(planIA.pasos) ? planIA.pasos : [];
+  const duracionTotal = Math.max(1, Number(planIA.tiempo_estimado_total) || 1);
+  const pesos = pasos.map((paso: any) => {
+    const duracion = Number(paso?.duracion_minutos);
+    return Number.isFinite(duracion) && duracion > 0 ? duracion : 0;
+  });
+  const pesoTotal = pesos.reduce((total: number, peso: number) => total + peso, 0);
+  const duracionesFase = pasos.map((_: any, index: number) => {
+    if (pesoTotal > 0) return duracionTotal * (pesos[index] / pesoTotal);
+    return duracionTotal / Math.max(1, pasos.length);
+  });
+  const unidades: Array<UnidadPlanificable & { titulo: string; descripcion: string }> = [];
+
+  pasos.forEach((paso: any, pasoIndex: number) => {
+    const subpasos = Array.isArray(paso?.subpasos) && paso.subpasos.length > 0
+      ? paso.subpasos
+      : [{ id: `fase-${pasoIndex + 1}`, texto: paso?.titulo || `Fase ${pasoIndex + 1}` }];
+    const duracionSubpaso = duracionesFase[pasoIndex] / subpasos.length;
+    subpasos.forEach((subpaso: any, subpasoIndex: number) => {
+      const clave = String(subpaso?.id ?? `${pasoIndex + 1}.${subpasoIndex + 1}`);
+      unidades.push({
+        clave: `${paso?.numero ?? pasoIndex + 1}:${clave}`,
+        duracionMinutos: Math.max(1, Math.round(duracionSubpaso)),
+        titulo: String(subpaso?.texto ?? paso?.titulo ?? `Actividad ${pasoIndex + 1}`),
+        descripcion: String(paso?.descripcion ?? ""),
+      });
+    });
+  });
+
+  if (unidades.length === 0) {
+    unidades.push({
+      clave: "plan-principal",
+      duracionMinutos: duracionTotal,
+      titulo: String(planIA.titulo ?? "Actividad de estudio"),
+      descripcion: String(planIA.resumen_final ?? ""),
+    });
+  }
+  return unidades;
+}
 
 export async function generarPlan(req: Request, res: Response) {
   const client = await pool.connect();
@@ -49,8 +119,23 @@ export async function generarPlan(req: Request, res: Response) {
       [usuario_id]
     );
 
-    const capacidadInicial = calcularCapacidadPlan(fecha_entrega, horariosQuery.rows);
-    const { horasPorDia: horasDisponibles, diasRestantes, minutosDisponibles } = capacidadInicial;
+    const fechaInicioPlan = fechaMananaUTC();
+    const franjas = franjasDisponiblesEntreFechas(
+      horariosQuery.rows,
+      fechaInicioPlan,
+      fecha_entrega
+    );
+    if (franjas.length === 0) {
+      return res.status(400).json({
+        mensaje: "No hay franjas de estudio disponibles antes de la fecha de entrega.",
+      });
+    }
+    const minutosDisponibles = franjas.reduce((total, franja) => total + franja.minutos, 0);
+    const diasConDisponibilidad = new Set(franjas.map((franja) => franja.fecha)).size;
+    const horasDisponibles = minutosDisponibles / Math.max(1, diasConDisponibilidad) / 60;
+    const fechaInicioUTC = new Date(`${fechaInicioPlan}T00:00:00Z`).getTime();
+    const fechaEntregaUTC = new Date(`${fecha_entrega}T00:00:00Z`).getTime();
+    const diasRestantes = Math.max(1, Math.floor((fechaEntregaUTC - fechaInicioUTC) / 86400000) + 1);
 
 
     // Generar Plan con IA
@@ -71,12 +156,25 @@ export async function generarPlan(req: Request, res: Response) {
     });
 
     const tiempoEstimado = Number(planIA.tiempo_estimado_total ?? 0);
-    const estadoDisponibilidad = calcularCapacidadPlan(
-      fecha_entrega,
-      horariosQuery.rows,
-      tiempoEstimado
-    ).estado;
+    if (!Number.isFinite(tiempoEstimado) || tiempoEstimado <= 0) {
+      return res.status(502).json({ mensaje: "Gemini devolvió una duración de plan inválida." });
+    }
+    planIA.tiempo_estimado_total = Math.max(1, Math.round(tiempoEstimado));
+    const estadoDisponibilidad = minutosDisponibles < tiempoEstimado
+      ? "INSUFICIENTE"
+      : minutosDisponibles < tiempoEstimado * 1.2
+        ? "AJUSTADO"
+        : "SUFICIENTE";
     const tiempoInsuficiente = estadoDisponibilidad !== "SUFICIENTE";
+
+    const unidades = construirUnidadesPlan(planIA);
+    let segmentosPlanificados;
+    try {
+      segmentosPlanificados = distribuirUnidadesEnFranjas(unidades, franjas);
+    } catch (error: any) {
+      return res.status(400).json({ mensaje: error.message });
+    }
+    const unidadPorClave = new Map(unidades.map((unidad) => [unidad.clave, unidad]));
 
     await client.query("BEGIN");
 
@@ -110,6 +208,30 @@ export async function generarPlan(req: Request, res: Response) {
         JSON.stringify(planIA.preguntas_recall ?? []),
       ]
     );
+
+    for (const segmento of segmentosPlanificados) {
+      const unidad = unidadPorClave.get(segmento.clave);
+      if (!unidad) throw new Error(`No se encontró la unidad planificada ${segmento.clave}.`);
+      const tituloCompleto = segmento.segmento > 1
+        ? `${unidad.titulo} (sesión ${segmento.segmento})`
+        : unidad.titulo;
+      const titulo = normalizarTituloActividad(tituloCompleto);
+      const descripcionActividad = [
+        unidad.descripcion.trim(),
+        `Detalle completo: ${tituloCompleto.trim()}`,
+      ].filter(Boolean).join("\n\n");
+      const actividadResult = await client.query(
+        `INSERT INTO actividades (plan_id, titulo, descripcion, fecha, estado)
+         VALUES ($1, $2, $3, $4, 'PENDIENTE')
+         RETURNING id`,
+        [planId, titulo, descripcionActividad, segmento.fecha]
+      );
+      await client.query(
+        `INSERT INTO tareas (actividad_id, titulo, descripcion, completada)
+         VALUES ($1, $2, $3, false)`,
+        [actividadResult.rows[0].id, titulo, descripcionActividad]
+      );
+    }
 
     // 3. Insertar en historial_ia
     await client.query(

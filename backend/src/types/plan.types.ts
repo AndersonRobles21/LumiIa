@@ -8,6 +8,7 @@ export interface PasoPrincipal {
   numero: number;
   titulo: string;
   descripcion: string;
+  duracion_minutos?: number;
   subpasos: Subpaso[];
 }
 
