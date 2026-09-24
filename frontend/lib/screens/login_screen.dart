@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/olvidar_contraseña.dart';
@@ -8,7 +7,6 @@ import '/screens/dashboard_screen.dart';
 import 'profile_screen.dart';
 import '../services/api_service.dart';
 import '../utils/responsive.dart';
-import 'biometric_service.dart';
 import '../theme/app_theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -23,16 +21,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
-  bool _biometricEnabled = false;
-  bool _verifyingBiometric = false;
   String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    if (!kIsWeb) {
-      _initializeBiometricLogin();
-    }
   }
 
   @override
@@ -40,50 +33,6 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  Future<void> _initializeBiometricLogin() async {
-    await BiometricService.initialize();
-    if (!mounted || kIsWeb) return;
-
-    final enabled = BiometricService.isEnabled;
-    final hasSession = Supabase.instance.client.auth.currentSession != null;
-    if (!enabled || !hasSession) return;
-
-    setState(() => _biometricEnabled = true);
-    await _authenticateWithBiometric();
-  }
-
-  Future<void> _authenticateWithBiometric() async {
-    if (_verifyingBiometric || kIsWeb) return;
-
-    final hasSession = Supabase.instance.client.auth.currentSession != null;
-    if (!hasSession) {
-      setState(() => _errorMessage = 'Inicia sesión con correo y contraseña para activar este acceso.');
-      return;
-    }
-
-    setState(() {
-      _errorMessage = null;
-      _verifyingBiometric = true;
-    });
-
-    final authenticated = await BiometricService.authenticate(
-      reason: 'Confirma tu identidad para entrar a LUMI',
-    );
-
-    if (!mounted) return;
-    setState(() => _verifyingBiometric = false);
-    if (authenticated) {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) {
-        setState(() => _errorMessage = 'La sesión expiró. Usa tu correo y contraseña.');
-        return;
-      }
-      await _openAuthenticatedArea(user);
-    } else {
-      setState(() => _errorMessage = 'No se pudo verificar la huella. Usa tu correo y contraseña.');
-    }
   }
 
   Future<void> _login() async {
@@ -106,10 +55,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // 1. Autenticación real con Supabase
-      final AuthResponse response = await Supabase.instance.client.auth.signInWithPassword(
-        email: email,
-        password: password,
-      );
+      final AuthResponse response = await Supabase.instance.client.auth
+          .signInWithPassword(email: email, password: password);
 
       final user = response.user;
       if (user == null) {
@@ -128,22 +75,29 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✓ ¡Bienvenido de nuevo a LUMI!', style: GoogleFonts.orbitron(fontWeight: FontWeight.bold)),
+          content: Text(
+            '✓ ¡Bienvenido de nuevo a LUMI!',
+            style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
+          ),
           backgroundColor: const Color(0xFF22C55E),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
 
       await _openAuthenticatedArea(user);
-
     } catch (e) {
       if (!mounted) return;
-      
+
       // Limpiamos y traducimos los errores comunes de Supabase o credenciales erróneas
-      String errorText = e.toString().replaceAll('Exception: ', '').replaceAll('AuthException: ', '');
-      
-      if (errorText.toLowerCase().contains('invalid login credentials') || 
+      String errorText = e
+          .toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('AuthException: ', '');
+
+      if (errorText.toLowerCase().contains('invalid login credentials') ||
           errorText.toLowerCase().contains('invalid grant') ||
           errorText.toLowerCase().contains('unauthorized')) {
         errorText = 'Correo o contraseña incorrectos. Verifica tus datos.';
@@ -164,13 +118,21 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = false);
     final bool esAdmin = (perfil?['es_admin'] ?? false) == true;
     final nombre = (perfil?['nombre'] ?? '').toString().trim();
-    final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+    final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '')
+        .toString()
+        .trim();
     final horarios = perfil?['horarios'] as List?;
-    final perfilListo = nombre.isNotEmpty && (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
+    final perfilListo =
+        nombre.isNotEmpty &&
+        (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
 
     if (!context.mounted) return;
     if (esAdmin) {
-      Navigator.pushReplacementNamed(context, '/admin-panel', arguments: {'userId': userId});
+      Navigator.pushReplacementNamed(
+        context,
+        '/admin-panel',
+        arguments: {'userId': userId},
+      );
       return;
     }
 
@@ -196,18 +158,28 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
+                ? const [
+                    Color(0xFF0F1D8A),
+                    Color(0xFF16003A),
+                    Color(0xFF080010),
+                  ]
+                : const [
+                    Color(0xFFF8F5FC),
+                    Color(0xFFF0E4F8),
+                    Color(0xFFF8F5FC),
+                  ],
           ),
         ),
         child: SafeArea(
           child: Center(
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
+              constraints: BoxConstraints(
+                maxWidth: Responsive.anchoMaximoContenido(context),
+              ),
               child: Builder(
                 builder: (context) {
                   final isDesktop = Responsive.esEscritorio(context);
-                  
+
                   if (isDesktop) {
                     return SizedBox(
                       height: Responsive.altoPantalla(context) * 0.85,
@@ -216,7 +188,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             flex: 5,
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
+                              padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    Responsive.paddingHorizontalRecomendado(
+                                      context,
+                                    ),
+                              ),
                               child: SingleChildScrollView(
                                 child: _buildFormContent(context),
                               ),
@@ -225,11 +202,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           Expanded(
                             flex: 6,
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
+                              padding: EdgeInsets.symmetric(
+                                horizontal:
+                                    Responsive.paddingHorizontalRecomendado(
+                                      context,
+                                    ),
+                              ),
                               child: Center(
                                 child: _buildHeroLogo(
-                                  width: Responsive.anchoPantalla(context) * 0.4,
-                                  height: Responsive.altoPantalla(context) * 0.6,
+                                  width:
+                                      Responsive.anchoPantalla(context) * 0.4,
+                                  height:
+                                      Responsive.altoPantalla(context) * 0.6,
                                 ),
                               ),
                             ),
@@ -241,7 +225,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                   return SingleChildScrollView(
                     padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.paddingHorizontalRecomendado(context), 
+                      horizontal: Responsive.paddingHorizontalRecomendado(
+                        context,
+                      ),
                       vertical: Responsive.espacio(context) * 2,
                     ),
                     child: Column(
@@ -276,7 +262,9 @@ class _LoginScreenState extends State<LoginScreen> {
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
+            color: Theme.of(
+              context,
+            ).colorScheme.primary.withValues(alpha: 0.15),
             blurRadius: 50,
             spreadRadius: 10,
           ),
@@ -287,7 +275,11 @@ class _LoginScreenState extends State<LoginScreen> {
         width: width,
         height: height,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(Icons.auto_awesome, size: 60, color: Theme.of(context).colorScheme.primary),
+        errorBuilder: (_, __, ___) => Icon(
+          Icons.auto_awesome,
+          size: 60,
+          color: Theme.of(context).colorScheme.primary,
+        ),
       ),
     );
   }
@@ -295,7 +287,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // Contenido unificado del formulario
   Widget _buildFormContent(BuildContext context) {
     final isDesktop = Responsive.esEscritorio(context);
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -355,9 +347,13 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 8),
         _buildTextField(
           controller: _emailController,
-          hint: 'tucorreo@email.com',
+          hint: 'tucorreo@gmail.com',
           keyboardType: TextInputType.emailAddress,
-          prefixIcon: const Icon(Icons.mail_outline_rounded, color: Color(0xFF7C3AED), size: 20),
+          prefixIcon: const Icon(
+            Icons.mail_outline_rounded,
+            color: Color(0xFF7C3AED),
+            size: 20,
+          ),
         ),
         SizedBox(height: Responsive.espacio(context) * 2),
 
@@ -374,14 +370,21 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: _passwordController,
           hint: '••••••••••••',
           obscureText: _obscurePassword,
-          prefixIcon: const Icon(Icons.lock_outline_rounded, color: Color(0xFF7C3AED), size: 20),
+          prefixIcon: const Icon(
+            Icons.lock_outline_rounded,
+            color: Color(0xFF7C3AED),
+            size: 20,
+          ),
           suffixIcon: IconButton(
             icon: Icon(
-              _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+              _obscurePassword
+                  ? Icons.visibility_off_outlined
+                  : Icons.visibility_outlined,
               color: const Color(0xFFF716DC),
               size: 20,
             ),
-            onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () =>
+                setState(() => _obscurePassword = !_obscurePassword),
           ),
         ),
 
@@ -417,13 +420,18 @@ class _LoginScreenState extends State<LoginScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.transparent,
                 shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               child: _isLoading
                   ? const SizedBox(
                       width: 22,
                       height: 22,
-                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
                     )
                   : Text(
                       'Iniciar Sesión',
@@ -440,29 +448,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
         SizedBox(height: Responsive.espacio(context) * 2),
 
-        if (!kIsWeb && _biometricEnabled) ...[
-          SizedBox(
-            width: isDesktop ? Responsive.anchoBoton(context) : double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _isLoading || _verifyingBiometric ? null : _authenticateWithBiometric,
-              icon: _verifyingBiometric
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.fingerprint),
-              label: Text(
-                _verifyingBiometric ? 'Verificando huella...' : 'Usar huella',
-                style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 2),
-        ],
-
         Center(
           child: TextButton(
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const OlvidarContrasena()),
+                MaterialPageRoute(
+                  builder: (context) => const OlvidarContrasena(),
+                ),
               );
             },
             style: TextButton.styleFrom(
@@ -488,7 +481,7 @@ class _LoginScreenState extends State<LoginScreen> {
             Text(
               '¿No tienes una cuenta? ',
               style: GoogleFonts.orbitron(
-                color: const Color(0xFFB0AEC4), 
+                color: const Color(0xFFB0AEC4),
                 fontSize: Responsive.tamanioTexto(context) - 2,
               ),
             ),
@@ -496,7 +489,9 @@ class _LoginScreenState extends State<LoginScreen> {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const RegisterScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const RegisterScreen(),
+                  ),
                 );
               },
               child: Text(
@@ -526,18 +521,30 @@ class _LoginScreenState extends State<LoginScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
+      style: GoogleFonts.orbitron(
+        color: LumiAppTheme.primaryText(context),
+        fontSize: 13,
+      ),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.orbitron(color: LumiAppTheme.secondaryText(context), fontSize: 12),
+        hintStyle: GoogleFonts.orbitron(
+          color: LumiAppTheme.secondaryText(context),
+          fontSize: 12,
+        ),
         filled: true,
         fillColor: LumiAppTheme.surface(context),
         prefixIcon: prefixIcon,
         suffixIcon: suffixIcon,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: LumiAppTheme.outline(context), width: 1.0),
+          borderSide: BorderSide(
+            color: LumiAppTheme.outline(context),
+            width: 1.0,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -562,12 +569,20 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 18),
+          const Icon(
+            Icons.error_outline_rounded,
+            color: Colors.redAccent,
+            size: 18,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.orbitron(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w600),
+              style: GoogleFonts.orbitron(
+                color: Colors.redAccent,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ],

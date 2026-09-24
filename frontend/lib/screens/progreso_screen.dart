@@ -16,14 +16,6 @@ class ProgresoScreen extends StatefulWidget {
   State<ProgresoScreen> createState() => _ProgresoScreenState();
 }
 
-class _Categoria {
-  final String nombre;
-  final double porcentaje;
-  final Color color;
-
-  const _Categoria(this.nombre, this.porcentaje, this.color);
-}
-
 class _ProgresoScreenState extends State<ProgresoScreen> {
   bool _isLoading = true;
 
@@ -53,12 +45,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
     'Viernes',
     'Sábado',
     'Domingo',
-  ];
-
-  List<_Categoria> _distribucion = const [
-    _Categoria('Estudio profundo', 50, Color(0xFF007EFF)),
-    _Categoria('Repasos y tareas', 30, Color(0xFF7000FF)),
-    _Categoria('Práctica y Pomodoro', 20, Color(0xFFFF2A85)),
   ];
 
   @override
@@ -120,7 +106,8 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
           completadas++;
           totalHorasReales += 1.0;
 
-          final raw = t['fecha_entrega'] ??
+          final raw =
+              t['fecha_entrega'] ??
               t['fecha'] ??
               t['fecha_creacion'] ??
               t['created_at'];
@@ -203,8 +190,8 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       final horasFinales = totalHorasReales > 0
           ? double.parse(totalHorasReales.toStringAsFixed(1))
           : (completadas > 0
-              ? double.parse((completadas * 1.5).toStringAsFixed(1))
-              : 0.0);
+                ? double.parse((completadas * 1.5).toStringAsFixed(1))
+                : 0.0);
 
       double maxHoras = 0.0;
       int mejorDiaIndex = -1;
@@ -218,26 +205,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         }
       }
 
-      final totalItems = completadas + faltantes;
-
-      final distribucion = <_Categoria>[
-        _Categoria(
-          'Estudio profundo',
-          totalItems > 0 ? 55 : 50,
-          const Color(0xFF007EFF),
-        ),
-        _Categoria(
-          'Repasos y tareas',
-          completadas > 0 ? 30 : 35,
-          const Color(0xFF7000FF),
-        ),
-        const _Categoria(
-          'Práctica y Pomodoro',
-          15,
-          Color(0xFFFF2A85),
-        ),
-      ];
-
       if (!mounted) return;
 
       setState(() {
@@ -250,7 +217,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ? _diasCompletos[mejorDiaIndex]
             : '';
         _mejorHoras = maxHoras;
-        _distribucion = distribucion;
         _isLoading = false;
       });
     } catch (e) {
@@ -286,8 +252,8 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0C0A2D), Color(0xFF070619)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
+                ? const [Color(0xFF0C0A2D), Color(0xFF070619)]
+                : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8)],
           ),
         ),
         child: SafeArea(
@@ -300,34 +266,32 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                       : 0,
                 ),
                 child: RefreshIndicator(
-                color: const Color(0xFF8B6BFF),
-                backgroundColor: LumiAppTheme.surface(context),
-                onRefresh: _cargarDatos,
-                child: _isLoading
-                    ? ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        children: const [
-                          SizedBox(height: 220),
-                          Center(
-                            child: CircularProgressIndicator(
-                              color: Color(0xFF8B6BFF),
+                  color: const Color(0xFF8B6BFF),
+                  backgroundColor: LumiAppTheme.surface(context),
+                  onRefresh: _cargarDatos,
+                  child: _isLoading
+                      ? ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          children: const [
+                            SizedBox(height: 220),
+                            Center(
+                              child: CircularProgressIndicator(
+                                color: Color(0xFF8B6BFF),
+                              ),
                             ),
-                          ),
-                        ],
-                      )
-                    : ListView(
-                        physics: const AlwaysScrollableScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
-                        children: [
-                          _buildHeader(),
-                          const SizedBox(height: 18),
-                          _buildTopSectionGrid(),
-                          const SizedBox(height: 20),
-                          _buildGraficaCard(),
-                          const SizedBox(height: 20),
-                          _buildDistribucionCard(),
-                        ],
-                      ),
+                          ],
+                        )
+                      : ListView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          padding: const EdgeInsets.fromLTRB(20, 14, 20, 110),
+                          children: [
+                            _buildHeader(),
+                            const SizedBox(height: 18),
+                            _buildTopSectionGrid(),
+                            const SizedBox(height: 20),
+                            _buildGraficaCard(),
+                          ],
+                        ),
                 ),
               ),
               AppBottomNavbar(userId: widget.userId, currentIndex: 3),
@@ -368,9 +332,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
             ),
           ),
           const SizedBox(width: 14),
-          Expanded(
-            child: _buildCardFaltantes(),
-          ),
+          Expanded(child: _buildCardFaltantes()),
         ],
       ),
     );
@@ -382,7 +344,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.26),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +374,11 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     ),
                   ],
                 ),
-                child: Icon(Icons.check, color: LumiAppTheme.primaryText(context), size: 20),
+                child: Icon(
+                  Icons.check,
+                  color: LumiAppTheme.primaryText(context),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 14),
               Text(
@@ -444,7 +420,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.26),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,7 +504,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                 const SizedBox(width: 4),
                 Text(
                   '$_racha ${_racha == 1 ? "día" : "días"} de racha',
-                    style: TextStyle(
+                  style: TextStyle(
                     color: Color(0xFF8B6BFF),
                     fontSize: Responsive.tamanioTexto(context) - 4,
                     fontWeight: FontWeight.w600,
@@ -538,7 +524,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.26),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -562,7 +558,11 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
                     ),
                   ],
                 ),
-                child: Icon(Icons.close, color: LumiAppTheme.primaryText(context), size: 20),
+                child: Icon(
+                  Icons.close,
+                  color: LumiAppTheme.primaryText(context),
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 14),
               Text(
@@ -621,7 +621,17 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
+        border: Border.all(
+          color: const Color(0xFF8B5CF6).withValues(alpha: 0.26),
+          width: 0.8,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF6D4BC1).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -637,7 +647,10 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
           const SizedBox(height: 2),
           Text(
             'Horas dedicadas por día',
-            style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
+            style: TextStyle(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: 11,
+            ),
           ),
           const SizedBox(height: 20),
           SizedBox(
@@ -700,84 +713,6 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
       ),
     );
   }
-
-  Widget _buildDistribucionCard() {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: LumiAppTheme.surface(context),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: LumiAppTheme.outline(context), width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Distribución de tiempo',
-            style: TextStyle(
-              color: LumiAppTheme.primaryText(context),
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              SizedBox(
-                width: 125,
-                height: 125,
-                child: CustomPaint(
-                  painter: _DonutChartPainter(categorias: _distribucion),
-                ),
-              ),
-              const SizedBox(width: 20),
-              Expanded(
-                child: Column(
-                  children: _distribucion
-                      .map(
-                        (c) => Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 5),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: c.color,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  c.nombre,
-                                  style: TextStyle(
-                                    color: LumiAppTheme.secondaryText(context),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '${c.porcentaje.toInt()}%',
-                                style: TextStyle(
-                                  color: LumiAppTheme.primaryText(context),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _BarChartPainter extends CustomPainter {
@@ -817,10 +752,7 @@ class _BarChartPainter extends CustomPainter {
 
     final maxValor = valores.isEmpty
         ? 6.0
-        : (valores.reduce((a, b) => a > b ? a : b)).clamp(
-            4.0,
-            double.infinity,
-          );
+        : (valores.reduce((a, b) => a > b ? a : b)).clamp(4.0, double.infinity);
 
     final topeEje = maxValor.ceilToDouble();
     const pasos = 4;
@@ -832,11 +764,7 @@ class _BarChartPainter extends CustomPainter {
     for (int i = 0; i <= pasos; i++) {
       final y = chartHeight - (chartHeight / pasos) * i;
 
-      canvas.drawLine(
-        Offset(ejeAncho, y),
-        Offset(size.width, y),
-        gridPaint,
-      );
+      canvas.drawLine(Offset(ejeAncho, y), Offset(size.width, y), gridPaint);
 
       final label = (topeEje / pasos * i).round().toString();
 
@@ -877,18 +805,19 @@ class _BarChartPainter extends CustomPainter {
         );
 
         final paint = Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: colors,
-          ).createShader(
-            Rect.fromLTWH(
-              cx - barWidth / 2,
-              chartHeight - alturaBarra,
-              barWidth,
-              alturaBarra,
-            ),
-          );
+          ..shader =
+              LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: colors,
+              ).createShader(
+                Rect.fromLTWH(
+                  cx - barWidth / 2,
+                  chartHeight - alturaBarra,
+                  barWidth,
+                  alturaBarra,
+                ),
+              );
 
         canvas.drawRRect(rect, paint);
       }
@@ -935,43 +864,4 @@ class _BarChartPainter extends CustomPainter {
   bool shouldRepaint(covariant _BarChartPainter oldDelegate) {
     return oldDelegate.valores != valores;
   }
-}
-
-class _DonutChartPainter extends CustomPainter {
-  final List<_Categoria> categorias;
-
-  _DonutChartPainter({required this.categorias});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-    const strokeWidth = 24.0;
-
-    double startAngle = -90 * math.pi / 180;
-    final total = categorias.fold<double>(0, (a, c) => a + c.porcentaje);
-
-    for (final c in categorias) {
-      final sweep = (c.porcentaje / total) * 2 * math.pi;
-
-      final paint = Paint()
-        ..color = c.color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.butt;
-
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius - strokeWidth / 2),
-        startAngle,
-        sweep,
-        false,
-        paint,
-      );
-
-      startAngle += sweep;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DonutChartPainter oldDelegate) => false;
 }

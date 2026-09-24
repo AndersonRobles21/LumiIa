@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'admin_estadisticas_screen.dart';
 import 'admin_usuario_detalle_screen.dart';
 import 'admin_usuarios_list_v2.dart';
+import 'configuracion_screen.dart';
 import 'dart:async';
 
 import 'login_screen.dart';
@@ -43,7 +44,9 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       final profile = await ApiService.getProfile(widget.userId);
       if (profile != null && mounted) {
         setState(() {
-          _adminName = '${profile['nombre'] ?? 'Admin'} ${profile['apellido'] ?? ''}'.trim();
+          _adminName =
+              '${profile['nombre'] ?? 'Admin'} ${profile['apellido'] ?? ''}'
+                  .trim();
         });
       }
     } catch (e) {
@@ -115,181 +118,291 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
   String _getFormattedDate() {
     final months = [
-      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
     ];
     return '${months[_lastUpdate.month - 1]} ${_lastUpdate.day}, ${_lastUpdate.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      final isDesktop = width >= 1024;
-      final crossCount = (width ~/ 260).clamp(2, 4);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final isDesktop = width >= 1024;
+        final crossCount = (width ~/ 260).clamp(2, 4);
 
-      return Scaffold(
-        backgroundColor: LumiAppTheme.pageBackground(context),
-        appBar: AppBar(
-          backgroundColor: LumiAppTheme.surface(context),
-          elevation: 0,
-          title: Text(
-            'Panel de control • Administrador',
-            style: GoogleFonts.orbitron(
-              fontWeight: FontWeight.w700,
-              fontSize: 18,
-              color: Colors.white,
+        return Scaffold(
+          backgroundColor: LumiAppTheme.pageBackground(context),
+          appBar: AppBar(
+            backgroundColor: LumiAppTheme.surface(context),
+            elevation: 0,
+            title: Text(
+              'Panel de control • Administrador',
+              style: GoogleFonts.orbitron(
+                fontWeight: FontWeight.w700,
+                fontSize: 18,
+                color: Colors.white,
+              ),
             ),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: LumiAppTheme.surfaceVariant(context),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.5)),
-                  ),
-                  child: Text(
-                    'Sincronizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
-                    style: GoogleFonts.orbitron(fontSize: 11, color: LumiAppTheme.secondaryText(context)),
+            actions: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: LumiAppTheme.surfaceVariant(context),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFF4A2A68).withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Text(
+                      'Sincronizado: ${_lastUpdate.hour.toString().padLeft(2, '0')}:${_lastUpdate.minute.toString().padLeft(2, '0')}',
+                      style: GoogleFonts.orbitron(
+                        fontSize: 11,
+                        color: LumiAppTheme.secondaryText(context),
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Cerrar sesión',
-              onPressed: () async => await _cerrarSesion(context),
-              icon: const Icon(Icons.logout_rounded, color: Color(0xFFFF4D79)),
-            ),
-          ],
-        ),
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-                colors: Theme.of(context).brightness == Brightness.dark
-                  ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
-                  : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
-            ),
-          ),
-          child: SafeArea(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFFF716DC), strokeWidth: 3))
-                : SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.paddingHorizontalRecomendado(context),
-                      vertical: 24,
+              IconButton(
+                tooltip: 'Configuración',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ConfiguracionScreen(),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (_errorMessage != null)
-                          Container(
-                            width: double.infinity,
-                            margin: const EdgeInsets.only(bottom: 20),
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF3A1B2A).withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFCC3355)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.error_outline_rounded, color: Color(0xFFFF4D79)),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Text(
-                                    _errorMessage!,
-                                    style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                                  ),
-                                ),
-                                IconButton(
-                                  tooltip: 'Reintentar',
-                                  onPressed: _loadData,
-                                  icon: const Icon(Icons.refresh_rounded, color: Colors.white),
-                                ),
-                              ],
-                            ),
-                          ),
-
-                        // Banner de Bienvenida Estilo Cyberpunk
-                        _buildHeaderCard(width),
-                        const SizedBox(height: 24),
-                        _buildProfileAlerts(),
-                        if (_profileAlerts.isNotEmpty) const SizedBox(height: 24),
-
-                        // Cuadrícula de Estadísticas
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossCount,
-                            crossAxisSpacing: 16,
-                            mainAxisSpacing: 16,
-                            mainAxisExtent: isDesktop ? 144 : 142,
-                          ),
-                          itemCount: 4,
-                          itemBuilder: (context, index) => [
-                            _buildStatCard('Estudiantes totales', _getLabel(_summary['totalUsuarios']), Icons.school_outlined, 'Registrados'),
-                            _buildStatCard('Estudiantes activos', _getLabel(_summary['estudiantes']), Icons.verified_user_outlined, 'En línea ahora'),
-                            _buildStatCard('Planes generados', _getLabel(_summary['totalPlanes']), Icons.assignment_outlined, 'IA activa'),
-                            _buildStatCard('Estado del sistema', 'Óptimo', Icons.psychology_outlined, 'Latencia: 42ms'),
-                          ][index],
+                  );
+                },
+                icon: const Icon(
+                  Icons.settings_outlined,
+                  color: Colors.white70,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Cerrar sesión',
+                onPressed: () async => await _cerrarSesion(context),
+                icon: const Icon(
+                  Icons.logout_rounded,
+                  color: Color(0xFFFF4D79),
+                ),
+              ),
+            ],
+          ),
+          body: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: Theme.of(context).brightness == Brightness.dark
+                    ? const [
+                        Color(0xFF0F1D8A),
+                        Color(0xFF16003A),
+                        Color(0xFF080010),
+                      ]
+                    : const [
+                        Color(0xFFF8F5FC),
+                        Color(0xFFF0E4F8),
+                        Color(0xFFF8F5FC),
+                      ],
+              ),
+            ),
+            child: SafeArea(
+              child: _loading
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFFF716DC),
+                        strokeWidth: 3,
+                      ),
+                    )
+                  : SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.paddingHorizontalRecomendado(
+                          context,
                         ),
-                        const SizedBox(height: 28),
-
-                        // Botones de Acción Rápida (Estadísticas y Gestión)
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AdminEstadisticasScreen(summary: _summary, adminUserId: widget.userId),
-                                  ),
-                                );
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: const Color(0xFF1E142C),
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                  side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.5)),
+                        vertical: 24,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (_errorMessage != null)
+                            Container(
+                              width: double.infinity,
+                              margin: const EdgeInsets.only(bottom: 20),
+                              padding: const EdgeInsets.all(14),
+                              decoration: BoxDecoration(
+                                color: const Color(
+                                  0xFF3A1B2A,
+                                ).withValues(alpha: 0.9),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: const Color(0xFFCC3355),
                                 ),
                               ),
-                              icon: const Icon(Icons.bar_chart_rounded, color: Color(0xFFF716DC)),
-                              label: Text('Ver estadísticas completas', style: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold)),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.error_outline_rounded,
+                                    color: Color(0xFFFF4D79),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage!,
+                                      style: GoogleFonts.orbitron(
+                                        color: LumiAppTheme.primaryText(
+                                          context,
+                                        ),
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Reintentar',
+                                    onPressed: _loadData,
+                                    icon: const Icon(
+                                      Icons.refresh_rounded,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
 
-                        // Accesos a Listas de Usuarios
-                        Text(
-                          'Gestión de usuarios',
-                          style: GoogleFonts.orbitron(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
+                          // Banner de Bienvenida Estilo Cyberpunk
+                          _buildHeaderCard(width),
+                          const SizedBox(height: 24),
+                          _buildProfileAlerts(),
+                          if (_profileAlerts.isNotEmpty)
+                            const SizedBox(height: 24),
+
+                          // Cuadrícula de Estadísticas
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: crossCount,
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  mainAxisExtent: isDesktop ? 144 : 142,
+                                ),
+                            itemCount: 4,
+                            itemBuilder: (context, index) => [
+                              _buildStatCard(
+                                'Estudiantes totales',
+                                _getLabel(_summary['totalUsuarios']),
+                                Icons.school_outlined,
+                                'Registrados',
+                              ),
+                              _buildStatCard(
+                                'Estudiantes activos',
+                                _getLabel(_summary['estudiantes']),
+                                Icons.verified_user_outlined,
+                                'En línea ahora',
+                              ),
+                              _buildStatCard(
+                                'Planes generados',
+                                _getLabel(_summary['totalPlanes']),
+                                Icons.assignment_outlined,
+                                'IA activa',
+                              ),
+                              _buildStatCard(
+                                'Estado del sistema',
+                                'Óptimo',
+                                Icons.psychology_outlined,
+                                'Latencia: 42ms',
+                              ),
+                            ][index],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildActionButton(
+                          const SizedBox(height: 28),
+
+                          // Botones de Acción Rápida (Estadísticas y Gestión)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              FilledButton.icon(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => AdminEstadisticasScreen(
+                                        summary: _summary,
+                                        adminUserId: widget.userId,
+                                      ),
+                                    ),
+                                  );
+                                },
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: const Color(0xFF1E142C),
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 18,
+                                    vertical: 12,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                    side: BorderSide(
+                                      color: const Color(
+                                        0xFFF716DC,
+                                      ).withValues(alpha: 0.5),
+                                    ),
+                                  ),
+                                ),
+                                icon: const Icon(
+                                  Icons.bar_chart_rounded,
+                                  color: Color(0xFFF716DC),
+                                ),
+                                label: Text(
+                                  'Ver estadísticas completas',
+                                  style: GoogleFonts.orbitron(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Accesos a Listas de Usuarios
+                          Text(
+                            'Gestión de usuarios',
+                            style: GoogleFonts.orbitron(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          LayoutBuilder(
+                            builder: (context, constraints) {
+                              final estudiantes = _buildActionButton(
                                 title: 'Estudiantes',
                                 icon: Icons.group_rounded,
-                                gradientColors: const [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                                gradientColors: const [
+                                  Color(0xFFF716DC),
+                                  Color(0xFFA41CF9),
+                                ],
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -301,14 +414,14 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildActionButton(
+                              );
+                              final administradores = _buildActionButton(
                                 title: 'Administradores',
                                 icon: Icons.admin_panel_settings_rounded,
-                                gradientColors: const [Color(0xFF0F1D8A), Color(0xFF102CE4)],
+                                gradientColors: const [
+                                  Color(0xFF0F1D8A),
+                                  Color(0xFF102CE4),
+                                ],
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -320,18 +433,42 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                                     ),
                                   );
                                 },
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 30),
-                      ],
+                              );
+
+                              if (constraints.maxWidth < 560) {
+                                return Column(
+                                  children: [
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: estudiantes,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: administradores,
+                                    ),
+                                  ],
+                                );
+                              }
+
+                              return Row(
+                                children: [
+                                  Expanded(child: estudiantes),
+                                  const SizedBox(width: 16),
+                                  Expanded(child: administradores),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 30),
+                        ],
+                      ),
                     ),
-                  ),
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 
   Widget _buildHeaderCard(double width) {
@@ -340,9 +477,11 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-                    color: LumiAppTheme.surface(context),
+        color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.6)),
+        border: Border.all(
+          color: const Color(0xFF4A2A68).withValues(alpha: 0.6),
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFFF716DC).withValues(alpha: 0.08),
@@ -430,18 +569,26 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
       decoration: BoxDecoration(
         color: LumiAppTheme.surfaceVariant(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFF44AA).withValues(alpha: 0.55)),
+        border: Border.all(
+          color: const Color(0xFFFF44AA).withValues(alpha: 0.55),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.notifications_active_outlined, color: Color(0xFFFF8ACB)),
+              Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFFFF8ACB),
+              ),
               SizedBox(width: 8),
               Text(
                 'Alertas de tu perfil',
-                style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
@@ -451,7 +598,10 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
                 '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
-                style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 13),
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontSize: 13,
+                ),
               ),
             ),
           ),
@@ -460,13 +610,20 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
     );
   }
 
-  Widget _buildStatCard(String titulo, String valor, IconData icon, String subtitle) {
+  Widget _buildStatCard(
+    String titulo,
+    String valor,
+    IconData icon,
+    String subtitle,
+  ) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFF4A2A68).withValues(alpha: 0.4)),
+        border: Border.all(
+          color: const Color(0xFF4A2A68).withValues(alpha: 0.4),
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.2),
@@ -540,15 +697,24 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.transparent,
             shadowColor: Colors.transparent,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            minimumSize: Size.zero,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
           ),
-          icon: Icon(icon, color: Colors.white, size: 20),
-          label: Text(
-            title,
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
+          icon: Icon(icon, color: Colors.white, size: 19),
+          label: Flexible(
+            child: Text(
+              title,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
         ),

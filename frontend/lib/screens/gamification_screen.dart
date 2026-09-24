@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
+import '../services/sound_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const String kLumiAsset = 'logo/lumi_gamificacion.png';
 const String kRachaAsset = 'logo/racha.png';
@@ -117,6 +119,21 @@ class _GamificationScreenState extends State<GamificationScreen> {
 
       final nivel = (xpTotal ~/ 100) + 1;
       final xpActual = xpTotal % 100;
+
+      final preferences = await SharedPreferences.getInstance();
+      final previousLevel = preferences.getInt('lumi_sound_level') ?? nivel;
+      final previousAchievements =
+          preferences.getInt('lumi_sound_achievements') ?? totalDesbloqueados;
+      if (nivel > previousLevel) {
+        SoundService.instance.play(LumiSound.levelUp);
+      } else if (totalDesbloqueados > previousAchievements) {
+        SoundService.instance.play(LumiSound.achievement);
+      }
+      await preferences.setInt('lumi_sound_level', nivel);
+      await preferences.setInt(
+        'lumi_sound_achievements',
+        totalDesbloqueados,
+      );
 
       if (!mounted) return;
 

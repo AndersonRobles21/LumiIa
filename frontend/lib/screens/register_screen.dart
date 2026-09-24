@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart'; 
-import 'package:frontend/services/api_service.dart'; 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:frontend/services/api_service.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
 
@@ -14,7 +14,7 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  
+
   // --- CONTROLADORES DE TEXTO ---
   final _nombreController = TextEditingController();
   final _apellidoController = TextEditingController();
@@ -24,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
-  bool _isLoading = false; 
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -54,7 +54,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     // Validación de contraseña segura (Mínimo 8 caracteres, 1 mayúscula, 1 minúscula y 1 número)
     final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
     if (!passwordRegex.hasMatch(password)) {
-      _mostrarError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.');
+      _mostrarError(
+        'La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula y un número.',
+      );
       return;
     }
 
@@ -74,12 +76,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       final user = response.user;
       if (user == null) {
-        throw Exception('No se pudo crear el usuario en el servicio de autenticación.');
+        throw Exception(
+          'No se pudo crear el usuario en el servicio de autenticación.',
+        );
       }
 
       // PASO 2: Estructura exacta con las columnas de tu tabla pública
       final Map<String, dynamic> publicProfileData = {
-        "id": user.id, 
+        "id": user.id,
         "nombre": _nombreController.text.trim(),
         "apellido": _apellidoController.text.trim().isEmpty
             ? null
@@ -95,24 +99,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (success) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✓ ¡Cuenta registrada exitosamente en LUMI!', style: GoogleFonts.orbitron(fontWeight: FontWeight.bold)),
+            content: Text(
+              '✓ ¡Cuenta registrada exitosamente en LUMI!',
+              style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
+            ),
             backgroundColor: const Color(0xFF22C55E),
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         );
         Navigator.pop(context); // Regresa al Login
       } else {
-        throw Exception('Autenticación creada, pero el servidor Node.js rechazó el perfil.');
+        throw Exception(
+          'Autenticación creada, pero el servidor Node.js rechazó el perfil.',
+        );
       }
     } on AuthException catch (e) {
       final message = e.message;
       if (!mounted) return;
-      _mostrarError(message.contains('already')
-          ? 'Este correo ya está registrado.'
-          : message.isNotEmpty
-              ? message
-              : 'No se pudo crear la cuenta. Revisa el correo y la contraseña.');
+      _mostrarError(
+        message.contains('already')
+            ? 'Este correo ya está registrado.'
+            : message.isNotEmpty
+            ? message
+            : 'No se pudo crear la cuenta. Revisa el correo y la contraseña.',
+      );
     } catch (e) {
       if (!mounted) return;
       _mostrarError(e.toString().replaceAll('Exception: ', ''));
@@ -127,7 +140,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
       SnackBar(
         content: Text(
           '⚠️ Error: $message',
-          style: GoogleFonts.orbitron(fontSize: 12, fontWeight: FontWeight.bold),
+          style: GoogleFonts.orbitron(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         backgroundColor: Colors.redAccent,
         behavior: SnackBarBehavior.floating,
@@ -146,10 +162,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             decoration: BoxDecoration(
               color: LumiAppTheme.surface(context),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: LumiAppTheme.outline(context).withValues(alpha: 0.5)),
+              border: Border.all(
+                color: LumiAppTheme.outline(context).withValues(alpha: 0.5),
+              ),
             ),
             child: IconButton(
-              icon: Icon(Icons.arrow_back_ios_new, color: LumiAppTheme.primaryText(context), size: 18),
+              icon: Icon(
+                Icons.arrow_back_ios_new,
+                color: LumiAppTheme.primaryText(context),
+                size: 18,
+              ),
               onPressed: () => Navigator.pop(context),
             ),
           ),
@@ -164,7 +186,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 48), 
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -182,8 +204,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: Theme.of(context).brightness == Brightness.dark
-              ? const [Color(0xFF0F1D8A), Color(0xFF16003A), Color(0xFF080010)]
-              : const [Color(0xFFF8F5FC), Color(0xFFF0E4F8), Color(0xFFF8F5FC)],
+                ? const [
+                    Color(0xFF0F1D8A),
+                    Color(0xFF16003A),
+                    Color(0xFF080010),
+                  ]
+                : const [
+                    Color(0xFFF8F5FC),
+                    Color(0xFFF0E4F8),
+                    Color(0xFFF8F5FC),
+                  ],
           ),
         ),
         child: SafeArea(
@@ -193,9 +223,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
               Expanded(
                 child: Center(
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
+                    constraints: BoxConstraints(
+                      maxWidth: Responsive.anchoMaximoContenido(context),
+                    ),
                     child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context), vertical: Responsive.espacio(context)),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.paddingHorizontalRecomendado(
+                          context,
+                        ),
+                        vertical: Responsive.espacio(context),
+                      ),
                       child: Form(
                         key: _formKey,
                         child: Column(
@@ -207,15 +244,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       _buildInputLabel(context, 'Nombre'),
                                       const SizedBox(height: 8),
                                       TextFormField(
                                         controller: _nombreController,
-                                        style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                                        decoration: _buildInputDecoration(context, 'Tu nombre', Icons.person_outline_rounded),
-                                        validator: (value) => value == null || value.trim().isEmpty ? 'Nombre obligatorio' : null,
+                                        style: GoogleFonts.orbitron(
+                                          color: LumiAppTheme.primaryText(
+                                            context,
+                                          ),
+                                          fontSize: 13,
+                                        ),
+                                        decoration: _buildInputDecoration(
+                                          context,
+                                          'Tu nombre',
+                                          Icons.person_outline_rounded,
+                                        ),
+                                        validator: (value) =>
+                                            value == null ||
+                                                value.trim().isEmpty
+                                            ? 'Nombre obligatorio'
+                                            : null,
                                       ),
                                     ],
                                   ),
@@ -223,14 +274,24 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 SizedBox(width: Responsive.espacio(context)),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       _buildInputLabel(context, 'Apellido'),
                                       const SizedBox(height: 8),
                                       TextFormField(
                                         controller: _apellidoController,
-                                        style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                                        decoration: _buildInputDecoration(context, 'Tu apellido', Icons.person_outline_rounded),
+                                        style: GoogleFonts.orbitron(
+                                          color: LumiAppTheme.primaryText(
+                                            context,
+                                          ),
+                                          fontSize: 13,
+                                        ),
+                                        decoration: _buildInputDecoration(
+                                          context,
+                                          'Tu apellido',
+                                          Icons.person_outline_rounded,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -245,13 +306,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextFormField(
                               controller: _emailController,
                               keyboardType: TextInputType.emailAddress,
-                              style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                              decoration: _buildInputDecoration(context, 'ejemplo@correo.com', Icons.email_outlined),
+                              style: GoogleFonts.orbitron(
+                                color: LumiAppTheme.primaryText(context),
+                                fontSize: 13,
+                              ),
+                              decoration: _buildInputDecoration(
+                                context,
+                                'ejemplo@gmail.com',
+                                Icons.email_outlined,
+                              ),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
                                   return 'Correo obligatorio';
                                 }
-                                final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+                                final emailRegex = RegExp(
+                                  r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                                );
                                 if (!emailRegex.hasMatch(value.trim())) {
                                   return 'Ingresa un correo real y válido';
                                 }
@@ -266,22 +336,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextFormField(
                               controller: _passwordController,
                               obscureText: _obscurePassword,
-                              style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                              decoration: _buildInputDecoration(context, 'Mín. 8 carac., Mayús y Núm', Icons.lock_outline_rounded).copyWith(
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                    color: const Color(0xFFF716DC).withValues(alpha: 0.8),
-                                    size: 20,
-                                  ),
-                                  onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                ),
+                              style: GoogleFonts.orbitron(
+                                color: LumiAppTheme.primaryText(context),
+                                fontSize: 13,
                               ),
+                              decoration:
+                                  _buildInputDecoration(
+                                    context,
+                                    'Mín. 8 carac., Mayús y Núm',
+                                    Icons.lock_outline_rounded,
+                                  ).copyWith(
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscurePassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        color: const Color(
+                                          0xFFF716DC,
+                                        ).withValues(alpha: 0.8),
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _obscurePassword =
+                                            !_obscurePassword,
+                                      ),
+                                    ),
+                                  ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Contraseña obligatoria';
                                 }
-                                final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
+                                final passwordRegex = RegExp(
+                                  r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$',
+                                );
                                 if (!passwordRegex.hasMatch(value)) {
                                   return 'Mín. 8 carac., incluir mayús, minús y número';
                                 }
@@ -296,17 +383,32 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             TextFormField(
                               controller: _confirmPasswordController,
                               obscureText: _obscureConfirmPassword,
-                              style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
-                              decoration: _buildInputDecoration(context, 'Repite la contraseña', Icons.lock_reset_outlined).copyWith(
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                                    color: const Color(0xFFF716DC).withValues(alpha: 0.8),
-                                    size: 20,
-                                  ),
-                                  onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-                                ),
+                              style: GoogleFonts.orbitron(
+                                color: LumiAppTheme.primaryText(context),
+                                fontSize: 13,
                               ),
+                              decoration:
+                                  _buildInputDecoration(
+                                    context,
+                                    'Repite la contraseña',
+                                    Icons.lock_reset_outlined,
+                                  ).copyWith(
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureConfirmPassword
+                                            ? Icons.visibility_off_outlined
+                                            : Icons.visibility_outlined,
+                                        color: const Color(
+                                          0xFFF716DC,
+                                        ).withValues(alpha: 0.8),
+                                        size: 20,
+                                      ),
+                                      onPressed: () => setState(
+                                        () => _obscureConfirmPassword =
+                                            !_obscureConfirmPassword,
+                                      ),
+                                    ),
+                                  ),
                               validator: (value) {
                                 if (value != _passwordController.text) {
                                   return 'Las contraseñas no coinciden';
@@ -324,32 +426,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(16),
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
+                                    colors: [
+                                      Color(0xFFF716DC),
+                                      Color(0xFFA41CF9),
+                                    ],
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: const Color(0xFFF716DC).withValues(alpha: 0.3),
+                                      color: const Color(
+                                        0xFFF716DC,
+                                      ).withValues(alpha: 0.3),
                                       blurRadius: 15,
                                       offset: const Offset(0, 5),
                                     ),
                                   ],
                                 ),
                                 child: ElevatedButton(
-                                  onPressed: _isLoading ? null : _crearCuenta, 
+                                  onPressed: _isLoading ? null : _crearCuenta,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.transparent,
                                     shadowColor: Colors.transparent,
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
                                   ),
                                   child: _isLoading
                                       ? const SizedBox(
                                           width: 22,
                                           height: 22,
-                                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                          child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2,
+                                          ),
                                         )
                                       : Text(
                                           'Crear cuenta',
-                                          style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                                          style: GoogleFonts.orbitron(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                 ),
                               ),
@@ -371,37 +487,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Widget _buildInputLabel(BuildContext context, String labelText) {
     return Text(
-      labelText, 
+      labelText,
       style: GoogleFonts.orbitron(
         color: LumiAppTheme.secondaryText(context),
-        fontSize: 12, 
+        fontSize: 12,
         fontWeight: FontWeight.w600,
       ),
     );
   }
 
-  InputDecoration _buildInputDecoration(BuildContext context, String hintText, IconData prefixIcon) {
+  InputDecoration _buildInputDecoration(
+    BuildContext context,
+    String hintText,
+    IconData prefixIcon,
+  ) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: GoogleFonts.orbitron(color: LumiAppTheme.secondaryText(context), fontSize: 12),
-      prefixIcon: Icon(prefixIcon, color: LumiAppTheme.accent(context), size: 20),
+      hintStyle: GoogleFonts.orbitron(
+        color: LumiAppTheme.secondaryText(
+          context,
+        ).withValues(alpha: hintText.contains('@') ? 0.58 : 0.78),
+        fontSize: 12,
+      ),
+      prefixIcon: Icon(
+        prefixIcon,
+        color: LumiAppTheme.accent(context),
+        size: 20,
+      ),
       filled: true,
       fillColor: LumiAppTheme.surface(context),
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16), 
-        borderSide: BorderSide(color: LumiAppTheme.outline(context), width: 1.0),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(
+          color: LumiAppTheme.outline(context),
+          width: 1.0,
+        ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16), 
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide(color: LumiAppTheme.accent(context), width: 1.5),
       ),
       errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16), 
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
       ),
       focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16), 
+        borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
       ),
     );
