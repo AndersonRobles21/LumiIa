@@ -6,6 +6,7 @@ import 'agregar_tarea_screen.dart';
 import 'app_bottom_navbar.dart';
 import 'guia_detalle_screen.dart';
 import '../utils/responsive.dart';
+import '../services/task_notification_service.dart';
 import '../theme/app_theme.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -472,6 +473,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             backgroundColor: Color(0xFF4CAF50),
           ),
         );
+
+        final tareasActualizadas =
+            await ApiService.getPlanesEstudio(widget.userId);
+        if (tareasActualizadas != null) {
+          debugPrint(
+            '[LUMI notifications] eliminación exitosa; sincronizando tareas desde DashboardScreen',
+          );
+          await TaskNotificationService.instance.syncTasks(tareasActualizadas);
+        }
 
         await _loadActivePlans();
       } else {

@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import '/services/api_service.dart';
 import 'guia_detalle_screen.dart';
 import '../utils/responsive.dart';
+import '../services/task_notification_service.dart';
 import '../theme/app_theme.dart';
 
 class AgregarTareaScreen extends StatefulWidget {
@@ -89,6 +90,16 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
         );
         await Future<void>.delayed(const Duration(milliseconds: 250));
       }
+
+      final tareasActualizadas =
+          await ApiService.getPlanesEstudio(widget.userId);
+      if (tareasActualizadas != null) {
+        debugPrint(
+          '[LUMI notifications] creación exitosa; sincronizando tareas desde AgregarTareaScreen',
+        );
+        await TaskNotificationService.instance.syncTasks(tareasActualizadas);
+      }
+      if (!mounted) return;
 
       await Navigator.push(
         context,
