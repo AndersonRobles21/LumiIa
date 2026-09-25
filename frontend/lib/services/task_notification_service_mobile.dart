@@ -16,7 +16,8 @@ class TaskNotificationService {
   static const String timeKey = 'lumi_notification_time';
   static const String _tasksCacheKey = 'lumi_notification_tasks_cache';
   static const String _payload = 'lumi_daily_task_reminder';
-  static const String _channelId = 'lumi_task_reminders';
+  static const String _taskChannelId = 'lumi_tasks_v1';
+  static const String _adminChannelId = 'lumi_admin_v1';
   static const int _dailyReminderId = 0x4C554D49;
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -60,10 +61,22 @@ class TaskNotificationService {
           AndroidFlutterLocalNotificationsPlugin>();
       await android?.createNotificationChannel(
         const AndroidNotificationChannel(
-          _channelId,
-          'Recordatorios de tareas',
+          _taskChannelId,
+          'Tareas y Recordatorios',
           description: 'Recordatorios locales de tareas pendientes de Lumi',
-          importance: Importance.high,
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('lumi_notification'),
+        ),
+      );
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _adminChannelId,
+          'Alertas del Sistema',
+          description: 'Alertas administrativas y cambios del sistema de Lumi',
+          importance: Importance.max,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('admin_alert'),
         ),
       );
 
@@ -256,11 +269,13 @@ class TaskNotificationService {
 
     final details = NotificationDetails(
       android: const AndroidNotificationDetails(
-        _channelId,
-        'Recordatorios de tareas',
+        _taskChannelId,
+        'Tareas y Recordatorios',
         channelDescription: 'Recordatorios locales de tareas pendientes de Lumi',
-        importance: Importance.high,
+        importance: Importance.max,
         priority: Priority.high,
+        playSound: true,
+        sound: RawResourceAndroidNotificationSound('lumi_notification'),
       ),
       iOS: const DarwinNotificationDetails(
         presentAlert: true,
@@ -282,6 +297,38 @@ class TaskNotificationService {
       matchDateTimeComponents: DateTimeComponents.time,
     );
     debugPrint('[LUMI notifications] zonedSchedule() terminó correctamente');
+  }
+
+  Future<void> showAdminNotification({
+    required String title,
+    required String body,
+    int id = 0x4C554D42,
+  }) async {
+    try {
+      await initialize();
+      final details = NotificationDetails(
+        android: const AndroidNotificationDetails(
+          _adminChannelId,
+          'Alertas del Sistema',
+          channelDescription: 'Alertas administrativas y cambios del sistema de Lumi',
+          importance: Importance.max,
+          priority: Priority.high,
+          playSound: true,
+          sound: RawResourceAndroidNotificationSound('admin_alert'),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      );
+
+      await _plugin.show(id, title, body, details, payload: 'lumi_admin_alert');
+      debugPrint('[LUMI notifications] notificación administrativa enviada: $title');
+    } catch (error, stackTrace) {
+      debugPrint('TaskNotificationService.showAdminNotification failed: $error');
+      debugPrintStack(stackTrace: stackTrace);
+    }
   }
 
   Future<void> _syncCachedTasks() async {
