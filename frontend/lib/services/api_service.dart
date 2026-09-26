@@ -9,15 +9,13 @@ class ApiService {
     const configuredHost = String.fromEnvironment('BACKEND_URL');
     if (configuredHost.isNotEmpty) return configuredHost;
 
-    // URL de producción por defecto (Render)
-    // En desarrollo local, usar localhost:3000
+    // En navegador Web o Emulador de escritorio
     if (kIsWeb) return 'http://localhost:3000';
 
-    // Celular físico conectado por USB:
-    // ejecutar antes: adb reverse tcp:3000 tcp:3000
-    if (Platform.isAndroid) return 'http://localhost:3000';
+    // En Android (Celular físico conectado por Wi-Fi a la IP de tu PC)
+    if (Platform.isAndroid) return 'http://192.168.101.4:3000';
 
-    // Escritorio (Windows/macOS/Linux) - desarrollo local
+    // Escritorio (Windows/macOS/Linux)
     return 'http://localhost:3000';
   }
 
