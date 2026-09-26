@@ -39,6 +39,7 @@
       - logo/logros/
       - logo/personajes/
       - logo/sounds/
+      - assets/sounds/
 
   flutter_launcher_icons:
     android: true
