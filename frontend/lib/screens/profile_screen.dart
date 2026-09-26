@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '/services/api_service.dart';
 import 'dart:convert';
-import 'dart:io';
 import 'package:image_picker/image_picker.dart';
 import 'configuracion_screen.dart';
 import 'app_bottom_navbar.dart';
@@ -33,8 +32,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   List<ScheduleSlot> _scheduleSlots = [];
   int _scheduleRevision = 0;
 
-  File? _imageFile;
   String? _base64Image;
+  bool _isSavingAvatar = false;
   final ImagePicker _picker = ImagePicker();
 
   @override
@@ -71,29 +70,52 @@ class _ProfileScreenState extends State<ProfileScreen>
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 250, // Reducido para que la resolución sea ligera
-        maxHeight: 250, // Reducido para que la resolución sea ligera
-        imageQuality:
-            40, // Alta compresión para que pese muy pocos KB y no dé error 413
+        maxWidth: 500,
+        maxHeight: 500,
+        imageQuality: 85,
       );
 
-      if (pickedFile != null) {
-        final bytes = await pickedFile.readAsBytes();
-        String base64String = base64Encode(bytes);
+      if (pickedFile == null) return;
 
-        if (base64String.contains(',')) {
-          base64String = base64String.split(',').last;
-        }
-
-        setState(() {
-          _imageFile = null;
-          _base64Image = base64String;
-        });
+      final bytes = await pickedFile.readAsBytes();
+      if (bytes.isEmpty) {
+        throw const FormatException('La imagen seleccionada está vacía.');
       }
-    } catch (e) {
-      _showSnackBar(
-        tr('No se pudo acceder a la galería.', 'Could not access gallery.'),
+      final base64String = base64Encode(bytes);
+
+      if (!mounted) return;
+      setState(() => _isSavingAvatar = true);
+      final result = await ApiService.updateProfileAvatar(
+        userId: _userId,
+        fotoPerfil: base64String,
       );
+
+      if (!mounted) return;
+      if (result?['ok'] != true) {
+        _showSnackBar(
+          tr(
+            result?['mensaje']?.toString() ??
+                'No se pudo guardar la imagen de perfil.',
+            'Could not save the profile image.',
+          ),
+        );
+        return;
+      }
+
+      setState(() => _base64Image = base64String);
+      _showSnackBar(tr('Foto de perfil actualizada.', 'Profile photo updated.'));
+    } catch (error) {
+      debugPrint('Error seleccionando o guardando avatar: $error');
+      _showSnackBar(
+        tr(
+          'No se pudo procesar la imagen seleccionada.',
+          'Could not process the selected image.',
+        ),
+      );
+    } finally {
+      if (mounted && _isSavingAvatar) {
+        setState(() => _isSavingAvatar = false);
+      }
     }
   }
 
@@ -161,18 +183,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       color: Colors.white30,
     );
 
-    if (_imageFile != null) {
-      // Prioridad 1: Imagen recién seleccionada desde el dispositivo (Archivo local)
-      avatarChild = ClipRRect(
-        borderRadius: BorderRadius.circular(50),
-        child: Image.file(
-          _imageFile!,
-          width: 100,
-          height: 100,
-          fit: BoxFit.cover,
-        ),
-      );
-    } else if (_base64Image != null && _base64Image!.startsWith('asset:')) {
+    if (_base64Image != null && _base64Image!.startsWith('asset:')) {
       avatarChild = ClipRRect(
         borderRadius: BorderRadius.circular(50),
         child: Image.asset(
@@ -215,18 +226,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final avatarRadius = isDesktop ? 80.0 : 50.0;
     final imageSize = isDesktop ? 160.0 : 100.0;
 
-    // Adjust inner avatar child sizes if image widgets are used
-    if (_imageFile != null) {
-      avatarChild = ClipRRect(
-        borderRadius: BorderRadius.circular(avatarRadius),
-        child: Image.file(
-          _imageFile!,
-          width: imageSize,
-          height: imageSize,
-          fit: BoxFit.cover,
-        ),
-      );
-    } else if (_base64Image != null && _base64Image!.startsWith('asset:')) {
+    if (_base64Image != null && _base64Image!.startsWith('asset:')) {
       avatarChild = ClipRRect(
         borderRadius: BorderRadius.circular(avatarRadius),
         child: Image.asset(
@@ -271,7 +271,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     return GestureDetector(
-      onTap: _seleccionarNuevaImagen,
+      onTap: _isSavingAvatar ? null : _seleccionarNuevaImagen,
       child: Stack(
         children: [
           CircleAvatar(
@@ -288,11 +288,20 @@ class _ProfileScreenState extends State<ProfileScreen>
                 color: Color(0xFFFF44AA),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.camera_alt,
-                size: isDesktop ? 18 : 16,
-                color: Colors.white,
-              ),
+              child: _isSavingAvatar
+                  ? SizedBox(
+                      width: isDesktop ? 18 : 16,
+                      height: isDesktop ? 18 : 16,
+                      child: const CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Icon(
+                      Icons.camera_alt,
+                      size: isDesktop ? 18 : 16,
+                      color: Colors.white,
+                    ),
             ),
           ),
         ],

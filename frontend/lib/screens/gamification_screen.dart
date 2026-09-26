@@ -410,20 +410,72 @@ class _GamificationScreenState extends State<GamificationScreen> {
                   color: const Color(0xFF8B6BFF),
                   backgroundColor: LumiAppTheme.surface(context),
                   onRefresh: _cargarDatos,
+                  child: Responsive.esEscritorio(context)
+                      ? _buildDesktopGamificationLayout()
+                      : Center(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: Responsive.anchoMaximoContenido(context),
+                            ),
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: const EdgeInsets.fromLTRB(18, 10, 18, 48),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildHeader(context),
+                                  const SizedBox(height: 12),
+                                  _buildStatsRow(),
+                                  const SizedBox(height: 24),
+                                  _buildLogrosHeader(),
+                                  const SizedBox(height: 14),
+                                  if (_seleccionado != null)
+                                    _buildFeaturedCard(_seleccionado!),
+                                  const SizedBox(height: 26),
+                                  Text(
+                                    'Todas las insignias',
+                                    style: TextStyle(
+                                      color: LumiAppTheme.primaryText(context),
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.2,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  _buildLogrosGrid(),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopGamificationLayout() {
+    return LayoutBuilder(
+      builder: (context, constraints) => Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: Responsive.anchoMaximoContenido(context),
+          ),
+          child: SizedBox(
+            height: constraints.maxHeight,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(18, 10, 18, 48),
+                    padding: const EdgeInsets.fromLTRB(18, 10, 4, 36),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _buildHeader(context),
-                        const SizedBox(height: 12),
-                        _buildStatsRow(),
-                        const SizedBox(height: 24),
-                        _buildLogrosHeader(),
                         const SizedBox(height: 14),
-                        if (_seleccionado != null)
-                          _buildFeaturedCard(_seleccionado!),
+                        _buildDesktopStatsGrid(),
                         const SizedBox(height: 26),
                         Text(
                           'Todas las insignias',
@@ -431,7 +483,6 @@ class _GamificationScreenState extends State<GamificationScreen> {
                             color: LumiAppTheme.primaryText(context),
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: 0.2,
                           ),
                         ),
                         const SizedBox(height: 14),
@@ -440,6 +491,50 @@ class _GamificationScreenState extends State<GamificationScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 24),
+                SizedBox(
+                  width: 350,
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(4, 14, 18, 18),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: LumiAppTheme.surface(context),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: LumiAppTheme.outline(context)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.12),
+                          blurRadius: 18,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _buildLogrosHeader(),
+                        const SizedBox(height: 14),
+                        Expanded(
+                          child: _seleccionado == null
+                              ? Center(
+                                  child: Text(
+                                    'Selecciona una insignia para ver sus detalles.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: LumiAppTheme.secondaryText(context),
+                                    ),
+                                  ),
+                                )
+                              : SingleChildScrollView(
+                                  child: _buildFeaturedCard(_seleccionado!),
+                                ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -617,6 +712,77 @@ class _GamificationScreenState extends State<GamificationScreen> {
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopStatsGrid() {
+    return GridView.count(
+      crossAxisCount: 3,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisSpacing: 14,
+      mainAxisSpacing: 14,
+      childAspectRatio: 2.1,
+      children: [
+        _StatCard(
+          child: _buildDesktopStat(
+            icon: Icons.local_fire_department,
+            color: const Color(0xFFFF9E45),
+            value: '$_racha días',
+            label: 'Racha actual',
+          ),
+        ),
+        _StatCard(
+          child: _buildDesktopStat(
+            icon: Icons.emoji_events,
+            color: const Color(0xFFFFC24B),
+            value: 'Nivel $_nivel',
+            label: '${_nombreNivel(_nivel)} · $_xpActual/$_xpSiguienteNivel XP',
+          ),
+        ),
+        _StatCard(
+          child: _buildDesktopStat(
+            icon: Icons.task_alt,
+            color: const Color(0xFF3DDC84),
+            value: '$_tareasCompletadas tareas',
+            label:
+                '$_totalPlanes planes · ${_horasEstudio.toStringAsFixed(1)} h de estudio',
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDesktopStat({
+    required IconData icon,
+    required Color color,
+    required String value,
+    required String label,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: Colors.white.withOpacity(0.65), fontSize: 11),
         ),
       ],
     );
@@ -864,7 +1030,11 @@ class _GamificationScreenState extends State<GamificationScreen> {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: Responsive.esMovil(context) ? 3 : 4,
+        crossAxisCount: Responsive.esEscritorio(context)
+          ? 3
+          : Responsive.esMovil(context)
+            ? 3
+            : 4,
         mainAxisSpacing: Responsive.esMovil(context) ? 14 : 18,
         crossAxisSpacing: Responsive.esMovil(context) ? 12 : 10,
         mainAxisExtent: Responsive.esMovil(context) ? 136 : 126,
