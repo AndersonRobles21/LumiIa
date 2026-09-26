@@ -152,10 +152,36 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
               _buildCustomAppBar(),
               Expanded(
                 child: Center(
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(maxWidth: Responsive.anchoMaximoContenido(context)),
-                    child: _buildCurrentStep(),
-                  ),
+                  child: Responsive.esEscritorio(context)
+                      ? ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 560),
+                          child: Container(
+                            width: double.infinity,
+                            margin: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.all(28),
+                            decoration: BoxDecoration(
+                              color: LumiAppTheme.surface(context),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: LumiAppTheme.outline(context),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.16),
+                                  blurRadius: 28,
+                                  offset: const Offset(0, 12),
+                                ),
+                              ],
+                            ),
+                            child: _buildCurrentStep(),
+                          ),
+                        )
+                      : ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: Responsive.anchoMaximoContenido(context),
+                          ),
+                          child: _buildCurrentStep(),
+                        ),
                 ),
               ),
             ],

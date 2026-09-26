@@ -139,6 +139,98 @@ class _SplashScreenState extends State<SplashScreen>
 
           final robotSize = math.min(width * 0.62, height * 0.34);
 
+          if (Responsive.esEscritorio(context)) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Container(
+                    margin: const EdgeInsets.all(32),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 44,
+                      vertical: 36,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF140D24).withValues(alpha: 0.94),
+                      borderRadius: BorderRadius.circular(28),
+                      border: Border.all(
+                        color: kPurpleSecondary.withValues(alpha: 0.3),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 32,
+                          offset: const Offset(0, 16),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AnimatedBuilder(
+                          animation: _bounceAnimation,
+                          builder: (context, child) => Transform.translate(
+                            offset: Offset(0, _bounceAnimation.value),
+                            child: child,
+                          ),
+                          child: SizedBox(
+                            width: 190,
+                            height: 190,
+                            child: Image.asset(
+                              'logo/lumisplash.png',
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const SizedBox.shrink(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'LUMI',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                            letterSpacing: 4,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              letterSpacing: 1.1,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            children: [
+                              const TextSpan(text: 'LA '),
+                              TextSpan(
+                                text: 'PROCRASTINACIÓN ',
+                                style: TextStyle(color: kPurpleAccent),
+                              ),
+                              const TextSpan(text: 'TERMINA '),
+                              TextSpan(
+                                text: 'AQUÍ',
+                                style: TextStyle(color: kPurpleAccent),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                        const _InfoCard(),
+                        const SizedBox(height: 28),
+                        _LoadingBar(animation: _loadingAnimation),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }
+
           return Stack(
             fit: StackFit.expand,
             children: [
