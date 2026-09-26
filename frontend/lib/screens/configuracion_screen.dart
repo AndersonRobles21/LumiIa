@@ -262,20 +262,42 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           child: Center(
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: Responsive.anchoMaximoContenido(context),
+                maxWidth: Responsive.esEscritorio(context)
+                    ? 900
+                    : Responsive.anchoMaximoContenido(context),
               ),
               child: Column(
                 children: [
                   _buildHeader(context, lang),
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: Responsive.paddingHorizontalRecomendado(
-                          context,
+                    child: Container(
+                      margin: Responsive.esEscritorio(context)
+                          ? const EdgeInsets.fromLTRB(18, 8, 18, 20)
+                          : EdgeInsets.zero,
+                      decoration: Responsive.esEscritorio(context)
+                          ? BoxDecoration(
+                              color: LumiAppTheme.surface(context),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: LumiAppTheme.outline(context),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  blurRadius: 22,
+                                  offset: const Offset(0, 7),
+                                ),
+                              ],
+                            )
+                          : null,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: Responsive.paddingHorizontalRecomendado(
+                            context,
+                          ),
+                          vertical: Responsive.espacio(context),
                         ),
-                        vertical: Responsive.espacio(context),
-                      ),
-                      child: Column(
+                        child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           if (!_isAdmin) ...[
@@ -453,6 +475,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           _buildLogoutButton(context, lang),
                           const SizedBox(height: 24),
                         ],
+                        ),
                       ),
                     ),
                   ),

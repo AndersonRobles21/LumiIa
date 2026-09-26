@@ -22,7 +22,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   int? _selected;
   bool _loading = true;
   bool _saving = false;
-  Map<String, dynamic>? _profile;
 
   int _cost(int character) => character * 25;
 
@@ -64,7 +63,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
       if (!mounted) return;
       setState(() {
-        _profile = profile;
         _xpGanado = xp;
         _xpGastado = spent;
         _xp = (xp - spent).clamp(0, xp);
@@ -106,13 +104,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Future<void> _choose(int character) async {
-    if (_xp < _cost(character)) {
+    final isNewPurchase = !_purchased.contains(character);
+    if (isNewPurchase && _xp < _cost(character)) {
       _message(
         'Necesitas ${_cost(character)} XP para desbloquear este personaje.',
       );
       return;
     }
-    final isNewPurchase = !_purchased.contains(character);
     if (isNewPurchase) {
       final confirm = await showDialog<bool>(
         context: context,
@@ -148,27 +146,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             userId: widget.userId,
             personaje: character,
           )
-        : await ApiService.updateProfile(
+      : await ApiService.updateProfileAvatar(
             userId: widget.userId,
-            nombre: _profile?['nombre']?.toString() ?? '',
-            apellido: _profile?['apellido']?.toString() ?? '',
-            horasDisponibles:
-                ((_profile?['perfil_estudio']
-                            as Map<String, dynamic>?)?['horas_disponibles']
-                        as num?)
-                    ?.toInt() ??
-                0,
-            objetivo:
-                ((_profile?['perfil_estudio']
-                        as Map<String, dynamic>?)?['objetivo'])
-                    ?.toString() ??
-                '',
-            nivelProcrastinacion:
-                ((_profile?['perfil_estudio']
-                            as Map<String, dynamic>?)?['nivel_procrastinacion']
-                        as num?)
-                    ?.toInt() ??
-                1,
             fotoPerfil: 'asset:logo/personajes/personaje$character.png',
           );
     final saved = result != null;
