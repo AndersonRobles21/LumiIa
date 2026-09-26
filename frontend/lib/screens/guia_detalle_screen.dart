@@ -7,6 +7,7 @@ import 'feynman_screen.dart';
 import 'active_recall_screen.dart';
 import 'spaced_repetition_screen.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
@@ -23,6 +24,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   Map<String, dynamic> guiaActual = {};
   List<dynamic> fasesPasos = [];
+  List<dynamic> _historialConversaciones = [];
   List<dynamic> consejos = [];
   List<dynamic> recursos = [];
   List<dynamic> conceptosClave = [];
@@ -36,6 +38,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   final List<Map<String, dynamic>> _mensajes = [];
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _sidebarSearchController = TextEditingController();
 
   String _userId = '';
 
@@ -73,6 +76,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _sidebarSearchController.dispose();
     super.dispose();
   }
 
@@ -95,6 +99,7 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
         });
 
         _scrollToBottom();
+        _cargarHistorialConversaciones();
         return;
       }
     }
@@ -109,6 +114,14 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     });
 
     _scrollToBottom();
+    _cargarHistorialConversaciones();
+  }
+
+  Future<void> _cargarHistorialConversaciones() async {
+    if (_userId.isEmpty) return;
+    final historial = await ApiService.obtenerHistorial(_userId);
+    if (!mounted || historial == null) return;
+    setState(() => _historialConversaciones = historial);
   }
 
   void _scrollToBottom() {
@@ -746,7 +759,9 @@ void _inicializarMensajesChat() {
                     ],
                   ),
                 )
-              : Column(
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    final conversation = Column(
                   children: [
                     Container(
                       width: double.infinity,
@@ -806,7 +821,13 @@ void _inicializarMensajesChat() {
                                   const SizedBox(width: 8),
                                 ],
                                 Flexible(
-                                  child: Column(
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: Responsive.esEscritorio(context)
+                                          ? 720
+                                          : double.infinity,
+                                    ),
+                                    child: Column(
                                     crossAxisAlignment: esBot
                                         ? CrossAxisAlignment.start
                                         : CrossAxisAlignment.end,
@@ -1133,9 +1154,10 @@ void _inicializarMensajesChat() {
                                         ),
                                       ],
                                     ],
+                                    ),
                                   ),
                                 ),
-                                if (!esBot) ...[
+                                if (!esBot && !Responsive.esEscritorio(context)) ...[
                                   const SizedBox(width: 8),
                                   const CircleAvatar(
                                     radius: 16,
@@ -1153,52 +1175,227 @@ void _inicializarMensajesChat() {
                         },
                       ),
                     ),
-                    SafeArea(
-                      top: false,
-                      minimum: const EdgeInsets.only(bottom: 34),
-                      child: Container(
-                        padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
-                        color: const Color(0xFF0D0B1E),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildBotonPredeterminado(
-                                    "Paso a Paso",
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildBotonPredeterminado(
-                                    "Explica que toca hacer",
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _buildBotonPredeterminado(
-                                    "¿Qué es este tema?",
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: _buildBotonPredeterminado(
-                                    "Dame un consejo",
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
+                    _buildQuickSuggestions(),
+                  ],
+                    );
+
+                    if (!Responsive.esEscritorio(context)) return conversation;
+
+                    return Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1200),
+                        child: SizedBox(
+                          height: constraints.maxHeight,
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 300,
+                                child: _buildConversationSidebar(tituloPlan),
+                              ),
+                              VerticalDivider(
+                                width: 1,
+                                color: LumiAppTheme.outline(context),
+                              ),
+                              Expanded(child: conversation),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
+    );
+  }
+
+  Widget _buildQuickSuggestions() {
+    final suggestions = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(child: _buildBotonPredeterminado('Paso a Paso')),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _buildBotonPredeterminado('Explica que toca hacer'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(child: _buildBotonPredeterminado('¿Qué es este tema?')),
+            const SizedBox(width: 8),
+            Expanded(child: _buildBotonPredeterminado('Dame un consejo')),
+          ],
+        ),
+      ],
+    );
+
+    final suggestionPanel = Container(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
+      color: const Color(0xFF0D0B1E),
+      child: suggestions,
+    );
+
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.only(bottom: 34),
+      child: Responsive.esEscritorio(context)
+          ? Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 760),
+                child: suggestionPanel,
+              ),
+            )
+          : suggestionPanel,
+    );
+  }
+
+  Widget _buildConversationSidebar(String tituloPlan) {
+    final query = _sidebarSearchController.text.trim().toLowerCase();
+    final currentId =
+        (guiaActual['id'] ?? guiaActual['plan_id'] ?? '').toString();
+    final conversations = _historialConversaciones.where((conversation) {
+      final title = (conversation['nombre'] ?? conversation['titulo'] ?? '')
+          .toString()
+          .toLowerCase();
+      final description = (conversation['descripcion'] ?? '')
+          .toString()
+          .toLowerCase();
+      return query.isEmpty || title.contains(query) || description.contains(query);
+    }).toList();
+
+    return Container(
+      color: LumiAppTheme.surface(context),
+      padding: const EdgeInsets.fromLTRB(12, 20, 10, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Conversaciones',
+            style: TextStyle(
+              color: LumiAppTheme.primaryText(context),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            tituloPlan,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: _sidebarSearchController,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(color: LumiAppTheme.primaryText(context)),
+            decoration: InputDecoration(
+              hintText: 'Buscar conversaciones',
+              prefixIcon: const Icon(Icons.search, size: 19),
+              isDense: true,
+              filled: true,
+              fillColor: LumiAppTheme.surfaceVariant(context),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'HISTORIAL',
+            style: TextStyle(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Expanded(
+            child: conversations.isEmpty
+                ? Center(
+                    child: Text(
+                  query.isEmpty
+                    ? 'No hay conversaciones anteriores.'
+                    : 'No se encontraron conversaciones.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: LumiAppTheme.secondaryText(context),
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : ListView.separated(
+                  itemCount: conversations.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 4),
+                    itemBuilder: (context, index) {
+                      final conversation = conversations[index];
+                      final conversationId =
+                          (conversation['id'] ?? conversation['plan_id'] ?? '')
+                              .toString();
+                      final isCurrent = conversationId == currentId;
+                      final title = (conversation['nombre'] ??
+                              conversation['titulo'] ??
+                              'Plan de estudio')
+                          .toString();
+                      return ListTile(
+                        dense: true,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 2,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        title: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: LumiAppTheme.primaryText(context),
+                            fontSize: 12,
+                            fontWeight: isCurrent
+                                ? FontWeight.w700
+                                : FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          (conversation['descripcion'] ?? '').toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: LumiAppTheme.secondaryText(context),
+                            fontSize: 11,
+                          ),
+                        ),
+                        selected: isCurrent,
+                        selectedTileColor: const Color(0xFF00F0FF)
+                          .withValues(alpha: 0.08),
+                        minVerticalPadding: 9,
+                        onTap: () async {
+                          if (isCurrent || conversationId.isEmpty) return;
+                          final navigator = Navigator.of(context);
+                          final plan =
+                              await ApiService.obtenerPlan(conversationId);
+                          if (!mounted || plan == null) return;
+                          await navigator.pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  GuiaDetalleScreen(guiaData: plan),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 
