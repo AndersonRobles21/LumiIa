@@ -217,7 +217,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
+          child: Builder(
+            builder: (context) {
+              final registrationContent = Column(
             children: [
               _buildHeader(context),
               Expanded(
@@ -479,8 +481,93 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
             ],
+              );
+
+              if (!Responsive.esEscritorio(context)) {
+                return registrationContent;
+              }
+
+              return Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: Responsive.anchoMaximoContenido(context),
+                  ),
+                  child: Container(
+                    width: double.infinity,
+                    height: Responsive.altoPantalla(context) * 0.88,
+                    margin: const EdgeInsets.all(24),
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      color: LumiAppTheme.surface(context),
+                      borderRadius: BorderRadius.circular(26),
+                      border: Border.all(
+                        color: LumiAppTheme.outline(context),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.22),
+                          blurRadius: 36,
+                          offset: const Offset(0, 18),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 5,
+                          child: _buildDesktopWelcomePanel(context),
+                        ),
+                        Expanded(flex: 6, child: registrationContent),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildDesktopWelcomePanel(BuildContext context) {
+    return Container(
+      height: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 42, vertical: 36),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF211638), Color(0xFF151024)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Image.asset(
+            'logo/Lumi.png',
+            width: 210,
+            height: 210,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.auto_awesome,
+              color: Color(0xFFF716DC),
+              size: 100,
+            ),
+          ),
+          const SizedBox(height: 30),
+          const Text(
+            'ESTUDIA MEJOR.\nLOGRA MÁS.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFFE6DDF7),
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              height: 1.5,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -183,42 +183,50 @@ class _LoginScreenState extends State<LoginScreen> {
                   if (isDesktop) {
                     return SizedBox(
                       height: Responsive.altoPantalla(context) * 0.85,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 5,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    Responsive.paddingHorizontalRecomendado(
-                                      context,
-                                    ),
-                              ),
-                              child: SingleChildScrollView(
-                                child: _buildFormContent(context),
-                              ),
-                            ),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF110D20),
+                          borderRadius: BorderRadius.circular(26),
+                          border: Border.all(
+                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
                           ),
-                          Expanded(
-                            flex: 6,
-                            child: Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal:
-                                    Responsive.paddingHorizontalRecomendado(
-                                      context,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.22),
+                              blurRadius: 36,
+                              offset: const Offset(0, 18),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 5,
+                              child: _buildDesktopWelcomePanel(context),
+                            ),
+                            Expanded(
+                              flex: 6,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 44,
+                                  vertical: 28,
+                                ),
+                                child: Center(
+                                  child: ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 440,
                                     ),
-                              ),
-                              child: Center(
-                                child: _buildHeroLogo(
-                                  width:
-                                      Responsive.anchoPantalla(context) * 0.4,
-                                  height:
-                                      Responsive.altoPantalla(context) * 0.6,
+                                    child: SingleChildScrollView(
+                                      child: _buildFormContent(context),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     );
                   }
@@ -284,6 +292,26 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
+  Widget _buildDesktopWelcomePanel(BuildContext context) {
+    return Container(
+      height: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF211638), Color(0xFF151024)],
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildHeroLogo(width: 190, height: 190),
+        ],
+      ),
+    );
+  }
+
   // Contenido unificado del formulario
   Widget _buildFormContent(BuildContext context) {
     final isDesktop = Responsive.esEscritorio(context);
@@ -293,21 +321,26 @@ class _LoginScreenState extends State<LoginScreen> {
       mainAxisSize: MainAxisSize.min,
       children: [
         if (isDesktop) ...[
-          Text(
-            'Iniciar Sesión',
-            style: GoogleFonts.orbitron(
-              color: Colors.white,
-              fontSize: 34,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.2,
+          Center(
+            child: Text(
+              'Iniciar Sesión',
+              style: GoogleFonts.orbitron(
+                color: Colors.white,
+                fontSize: 34,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.2,
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            'Bienvenido de nuevo a tu espacio',
-            style: GoogleFonts.orbitron(
-              color: const Color(0xFFB0AEC4),
-              fontSize: 14,
+          Center(
+            child: Text(
+              'Bienvenido de nuevo a tu espacio',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.orbitron(
+                color: const Color(0xFFB0AEC4),
+                fontSize: 14,
+              ),
             ),
           ),
           SizedBox(height: Responsive.espacio(context) * 3),
