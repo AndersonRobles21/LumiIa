@@ -144,14 +144,13 @@ Servidor API que gestiona toda la lógica de negocio.
 - `DELETE /api/horarios/:id` - Eliminar horario
 
 **`ia.routes.ts` - Generación de Planes con IA**
-- `POST /api/ia/generar-plan` - Generar plan de estudio (llama a Gemini)
-- `POST /api/ia/evaluar-feynman` - Evaluar explicación Feynman
-- `POST /api/ia/preguntar` - Hacer pregunta a IA
+- `POST /api/ia/generar` - Generar plan de estudio (llama a Gemini)
+- `POST /api/ia/feynman/evaluar` - Evaluar explicación Feynman
+- `GET/PUT/DELETE /api/ia/plan/:planId` - Consultar, actualizar, reajustar, cambiar método o eliminar un plan
 
 **`historial.routes.ts` - Historial de Interacciones**
-- `GET /api/ia/historial` - Obtener historial de IA del usuario
-- `GET /api/ia/historial/:plan_id` - Historial por plan específico
-- `DELETE /api/ia/historial/:id` - Eliminar entrada de historial
+- `/api/ia/historial` - Historial de planes e interacciones
+- `/api/progreso` - Métricas de progreso del estudiante
 
 **`adminRoutes.ts` - Panel Administrativo**
 - `GET /api/admin/usuarios` - Listar todos los usuarios
@@ -297,7 +296,7 @@ Aplicación móvil multiplataforma con Flutter/Dart.
 Funciones:
 ✓ Inicializa Supabase (auth y BD en la nube)
 ✓ Configura tema oscuro (Color: #080D2B azul oscuro)
-✓ Define rutas iniciales: /splash → /login → /configuracion
+✓ Define rutas declaradas: /splash, /login, /configuracion y /admin-panel
 ✓ Instancia MaterialApp con configuración global
 
 Supabase:
@@ -329,8 +328,10 @@ Supabase:
 | `guia_detalle_screen.dart` | Detalle de guía/plan generado |
 | `seleccionar_metodo_screen.dart` | Selecciona método de estudio |
 | `admin_panel_screen.dart` | Panel de administrador (gestión de usuarios) |
-| `admin_user_list_screen.dart` | Listado de usuarios (admin) |
-| `admin_user_detail_screen.dart` | Detalles de usuario (admin) |
+| `admin_usuarios_list_v2.dart` | Listado de usuarios (admin) |
+| `admin_usuario_detalle_screen.dart` | Detalles de usuario (admin) |
+| `admin_estadisticas_screen.dart` | Estadísticas y reportes administrativos |
+| `edit_profile_screen.dart` | Edición del perfil |
 | `configuracion_screen.dart` | Configuración de la app |
 
 #### **📊 MODELOS (Models) - `/lib/models`**
@@ -352,12 +353,10 @@ class Usuario {
 #### **🔧 SERVICIOS (Services) - `/lib/services`**
 
 Servicios para comunicación con backend y Supabase:
-- `auth.service.dart` - Autenticación
-- `api.service.dart` - Llamadas HTTP al backend
-- `supabase.service.dart` - Acceso a BD Supabase
-- `tareas.service.dart` - Obtener/crear/actualizar tareas
-- `planes.service.dart` - Interacción con planes de IA
-- `historial.service.dart` - Historial de IA
+- `api_service.dart` - Llamadas HTTP al backend y operaciones de perfil, planes, progreso y personajes
+- `biometric_service.dart` y `biometric_service_web.dart` - Autenticación biométrica por plataforma
+- `app_language.dart` - Idioma de la interfaz
+- `path_provider_stub.dart` - Compatibilidad de plataforma para reportes
 
 #### **📱 Plataformas Nativas**
 
@@ -592,7 +591,7 @@ Usuario en SeleccionarMetodoScreen ingresa:
 - Método preferido
 - Nivel de dificultad
         ↓
-Frontend: POST /api/ia/generar-plan
+Frontend: POST /api/ia/generar
         ↓
 Backend iaController.generarPlan():
   1. Obtiene perfil del usuario (objetivo, procrastinación)
@@ -780,7 +779,7 @@ Frontend actualiza:
    - Nivel: Medio
    - Método: Pomodoro
 
-4. Frontend POST /api/ia/generar-plan
+4. Frontend POST /api/ia/generar
 
 5. Backend:
    - Lee perfil: "Objetivo: Ing. en Sistemas, 2h/día disponibles"
@@ -880,8 +879,8 @@ Frontend actualiza:
 ### 👨‍💼 Admin
 - `backend/src/rutas/adminRoutes.ts`
 - `frontend/lib/screens/admin_panel_screen.dart`
-- `frontend/lib/screens/admin_user_list_screen.dart`
-- `frontend/lib/screens/admin_user_detail_screen.dart`
+- `frontend/lib/screens/admin_usuarios_list_v2.dart`
+- `frontend/lib/screens/admin_usuario_detalle_screen.dart`
 
 ### 💾 Base de Datos
 - `basededatos/lumi.sql` - Schema completo PostgreSQL
@@ -892,9 +891,8 @@ Frontend actualiza:
 
 ### 🔴 Puntos de Atención
 
-1. **Typo en nombre de archivo**
-   - `READNE.md` (debería ser `README.md`)
-   - Fácil de corregir
+1. **Documentación**
+        - La documentación vigente está en `README.md`, `LUMIA_DETAILED_EXPLANATION.md` y `LUMIIA_COMPLETE_DOCUMENTATION.md`.
 
 2. **Mezcla de JavaScript y TypeScript en Backend**
    - `horariosController.js` (JavaScript)
@@ -910,14 +908,22 @@ Frontend actualiza:
    - Pero también hay referencias a MySQL
    - Aclarar: ¿PostgreSQL vía Supabase o MySQL local?
 
-5. **Archivo profile_screen.dart Vacío**
-   - Solo contiene: `// TODO Implement this library.`
-   - Necesita implementación
+5. **Perfil implementado**
+        - `profile_screen.dart` carga y actualiza datos del usuario, foto, disponibilidad semanal y nivel de procrastinación.
+        - `edit_profile_screen.dart` complementa la edición del perfil.
 
 6. **Dependencias de IA**
    - Google Gemini API requiere API key válida
    - Variable `GOOGLE_API_KEY` en `.env`
    - Sin esto, no funciona generación de planes
+
+7. **Navegación actual**
+        - `AppBottomNavbar` conecta Inicio, Calendario, Historial IA, Progreso y Perfil.
+        - En escritorio se muestra como sidebar y en móvil como barra inferior.
+
+8. **Despliegue actual**
+        - El backend está preparado para ejecutarse en Render.
+        - El frontend web se publica mediante GitHub Pages.
 
 ---
 
