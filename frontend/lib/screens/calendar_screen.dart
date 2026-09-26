@@ -11,6 +11,74 @@ import '../services/task_notification_service.dart';
 
 const String kLumiBannerAsset = 'logo/lumi_gamificacion.png';
 
+List<Map<String, dynamic>> normalizarEventosCalendario({
+  List<dynamic> planes = const [],
+  List<dynamic> tareas = const [],
+}) {
+  final planesPorId = <String, Map<String, dynamic>>{};
+  final tareasSueltasPorId = <String, Map<String, dynamic>>{};
+
+  for (final item in planes) {
+    if (item is! Map) continue;
+    final plan = Map<String, dynamic>.from(item);
+    final id = (plan['plan_id'] ?? plan['id'] ?? '').toString().trim();
+    if (id.isEmpty) continue;
+    plan['id'] = id;
+    plan['plan_id'] = id;
+    planesPorId.putIfAbsent(id, () => plan);
+  }
+
+  for (final item in tareas) {
+    if (item is! Map) continue;
+    final tarea = Map<String, dynamic>.from(item);
+    final planId = (tarea['plan_id'] ?? tarea['planId'] ?? '').toString().trim();
+
+    if (planId.isEmpty) {
+      final id = (tarea['id'] ?? '').toString().trim();
+      if (id.isNotEmpty) tareasSueltasPorId.putIfAbsent(id, () => tarea);
+      continue;
+    }
+
+    planesPorId.putIfAbsent(planId, () {
+      final completado = tarea['plan_completado_en'] != null;
+      return <String, dynamic>{
+        'id': planId,
+        'plan_id': planId,
+        'nombre': tarea['plan_nombre'] ?? tarea['nombre'] ?? tarea['titulo'],
+        'descripcion': tarea['plan_descripcion'] ?? tarea['descripcion'] ?? '',
+        'fecha_creacion': tarea['plan_fecha_creacion'] ??
+            tarea['fecha_creacion'] ??
+            tarea['created_at'],
+        'fecha_entrega': tarea['plan_fecha_entrega'] ??
+            tarea['fecha_entrega'] ??
+            tarea['fecha'],
+        'completado_en': tarea['plan_completado_en'],
+        'completada': completado,
+        'estado': completado ? 'COMPLETADA' : 'PENDIENTE',
+      };
+    });
+  }
+
+  return [...planesPorId.values, ...tareasSueltasPorId.values];
+}
+
+List<DateTime> fechasEventoCalendario(
+  DateTime fechaCreacion,
+  DateTime fechaEntrega,
+) {
+  var cursor = fechaCreacion.isAfter(fechaEntrega)
+      ? fechaEntrega
+      : fechaCreacion;
+  final fechas = <DateTime>[];
+
+  while (!cursor.isAfter(fechaEntrega)) {
+    fechas.add(DateTime.utc(cursor.year, cursor.month, cursor.day));
+    cursor = cursor.add(const Duration(days: 1));
+  }
+
+  return fechas;
+}
+
 class CalendarScreen extends StatefulWidget {
   final String userId;
   final List<dynamic> tasks;
@@ -43,7 +111,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final hoy = DateTime.now();
     _selectedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
     _focusedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
-    _buildEventsFromList(widget.tasks);
+    _buildEventsFromList(
+      normalizarEventosCalendario(tareas: widget.tasks),
+    );
     _initLocaleAndData();
   }
 
@@ -102,18 +172,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final fechaInicio = _parsearFecha(rawCreacion) ?? hoyNormalizado;
 
       if (fechaLimite == null) {
+        if (task['plan_id'] != null || task['planId'] != null) continue;
         events.putIfAbsent(fechaInicio, () => []).add(task);
         continue;
       }
 
-      DateTime cursor = fechaInicio.isAfter(fechaLimite)
-          ? fechaLimite
-          : fechaInicio;
-
-      while (!cursor.isAfter(fechaLimite)) {
-        final key = DateTime.utc(cursor.year, cursor.month, cursor.day);
+      for (final key in fechasEventoCalendario(fechaInicio, fechaLimite)) {
         events.putIfAbsent(key, () => []).add(task);
-        cursor = cursor.add(const Duration(days: 1));
       }
     }
 
@@ -138,7 +203,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final tareasManuales =
         await ApiService.getPlanesEstudio(widget.userId) ?? [];
     final historialIA = await ApiService.obtenerHistorial(widget.userId) ?? [];
-    final historialConFecha = await _completarFechasHistorial(historialIA);
 
     if (!mounted) return;
 
@@ -152,7 +216,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
     final tareasParaNotificar = tieneTareasManualesValidas
         ? tareasManuales
-        : historialConFecha.whereType<Map>().map((plan) {
+      : historialIA.whereType<Map>().map((plan) {
             return <String, dynamic>{
               'id': plan['id'],
               'nombre': plan['nombre'] ?? plan['titulo'],
@@ -163,18 +227,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
           }).toList();
     final fuenteNotificaciones = tieneTareasManualesValidas
         ? 'tareasManuales'
-        : 'historialConFecha (fallback)';
+      : 'historialIA (fallback)';
     debugPrint(
       '[LUMI notifications] fuente seleccionada: $fuenteNotificaciones; '
       'elementos enviados=${tareasParaNotificar.length}',
     );
     unawaited(TaskNotificationService.instance.syncTasks(tareasParaNotificar));
 
-    final todasLasTareas = <dynamic>[...tareasManuales, ...historialConFecha];
-
-    final eventos = _crearMapaEventos(
-      todasLasTareas.isNotEmpty ? todasLasTareas : widget.tasks,
+    final eventosNormalizados = normalizarEventosCalendario(
+      planes: historialIA,
+      tareas: tareasManuales.isNotEmpty ? tareasManuales : widget.tasks,
     );
+    final eventos = _crearMapaEventos(eventosNormalizados);
 
     setState(() {
       _eventsByDay = eventos;
@@ -182,34 +246,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
     });
 
     _seleccionarDiaInicial();
-  }
-
-  Future<List<dynamic>> _completarFechasHistorial(
-    List<dynamic> historial,
-  ) async {
-    final resultado = <dynamic>[];
-
-    for (final item in historial) {
-      if (item is! Map) continue;
-
-      final id = item['id']?.toString();
-
-      if (id == null) {
-        resultado.add(item);
-        continue;
-      }
-
-      final planCompleto = await ApiService.obtenerPlan(id);
-
-      if (planCompleto != null) {
-        final combinado = Map<String, dynamic>.from(item)..addAll(planCompleto);
-        resultado.add(combinado);
-      } else {
-        resultado.add(item);
-      }
-    }
-
-    return resultado;
   }
 
   void _seleccionarDiaInicial() {

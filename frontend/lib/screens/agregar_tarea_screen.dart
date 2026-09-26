@@ -112,12 +112,16 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
         Navigator.pop(context);
       }
     } else {
+      final mensaje = resultado?['mensaje']?.toString();
+      final mensajeVisible = mensaje == null || mensaje.isEmpty
+          ? 'Error al conectar con el servidor. Verifica que el backend esté corriendo.'
+          : mensaje;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Error al conectar con el servidor. Verifica que el backend esté corriendo.',
-          ),
-          backgroundColor: Colors.red,
+        SnackBar(
+          content: Text(mensajeVisible),
+          backgroundColor: Colors.red.shade700,
+          duration: const Duration(seconds: 8),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -138,9 +142,34 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.esEscritorio(context) ? 700 : double.infinity,
+              ),
+              child: Container(
+                width: double.infinity,
+                padding: Responsive.esEscritorio(context)
+                    ? const EdgeInsets.all(28)
+                    : EdgeInsets.zero,
+                decoration: Responsive.esEscritorio(context)
+                    ? BoxDecoration(
+                        color: LumiAppTheme.surface(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: LumiAppTheme.outline(context),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 24,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      )
+                    : null,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
               // 🖼️ ENCABEZADO SUPERIOR RESPONSIVO CON IMAGEN 'logo/tarea.png'
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -327,25 +356,44 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
               SizedBox(
                 width: double.infinity,
                 height: Responsive.altoBoton(context) + 8,
-                child: ElevatedButton(
-                  onPressed: _isProcessing ? null : _enviarAIA,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF44AA),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                  ),
-                  child: _isProcessing
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          'GENERAR CRONOGRAMA',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            fontSize: Responsive.tamanioSubtitulo(context) - 2,
+                child: Responsive.esEscritorio(context)
+                    ? DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF44AA), Color(0xFFB026FF)],
+                          ),
+                          borderRadius: BorderRadius.circular(25),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFFF44AA)
+                                  .withValues(alpha: 0.28),
+                              blurRadius: 18,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: _isProcessing ? null : _enviarAIA,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                          ),
+                          child: _buildSubmitButtonContent(context),
+                        ),
+                      )
+                    : ElevatedButton(
+                        onPressed: _isProcessing ? null : _enviarAIA,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFFF44AA),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(25),
                           ),
                         ),
-                ),
+                        child: _buildSubmitButtonContent(context),
+                      ),
               ),
               const SizedBox(height: 25),
 
@@ -374,8 +422,10 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
-            ],
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
           ),
         ),
       ),
@@ -392,4 +442,17 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen> {
       borderSide: BorderSide.none,
     ),
   );
+
+  Widget _buildSubmitButtonContent(BuildContext context) {
+    return _isProcessing
+        ? const CircularProgressIndicator(color: Colors.white)
+        : Text(
+            'GENERAR CRONOGRAMA',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: Responsive.tamanioSubtitulo(context) - 2,
+            ),
+          );
+  }
 }

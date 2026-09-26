@@ -552,13 +552,114 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
+      child: Responsive.esEscritorio(context)
+          ? Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: Responsive.anchoMaximoContenido(context),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 28),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          children: [
+                            _buildWelcome(),
+                            _buildProfileAlerts(),
+                            _buildDesktopStreakCard(),
+                            _buildStudyPlan(),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 24),
+                      Expanded(
+                        flex: 2,
+                        child: Column(
+                          children: [
+                            _buildRobotHeader(),
+                            const SizedBox(height: 18),
+                            _buildAddTaskCard(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            )
+          : Column(
+              children: [
+                _buildRobotHeader(),
+                _buildWelcome(),
+                _buildProfileAlerts(),
+                _buildStudyPlan(),
+                _buildAddTaskCard(),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildDesktopStreakCard() {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.surface(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFFFA33B).withValues(alpha: 0.28),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFFA33B).withValues(alpha: 0.07),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
         children: [
-          _buildRobotHeader(),
-          _buildWelcome(),
-          _buildProfileAlerts(),
-          _buildStudyPlan(),
-          _buildAddTaskCard(),
+          Image.asset(
+            'logo/racha.png',
+            width: 42,
+            height: 42,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.local_fire_department,
+              color: Color(0xFFFFA33B),
+              size: 38,
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$activeStreak días de racha',
+                  style: TextStyle(
+                    color: LumiAppTheme.primaryText(context),
+                    fontSize: 17,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  activeStreak > 0
+                      ? 'Tu constancia está dando frutos.'
+                      : 'Completa una sesión hoy para iniciar tu racha.',
+                  style: TextStyle(
+                    color: LumiAppTheme.secondaryText(context),
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -645,14 +746,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
               child: Column(
                 children: [
-                  Text(
-                    'Lumi:',
-                    style: TextStyle(
-                      color: const Color(0xFFE871FF),
-                      fontSize: Responsive.tamanioTexto(context) - 2,
-                      fontWeight: FontWeight.bold,
+                  if (!Responsive.esEscritorio(context))
+                    Text(
+                      'Lumi:',
+                      style: TextStyle(
+                        color: const Color(0xFFE871FF),
+                        fontSize: Responsive.tamanioTexto(context) - 2,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
                   SizedBox(height: Responsive.espacio(context) / 2),
                   Text(
                     'Tu asistente personal',
@@ -682,52 +784,104 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Divider(
-                  color: LumiAppTheme.outline(context),
-                  thickness: 2,
-                ),
-              ),
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: Responsive.espacio(context) * 1.5,
-                ),
-                child: Text(
-                  'Principiante',
-                  style: TextStyle(
-                    color: LumiAppTheme.primaryText(context),
-                    fontSize: Responsive.tamanioTexto(context),
-                    fontWeight: FontWeight.bold,
+          if (Responsive.esEscritorio(context))
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '¡Hola, $userName!',
+                        style: TextStyle(
+                          color: LumiAppTheme.primaryText(context),
+                          fontSize: Responsive.tamanioTitulo(context),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: Responsive.espacio(context) / 2),
+                      Text(
+                        '¿Listo para aprender hoy?',
+                        style: TextStyle(
+                          color: LumiAppTheme.secondaryText(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Expanded(
-                child: Divider(
-                  color: LumiAppTheme.outline(context),
-                  thickness: 2,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 7,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Text(
+                    'Principiante',
+                    style: TextStyle(
+                      color: Color(0xFFB997FF),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
+              ],
+            )
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Divider(
+                    color: LumiAppTheme.outline(context),
+                    thickness: 2,
+                  ),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: Responsive.espacio(context) * 1.5,
+                  ),
+                  child: Text(
+                    'Principiante',
+                    style: TextStyle(
+                      color: LumiAppTheme.primaryText(context),
+                      fontSize: Responsive.tamanioTexto(context),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Divider(
+                    color: LumiAppTheme.outline(context),
+                    thickness: 2,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: Responsive.espacio(context) * 1.25),
+            Text(
+              '¡Hola, $userName!',
+              style: TextStyle(
+                color: LumiAppTheme.primaryText(context),
+                fontSize: Responsive.tamanioTitulo(context),
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
-          SizedBox(height: Responsive.espacio(context) * 1.25),
-          Text(
-            '¡Hola, $userName!',
-            style: TextStyle(
-              color: LumiAppTheme.primaryText(context),
-              fontSize: Responsive.tamanioTitulo(context),
-              fontWeight: FontWeight.bold,
             ),
-          ),
-          SizedBox(height: Responsive.espacio(context) / 2),
-          Text(
-            '¿Listo para aprender hoy?',
-            style: TextStyle(
-              color: LumiAppTheme.secondaryText(context),
-              fontSize: 11,
+            SizedBox(height: Responsive.espacio(context) / 2),
+            Text(
+              '¿Listo para aprender hoy?',
+              style: TextStyle(
+                color: LumiAppTheme.secondaryText(context),
+                fontSize: 11,
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -741,7 +895,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Responsive.paddingHorizontalRecomendado(context) / 2,
         Responsive.espacio(context),
       ),
-      padding: EdgeInsets.all(Responsive.espacio(context) * 1.5),
+      padding: EdgeInsets.all(
+        Responsive.esEscritorio(context)
+        ? 18
+        : Responsive.espacio(context) * 1.5,
+      ),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
         borderRadius: BorderRadius.circular(18),
@@ -773,7 +931,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             '${plans.length} ${plans.length == 1 ? 'Plan activo' : 'Planes activos'}',
             style: const TextStyle(color: Color(0xFFE474FF), fontSize: 9),
           ),
-          SizedBox(height: Responsive.espacio(context) * 1.5),
+          SizedBox(
+            height: Responsive.esEscritorio(context)
+                ? 12
+                : Responsive.espacio(context) * 1.5,
+          ),
           if (plans.isEmpty)
             Container(
               height: Responsive.esEscritorio(context) ? 70 : 56,
@@ -791,7 +953,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ...List.generate(
               plans.length,
               (index) => Padding(
-                padding: EdgeInsets.only(bottom: Responsive.espacio(context)),
+                padding: EdgeInsets.only(
+                  bottom: Responsive.esEscritorio(context)
+                      ? 10
+                      : Responsive.espacio(context),
+                ),
                 child: _buildPlanCard(plans[index]),
               ),
             ),
@@ -817,7 +983,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: InkWell(
         onTap: () => _openPlanDetail(plan),
         child: Container(
-          padding: EdgeInsets.all(Responsive.espacio(context)),
+          padding: EdgeInsets.all(
+            Responsive.esEscritorio(context)
+                ? 12
+                : Responsive.espacio(context),
+          ),
           decoration: BoxDecoration(
             color: LumiAppTheme.surfaceVariant(context),
             borderRadius: BorderRadius.circular(14),
