@@ -27,7 +27,7 @@
 │  │  └─ Panel Admin (si es admin)                                             │ │
 │  │                                                                            │ │
 │  │  Auth: Supabase (JWT)                                                    │ │
-│  │  State Management: GetX / Provider / Riverpod                            │ │
+│  │  State Management: estado local Flutter + servicios API                 │ │
 │  └───────────────────────────────────────────────────────────────────────────┘ │
 │                                     │                                            │
 │                                     │ HTTP/REST                                 │
@@ -67,7 +67,7 @@
 │                          BACKEND - Node.js/Express                             │
 │                     (TypeScript en src/, JavaScript en dist/)                  │
 │                                                                                 │
-│  Servidor en: http://localhost:3000 (Puerto 3000)                            │
+│  Servidor local: http://localhost:3000; producción: Render                  │
 │                                                                                 │
 │  ┌─────────────────────────────────────────────────────────────────────────┐  │
 │  │                          RUTAS API                                       │  │
@@ -87,13 +87,13 @@
 │  │  PUT    /api/horarios/:id          → Editar horario                    │  │
 │  │  DELETE /api/horarios/:id          → Eliminar horario                  │  │
 │  │                                                                          │  │
-│  │  POST   /api/ia/generar-plan       → Generar plan (Gemini)            │  │
-│  │  POST   /api/ia/evaluar-feynman    → Evaluar Feynman                  │  │
-│  │  POST   /api/ia/preguntar          → Hacer pregunta a IA              │  │
+│  │  POST   /api/ia/generar            → Generar plan (Gemini)            │  │
+│  │  POST   /api/ia/feynman/evaluar    → Evaluar Feynman                  │  │
+│  │  PUT    /api/ia/plan/:id/progreso  → Guardar progreso                 │  │
+│  │  PUT    /api/ia/plan/:id/metodo    → Regenerar método                 │  │
+│  │  DELETE /api/ia/plan/:id           → Eliminar plan                    │  │
 │  │                                                                          │  │
-│  │  GET    /api/ia/historial          → Obtener historial                │  │
-│  │  GET    /api/ia/historial/:id      → Historial por plan               │  │
-│  │  DELETE /api/ia/historial/:id      → Eliminar entrada                 │  │
+│  │  GET    /api/progreso              → Progreso del estudiante           │  │
 │  │                                                                          │  │
 │  │  GET    /api/admin/usuarios        → Listar usuarios (Admin)          │  │
 │  │  GET    /api/admin/usuarios/:id    → Detalles usuario (Admin)         │  │
@@ -165,7 +165,7 @@
 │                                                                             │
 └────────────┬──────────────────────────────────────────────────────────────┘
              │
-             │ POST /api/ia/generar-plan
+             │ POST /api/ia/generar
              │ Body: {usuario_id, nombre, descripcion, fecha_entrega,
              │        metodo_estudio, dificultad, enfoque_adicional}
              ↓
@@ -369,7 +369,7 @@
 │                  FRONTEND - Recibe y muestra plan                           │
 │                                                                             │
 │  1. Parsea respuesta JSON                                                 │
-│  2. Almacena en estado global (GetX, Provider, etc.)                      │
+│  2. Conserva la sesión mediante Supabase Auth y ApiService                 │
 │  3. Navega a GuiaDetalleScreen                                            │
 │  4. Muestra:                                                               │
 │                                                                             │
@@ -502,10 +502,7 @@
 ┌──────────────────────────────────────────────────────────────────────┐
 │        FRONTEND - Guarda sesión y consulta datos del usuario         │
 │                                                                       │
-│  1. Almacena en Global State (GetX):                                │
-│     final authState = Get.find<AuthController>();                  │
-│     authState.setUser(response.user);                               │
-│     authState.setAccessToken(response.access_token);                │
+│  1. Supabase Auth conserva la sesión y ApiService consulta el perfil  │
 │                                                                       │
 │  2. Consulta perfil del usuario:                                    │
 │     GET /api/auth/me  ← Backend obtiene datos de perfil             │
@@ -964,7 +961,7 @@ Flujo:
    ✓ <= 1000 caracteres
 
 6. Frontend envía:
-   POST /api/ia/preguntar
+  Flujo conceptual: la pregunta se vincula al plan activo y al historial IA.
    
    Headers:
    Authorization: Bearer <JWT_TOKEN>
@@ -1076,7 +1073,7 @@ Flujo:
    └────────────────────────────────────┘
 
 3. Admin click en "Usuarios"
-   └─ Navega a: admin_user_list_screen.dart
+  └─ Navega a: admin_usuarios_list_v2.dart
 
 4. Pantalla muestra lista:
    ┌─────────────────────────────────────────┐
@@ -1100,7 +1097,7 @@ Flujo:
 
    A) VER DETALLES DE USUARIO
    ────────────────────────────
-   Click en fila → admin_user_detail_screen.dart
+  Click en fila → admin_usuario_detalle_screen.dart
    
    Muestra:
    ┌──────────────────────────────────┐
@@ -2277,7 +2274,7 @@ LumiIa/
 │   │   │   ├── 📄 dashboard_screen.dart
 │   │   │   ├── 📄 calendar_screen.dart
 │   │   │   ├── 📄 agregar_tarea_screen.dart
-│   │   │   ├── 📄 profile_screen.dart (vacio)
+│   │   │   ├── 📄 profile_screen.dart
 │   │   │   ├── 📄 pomodoro_screen.dart
 │   │   │   ├── 📄 feynman_screen.dart
 │   │   │   ├── 📄 spaced_repetition_screen.dart
@@ -2290,8 +2287,8 @@ LumiIa/
 │   │   │   ├── 📄 seleccionar_metodo_screen.dart
 │   │   │   ├── 📄 configuracion_screen.dart
 │   │   │   ├── 📄 admin_panel_screen.dart
-│   │   │   ├── 📄 admin_user_list_screen.dart
-│   │   │   └── 📄 admin_user_detail_screen.dart
+│   │   │   ├── 📄 admin_usuarios_list_v2.dart
+│   │   │   └── 📄 admin_usuario_detalle_screen.dart
 │   │   ├── 📂 services/                 # Servicios lógica
 │   │   │   ├── 📄 auth.service.dart
 │   │   │   ├── 📄 api.service.dart
@@ -2299,7 +2296,7 @@ LumiIa/
 │   │   │   ├── 📄 tareas.service.dart
 │   │   │   ├── 📄 planes.service.dart
 │   │   │   └── 📄 historial.service.dart
-│   │   ├── 📂 controllers/ (GetX)
+│   │   ├── 📂 services/ y utilidades de estado local
 │   │   │   ├── 📄 auth_controller.dart
 │   │   │   ├── 📄 tareas_controller.dart
 │   │   │   └── 📄 app_controller.dart
@@ -2339,7 +2336,7 @@ LumiIa/
 │
 ├── 📄 profile_screen.dart (suelto)      # Pantalla de perfil
 ├── 📄 README.md                         # Doc principal
-├── 📄 READNE.md                         # Doc secundaria (TYPO)
+├── 📄 LUMIA_DETAILED_EXPLANATION.md    # Explicación funcional
 ├── 📄 PROJECT_MAP.md (creado)           # Mapa del proyecto
 └── 📄 LUMIA_DETAILED_EXPLANATION.md (creado)  # Explicación detallada
 ```
@@ -2439,7 +2436,7 @@ backend/
 5. **dashboard_screen.dart** - Panel principal
 6. **calendar_screen.dart** - Calendario interactivo
 7. **agregar_tarea_screen.dart** - Crear tarea
-8. **profile_screen.dart** - Perfil (vacío - TODO)
+8. **profile_screen.dart** - Perfil, disponibilidad y configuración de estudio
 9. **pomodoro_screen.dart** - Timer Pomodoro
 10. **feynman_screen.dart** - Técnica Feynman
 11. **spaced_repetition_screen.dart** - Repaso espaciado
@@ -2452,8 +2449,8 @@ backend/
 18. **seleccionar_metodo_screen.dart** - Elegir método
 19. **configuracion_screen.dart** - Ajustes
 20. **admin_panel_screen.dart** - Panel admin
-21. **admin_user_list_screen.dart** - Listar usuarios
-22. **admin_user_detail_screen.dart** - Detalles usuario
+21. **admin_usuarios_list_v2.dart** - Listar usuarios
+22. **admin_usuario_detalle_screen.dart** - Detalles usuario
 
 ---
 
@@ -2479,21 +2476,82 @@ backend/
 
 ---
 
-## 🚀 PRÓXIMOS PASOS RECOMENDADOS
+## 🚀 ESTADO Y ACTUALIZACIONES VERIFICADAS
 
-1. ✅ **Completar pantalla profile_screen.dart** (actualmente vacía)
-2. ✅ **Estandarizar extensiones** (mezcla .ts y .js)
-3. ✅ **Corregir typo**: READNE.md → README.md
-4. ✅ **Implementar tests** (backend y frontend)
-5. ✅ **Configurar CI/CD** (.github/workflows)
-6. ✅ **Documentar APIs** (OpenAPI/Swagger)
-7. ✅ **Agregar validaciones** (backend)
-8. ✅ **Implementar autenticación** biométrica (frontend)
-9. ✅ **Soporte offline** (Flutter con SQLite local)
-10. ✅ **Notificaciones push** (Firebase Cloud Messaging)
+La documentación anterior conserva la explicación histórica del diseño, pero estas son las decisiones y rutas que deben usarse para entender el código actual:
+
+### Navegación real de Flutter
+
+`frontend/lib/main.dart` declara `/splash`, `/login`, `/configuracion` y `/admin-panel`. Después del login, la navegación principal se realiza mediante `AppBottomNavbar`:
+
+```text
+SplashScreen -> LoginScreen
+  -> RegisterScreen
+  -> OlvidarContraseña
+  -> DashboardScreen
+    -> SeleccionarMetodoScreen -> GuiaDetalleScreen
+    -> CalendarScreen
+    -> HistorialIAScreen
+    -> ProgresoScreen
+    -> ProfileScreen
+      -> EditProfileScreen
+      -> ConfiguracionScreen
+```
+
+En móvil la barra aparece abajo; en escritorio se convierte en sidebar. Desde las pantallas complementarias se abren Pomodoro, Feynman, repetición espaciada, active recall, gamificación, recompensas y administración.
+
+### Pantallas administrativas reales
+
+- `admin_panel_screen.dart`
+- `admin_estadisticas_screen.dart`
+- `admin_usuarios_list_v2.dart`
+- `admin_usuario_detalle_screen.dart`
+
+Los nombres antiguos `admin_user_list_screen.dart` y `admin_user_detail_screen.dart` solo describen una versión anterior y no deben usarse para imports nuevos.
+
+### API realmente montada
+
+`backend/src/server.ts` registra `/api/auth`, `/api/horarios`, `/api/tareas`, `/api/ia`, `/api/ia/historial`, `/api/admin` y `/api/progreso`.
+
+Las rutas de IA actuales son:
+
+```text
+POST   /api/ia/generar
+GET    /api/ia/plan/:planId
+PUT    /api/ia/plan/:planId/progreso
+PUT    /api/ia/plan/:planId/reajustar-fecha
+PUT    /api/ia/plan/:planId/metodo
+DELETE /api/ia/plan/:planId
+POST   /api/ia/feynman/evaluar
+```
+
+El plan generado contiene método, justificación, duración, consejos, recursos, pasos, conceptos clave y preguntas de recuperación. Al cambiar los horarios, el backend recalcula la capacidad disponible y puede regenerar la planificación conservando los pasos completados.
+
+### Perfil, procrastinación y horarios
+
+`ProfileScreen` ya no es un archivo vacío. Carga el perfil, objetivo, foto, nivel de procrastinación y horarios desde `/api/auth/profile/:id`. Permite múltiples intervalos por día, evita choques de horario, calcula el tiempo semanal y actualiza la disponibilidad que usa la IA.
+
+### Gamificación y progreso
+
+La app registra tareas completadas, horas, racha, logros, XP, recompensas y personajes. `ProgresoScreen`, `GamificationScreen` y `RecompensasScreen` muestran estas métricas. Los personajes se consultan y compran mediante `/api/auth/personajes/:userId` y `/api/auth/personajes/:userId/comprar`.
+
+### Despliegue reciente
+
+- El backend se prepara con `npm run build` y `npm start` para Render.
+- El frontend web se compila y publica mediante GitHub Pages.
+- La autenticación biométrica tiene adaptación para web y Android.
+- El cliente API tiene manejo de errores y timeouts.
+- Administración incluye gráficos y generación de reportes PDF.
+
+### Pendientes que siguen siendo realmente pendientes
+
+1. Estandarizar completamente los archivos `.js` y `.ts` de horarios.
+2. Documentar la API con OpenAPI/Swagger.
+3. Ampliar pruebas automatizadas de frontend y backend.
+4. Implementar soporte offline y notificaciones push si el producto lo requiere.
 
 ---
 
-**Documento generado**: 2026-09-01  
-**Versión**: 1.0  
+**Documento actualizado**: 2026-09-17
+**Versión**: 2.0
 **Autor**: GitHub Copilot

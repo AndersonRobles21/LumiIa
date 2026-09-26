@@ -15,7 +15,7 @@ El proyecto está pensado como una arquitectura modular con separación entre:
 - servicios de backend,
 - persistencia de datos.
 
-Actualmente se implementan pantallas de inicio de sesión, registro y recuperación de contraseña. El backend ya expone una ruta de registro, aunque la integración completa con la interfaz aún está en proceso.
+Actualmente se implementan autenticación con Supabase, registro y login sincronizados con PostgreSQL, dashboard, planes de estudio con Gemini, tareas, calendario, perfil, progreso, gamificación, técnicas de aprendizaje y panel administrativo. El frontend se comunica con el backend desplegable y conserva la navegación responsive para móvil, web y escritorio.
 
 ## 2. Arquitectura general
 
@@ -36,9 +36,9 @@ Cliente Flutter -> Pantallas y widgets -> API REST (Express) -> PostgreSQL
 ### Raíz del proyecto
 
 - [README.md](README.md): documento de documentación general del proyecto.
-- [READNE.md](READNE.md): documento secundario con información resumida del proyecto.
-- [.env.example](.env.example): ejemplo para la configuración de variables de entorno.
-- [package-lock.json](package-lock.json): lockfile de dependencias del backend.
+- [LUMIA_DETAILED_EXPLANATION.md](LUMIA_DETAILED_EXPLANATION.md): explicación funcional completa.
+- [LUMIIA_COMPLETE_DOCUMENTATION.md](LUMIIA_COMPLETE_DOCUMENTATION.md): arquitectura, mapa de navegación, API y despliegue.
+- [basededatos/lumi.sql](basededatos/lumi.sql): esquema PostgreSQL.
 
 ### Carpeta frontend
 
@@ -54,8 +54,9 @@ Esta carpeta contiene toda la aplicación móvil desarrollada con Flutter.
 #### Código fuente
 
 - [frontend/lib/main.dart](frontend/lib/main.dart): punto de entrada principal de la aplicación. Aquí se inicializa la app, se define la pantalla de inicio de sesión y se gestiona la navegación hacia otras pantallas.
-- [frontend/lib/register_screen.dart](frontend/lib/register_screen.dart): pantalla de registro de usuarios. Incluye validaciones de correo, contraseña y confirmación de contraseña.
-- [frontend/lib/olvidar_contraseña.dart](frontend/lib/olvidar_contraseña.dart): pantalla de recuperación de contraseña con flujo por pasos, validación de correo, código de verificación y opción biométrica.
+- [frontend/lib/screens/register_screen.dart](frontend/lib/screens/register_screen.dart): pantalla de registro de usuarios.
+- [frontend/lib/screens/olvidar_contraseña.dart](frontend/lib/screens/olvidar_contraseña.dart): recuperación de contraseña y opciones biométricas.
+- [frontend/lib/screens/app_bottom_navbar.dart](frontend/lib/screens/app_bottom_navbar.dart): navegación autenticada entre inicio, calendario, historial IA, progreso y perfil.
 
 #### Recursos y assets
 
@@ -77,8 +78,10 @@ La interfaz actual está enfocada en:
 
 - mostrar pantallas de autenticación,
 - validar entradas del usuario,
-- ofrecer navegación entre iniciar sesión, registro y recuperación de contraseña,
-- aplicar una experiencia visual moderna con gradientes, tipografías personalizadas y componentes Material.
+- ofrecer navegación entre autenticación, dashboard, calendario, historial IA, progreso, perfil y administración,
+- generar y consultar planes de estudio personalizados,
+- registrar tareas, horarios, técnicas, logros, XP y progreso,
+- aplicar una experiencia responsive con componentes Material.
 
 ### Carpeta backend
 
@@ -93,9 +96,9 @@ Esta carpeta contiene la API del proyecto, construida con Node.js, Express y Typ
 
 #### Código fuente
 
-- [backend/src/server.ts](backend/src/server.ts): punto de entrada del servidor. Aquí se inicializa Express, se habilita el parseo de JSON, se registran las rutas y se levanta el servidor en el puerto 3000.
+- [backend/src/server.ts](backend/src/server.ts): punto de entrada del servidor. Inicializa Express, CORS, JSON y las rutas de autenticación, horarios, tareas, IA, historial, administración y progreso. Usa `PORT` o 3000 por defecto.
 - [backend/src/config/db.ts](backend/src/config/db.ts): configuración de conexión a PostgreSQL mediante el cliente pg. Lee variables de entorno como host, puerto, usuario, contraseña y nombre de la base de datos.
-- [backend/src/rutas/authRoutes.ts](backend/src/rutas/authRoutes.ts): controlador de rutas de autenticación. Actualmente expone la ruta de registro de usuarios.
+- [backend/src/rutas/authRoutes.ts](backend/src/rutas/authRoutes.ts): registro, login, perfil, estadísticas, personajes y actualización de disponibilidad.
 
 #### Propósito general de backend
 
@@ -145,8 +148,8 @@ Contiene la definición del modelo de datos.
   - Usa un pool de conexiones para manejar consultas.
 
 - [backend/src/rutas/authRoutes.ts](backend/src/rutas/authRoutes.ts)
-  - Contiene la ruta POST /api/auth/register.
-  - Inserta un registro en la tabla usuario.
+  - Contiene rutas como POST /api/auth/register, POST /api/auth/login, GET/PUT /api/auth/profile/:id y operaciones de personajes.
+  - Sincroniza usuarios, perfiles, estadísticas y horarios con PostgreSQL.
 
 ## 5. Dependencias usadas
 
@@ -198,11 +201,11 @@ Estas variables deben definirse en un archivo .env en la raíz del proyecto o en
 
 En esta versión del repositorio se observa que:
 
-- el frontend ya tiene una interfaz completa para login, registro y recuperación de contraseña,
-- el backend ya cuenta con una ruta de registro funcional en principio,
-- la base de datos tiene un esquema inicial para usuarios,
-- la integración real entre frontend y backend aún está en progreso,
-- no existe todavía una implementación completa de la capa de inteligencia artificial descrita en la propuesta del producto.
+- el frontend tiene autenticación, dashboard, navegación principal, perfil, planes, calendario, técnicas, progreso, gamificación y administración,
+- el backend monta `/api/auth`, `/api/horarios`, `/api/tareas`, `/api/ia`, `/api/ia/historial`, `/api/admin` y `/api/progreso`,
+- Gemini genera planes, evalúa Feynman y permite reajustar planes cuando cambia la disponibilidad,
+- la base de datos contiene usuarios, perfiles, horarios, planes, actividades, tareas, historial, estadísticas, recompensas, notificaciones y personajes,
+- el backend está preparado para Render y el frontend web para GitHub Pages.
 
 ## 8. Cómo ejecutar el proyecto
 
