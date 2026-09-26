@@ -5,6 +5,7 @@ import {
   calcularCapacidadPlan,
   distribuirUnidadesEnFranjas,
   franjasDisponiblesEntreFechas,
+  mensajeErrorHorarioParaUsuario,
   UnidadPlanificable,
 } from "../services/disponibilidad.service";
 import { GEMINI_MODEL, gemini } from "../config/ia/gemini.config";
@@ -270,6 +271,14 @@ export async function generarPlan(req: Request, res: Response) {
 
   } catch (error: any) {
     try { await client.query("ROLLBACK"); } catch { }
+    const mensajeHorario = mensajeErrorHorarioParaUsuario(error);
+    if (mensajeHorario) {
+      return res.status(400).json({
+        ok: false,
+        codigo: "HORARIO_INVALIDO",
+        mensaje: mensajeHorario,
+      });
+    }
     console.error(error);
     return res.status(500).json({ ok: false, mensaje: error.message });
   } finally {

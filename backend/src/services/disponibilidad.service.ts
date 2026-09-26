@@ -89,6 +89,17 @@ function minutosHorarioSeguro(valor: string): number {
   return minutos;
 }
 
+export function mensajeErrorHorarioParaUsuario(error: unknown): string | null {
+  const mensaje = error instanceof Error ? error.message : "";
+  const coincidencia = mensaje.match(
+    /^La hora fin debe ser mayor que inicio en (.+)$/i,
+  );
+  if (!coincidencia) return null;
+
+  const dia = coincidencia[1].toLowerCase();
+  return `No pudimos calcular el tiempo disponible para este trabajo porque el horario del ${dia} tiene una hora de fin igual o anterior a la de inicio. Corrígelo en tu perfil e inténtalo de nuevo.`;
+}
+
 export function minutosDisponiblesPorDia(horarios: HorarioSemanal[]): Record<string, number> {
   const resultado: Record<string, number> = Object.fromEntries(
     DIAS_CANONICOS.map((dia) => [dia, 0])

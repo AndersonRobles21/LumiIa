@@ -21,6 +21,12 @@ function mapTareaRow(row: any) {
   return {
     id: row.id,
     actividad_id: row.actividad_id ?? null,
+    plan_id: row.plan_id ?? null,
+    plan_nombre: row.plan_nombre ?? null,
+    plan_descripcion: row.plan_descripcion ?? null,
+    plan_fecha_creacion: row.plan_fecha_creacion ?? null,
+    plan_fecha_entrega: row.plan_fecha_entrega ?? null,
+    plan_completado_en: row.plan_completado_en ?? null,
     nombre: row.nombre ?? row.titulo ?? "",
     descripcion: row.descripcion ?? "",
     estado: row.estado ?? (row.completada ? "COMPLETADA" : "PENDIENTE"),
@@ -239,6 +245,12 @@ export async function obtenerTareasPorUsuario(
         t.actividad_id,
         t.titulo AS nombre,
         t.descripcion,
+        p.id AS plan_id,
+        p.nombre AS plan_nombre,
+        p.descripcion AS plan_descripcion,
+        p.fecha_creacion AS plan_fecha_creacion,
+        p.completado_en AS plan_completado_en,
+        fecha_plan.fecha_entrega AS plan_fecha_entrega,
         CASE
           WHEN t.completada THEN 'COMPLETADA'
           ELSE 'PENDIENTE'
@@ -249,6 +261,13 @@ export async function obtenerTareasPorUsuario(
       FROM tareas t
       LEFT JOIN actividades a ON a.id = t.actividad_id
       LEFT JOIN planes_estudio p ON p.id = a.plan_id
+      LEFT JOIN LATERAL (
+        SELECT (h.pregunta::json)->>'fecha_entrega' AS fecha_entrega
+        FROM historial_ia h
+        WHERE h.plan_id = p.id
+        ORDER BY h.fecha DESC
+        LIMIT 1
+      ) fecha_plan ON TRUE
       WHERE p.usuario_id = $1 OR t.actividad_id IS NULL
       ORDER BY t.id DESC
       `,
