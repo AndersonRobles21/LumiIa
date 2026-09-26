@@ -4,9 +4,23 @@ import {
   calcularCapacidadPlan,
   distribuirUnidadesEnFranjas,
   franjasDisponiblesEntreFechas,
+  mensajeErrorHorarioParaUsuario,
   minutosDisponiblesPorDia,
   minutosPorDiaDesdeHorarios,
 } from "./disponibilidad.service.js";
+
+test("traduce un horario con fin inválido a un mensaje accionable", () => {
+  assert.equal(
+    mensajeErrorHorarioParaUsuario(
+      new Error("La hora fin debe ser mayor que inicio en lunes"),
+    ),
+    "No pudimos calcular el tiempo disponible para este trabajo porque el horario del lunes tiene una hora de fin igual o anterior a la de inicio. Corrígelo en tu perfil e inténtalo de nuevo.",
+  );
+});
+
+test("no traduce errores que no son de rango horario", () => {
+  assert.equal(mensajeErrorHorarioParaUsuario(new Error("Error inesperado")), null);
+});
 
 test("suma intervalos reales incluyendo minutos", () => {
   assert.equal(

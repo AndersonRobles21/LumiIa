@@ -9,6 +9,20 @@
 
   const router = Router();
 
+  async function guardarFotoPersonaje(
+    client: any,
+    userId: string,
+    personaje: number,
+  ) {
+    await client.query(
+      `INSERT INTO perfiles_estudio (usuario_id, foto_perfil)
+       VALUES ($1, $2)
+       ON CONFLICT (usuario_id)
+       DO UPDATE SET foto_perfil = EXCLUDED.foto_perfil`,
+      [userId, `asset:logo/personajes/personaje${personaje}.png`],
+    );
+  }
+
   function contarLogros(tareas: number, racha: number, planes: number, horas: number) {
     let count = 0;
     if (tareas >= 1) count++;
@@ -45,7 +59,9 @@
   router.post("/personajes/:userId/comprar", async (req: Request, res: Response): Promise<any> => {
     const client = await pool.connect();
     try {
-      const userId = req.params.userId;
+      const userId = Array.isArray(req.params.userId)
+        ? req.params.userId[0] ?? ""
+        : req.params.userId;
       const personaje = Number(req.body.personaje);
       if (!Number.isInteger(personaje) || personaje < 1 || personaje > 18) {
         return res.status(400).json({ mensaje: "Personaje inválido" });
@@ -76,6 +92,7 @@
       const spent = purchasedResult.rows.reduce((sum, row) => sum + Number(row.costo_xp), 0);
 
       if (alreadyOwned) {
+        await guardarFotoPersonaje(client, userId, personaje);
         await client.query("COMMIT");
         return res.status(200).json({ ok: true, comprado: true, xp_disponible: xpGanado - spent });
       }
@@ -88,10 +105,7 @@
         "INSERT INTO personajes_usuario (usuario_id, personaje, costo_xp) VALUES ($1, $2, $3)",
         [userId, personaje, costo],
       );
-      await client.query(
-        "UPDATE perfiles_estudio SET foto_perfil = $1 WHERE usuario_id = $2",
-        [`asset:logo/personajes/personaje${personaje}.png`, userId],
-      );
+      await guardarFotoPersonaje(client, userId, personaje);
       await client.query("COMMIT");
       return res.status(201).json({
         ok: true,
@@ -419,6 +433,51 @@
     } catch (error) {
       console.error("❌ Error obteniendo alertas de perfil:", error);
       return res.status(500).json({ mensaje: "Error al obtener alertas de perfil." });
+    }
+  });
+
+  router.put("/profile/:id/avatar", async (req: Request, res: Response): Promise<any> => {
+    const { id } = req.params;
+    const userId = Array.isArray(id) ? id[0] ?? "" : id;
+    const fotoPerfil = req.body?.foto_perfil;
+
+    if (typeof fotoPerfil !== "string" || !fotoPerfil.trim()) {
+      return res.status(400).json({
+        ok: false,
+        mensaje: "La imagen de perfil no es válida.",
+      });
+    }
+    if (fotoPerfil.length > 1_500_000) {
+      return res.status(413).json({
+        ok: false,
+        mensaje: "La imagen sigue siendo demasiado pesada. Selecciona otra foto.",
+      });
+    }
+
+    try {
+      const usuario = await pool.query(
+        "SELECT id FROM usuarios WHERE id = $1",
+        [userId],
+      );
+      if (usuario.rows.length === 0) {
+        return res.status(404).json({ ok: false, mensaje: "Usuario no encontrado." });
+      }
+
+      await pool.query(
+        `INSERT INTO perfiles_estudio (usuario_id, foto_perfil)
+         VALUES ($1, $2)
+         ON CONFLICT (usuario_id)
+         DO UPDATE SET foto_perfil = EXCLUDED.foto_perfil`,
+        [userId, fotoPerfil.trim()],
+      );
+
+      return res.status(200).json({ ok: true, mensaje: "Foto de perfil guardada." });
+    } catch (error) {
+      console.error("Error actualizando foto de perfil:", error);
+      return res.status(500).json({
+        ok: false,
+        mensaje: "No se pudo guardar la foto de perfil.",
+      });
     }
   });
 
