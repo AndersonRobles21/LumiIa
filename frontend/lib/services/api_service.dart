@@ -131,6 +131,26 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>?> updateProfileAvatar({
+    required String userId,
+    required String fotoPerfil,
+  }) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/profile/$userId/avatar'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'foto_perfil': fotoPerfil}),
+      );
+
+      if (response.body.isEmpty) return null;
+      final data = jsonDecode(response.body);
+      return data is Map<String, dynamic> ? data : null;
+    } catch (error) {
+      print('Error en ApiService updateProfileAvatar: $error');
+      return null;
+    }
+  }
+
   static Future<Map<String, dynamic>?> requestPasswordReset(
     String correo,
   ) async {
@@ -458,7 +478,13 @@ static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
       final data = jsonDecode(response.body);
 
       if (response.statusCode != 200 && response.statusCode != 201) {
-        throw Exception(data['mensaje'] ?? 'Error al generar el plan.');
+        return {
+          'ok': false,
+          'codigo': data is Map ? data['codigo'] : null,
+          'mensaje': data is Map && data['mensaje'] != null
+              ? data['mensaje'].toString()
+              : 'Error al generar el plan.',
+        };
       }
 
       return data;

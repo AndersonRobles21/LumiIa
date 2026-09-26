@@ -158,6 +158,7 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
 
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
+      extendBodyBehindAppBar: Responsive.esEscritorio(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -185,21 +186,30 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
               onRefresh: _cargarHistorial,
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(
+                padding: EdgeInsets.only(
                   left: 16.0,
                   right: 16.0,
-                  top: 16.0,
-                  bottom: 130.0, // Espacio para la barra de navegación
+                  top: Responsive.esEscritorio(context) ? 4 : 16,
+                  bottom: Responsive.esEscritorio(context) ? 28 : 130,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (Responsive.esEscritorio(context))
+                      SizedBox(
+                        height: MediaQuery.paddingOf(context).top +
+                            kToolbarHeight,
+                      ),
                     Center(
                       child: SizedBox(
                         width: double.infinity,
                         child: ConstrainedBox(
                           constraints: BoxConstraints(
-                            maxHeight: Responsive.esMovil(context) ? 140 : 190,
+                            maxHeight: Responsive.esMovil(context)
+                              ? 140
+                              : Responsive.esEscritorio(context)
+                                ? 124
+                                : 190,
                           ),
                           child: Image.asset(
                             'logo/historial_lumi.png',
@@ -214,7 +224,9 @@ class _HistorialIAScreenState extends State<HistorialIAScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 24),
+                    SizedBox(
+                      height: Responsive.esEscritorio(context) ? 14 : 24,
+                    ),
 
                     // Buscador
                     TextField(

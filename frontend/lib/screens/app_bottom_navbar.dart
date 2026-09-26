@@ -77,11 +77,13 @@ class AppBottomNavbar extends StatelessWidget {
         width: Responsive.anchoSidebar(context),
         height: double.infinity,
         child: Container(
-          margin: const EdgeInsets.only(right: 14),
-          padding: const EdgeInsets.fromLTRB(14, 24, 14, 18),
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
           decoration: BoxDecoration(
             color: LumiAppTheme.surface(context),
-            border: Border(right: BorderSide(color: LumiAppTheme.outline(context))),
+            border: Border(
+              right: BorderSide(color: LumiAppTheme.outline(context)),
+            ),
             boxShadow: [
               BoxShadow(
                 color: Theme.of(context).brightness == Brightness.dark
@@ -92,31 +94,37 @@ class AppBottomNavbar extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              _buildBrand(context),
-              const SizedBox(height: 32),
-              Padding(
-                padding: EdgeInsets.only(left: 12, bottom: 10),
-                child: Text(
-                  'NAVEGACIÓN',
-                  style: TextStyle(
-                    color: LumiAppTheme.secondaryText(context),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.4,
+          child: Scrollbar(
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildBrand(context),
+                  const SizedBox(height: 22),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 12, bottom: 8),
+                    child: Text(
+                      'NAVEGACIÓN',
+                      style: TextStyle(
+                        color: LumiAppTheme.secondaryText(context),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
                   ),
-                ),
+                  _navItem(context, index: 0, icon: Icons.home, label: 'Inicio'),
+                  _navItem(context, index: 1, icon: Icons.calendar_month_outlined, label: 'Calendario'),
+                  _navItem(context, index: 2, icon: Icons.psychology_outlined, label: 'Historial IA'),
+                  _navItem(context, index: 3, icon: Icons.bar_chart_rounded, label: 'Progreso'),
+                  _navItem(context, index: 4, icon: Icons.person_outline, label: 'Perfil'),
+                  const SizedBox(height: 18),
+                  Divider(color: LumiAppTheme.outline(context), height: 1),
+                  const SizedBox(height: 14),
+                  _buildSidebarIllustration(context),
+                ],
               ),
-              _navItem(context, index: 0, icon: Icons.home, label: 'Inicio'),
-              _navItem(context, index: 1, icon: Icons.calendar_month_outlined, label: 'Calendario'),
-              _navItem(context, index: 2, icon: Icons.psychology_outlined, label: 'Historial IA'),
-              _navItem(context, index: 3, icon: Icons.bar_chart_rounded, label: 'Progreso'),
-              _navItem(context, index: 4, icon: Icons.person_outline, label: 'Perfil'),
-              const Spacer(),
-              _buildSidebarIllustration(context),
-            ],
+            ),
           ),
         ),
       );
@@ -231,36 +239,73 @@ class AppBottomNavbar extends StatelessWidget {
     final active = index == currentIndex;
     return InkWell(
       onTap: () => _goTo(context, index),
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(11),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
           decoration: BoxDecoration(
-            color: active ? LumiAppTheme.surfaceVariant(context) : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            color: active
+                ? LumiAppTheme.accent(context).withValues(alpha: 0.09)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(11),
             border: active
-                ? Border(left: BorderSide(color: LumiAppTheme.accent(context), width: 3))
+                ? Border(
+                    left: BorderSide(
+                      color: LumiAppTheme.accent(context),
+                      width: 3,
+                    ),
+                  )
                 : null,
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.max,
-          children: [
-            Icon(icon, color: active ? LumiAppTheme.accent(context) : LumiAppTheme.secondaryText(context), size: 21),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: active ? LumiAppTheme.primaryText(context) : LumiAppTheme.secondaryText(context),
-                  fontSize: 13,
-                  fontWeight: active ? FontWeight.w700 : FontWeight.w400,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: active
+                      ? LumiAppTheme.accent(context).withValues(alpha: 0.14)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  icon,
+                  color: active
+                      ? LumiAppTheme.accent(context)
+                      : LumiAppTheme.secondaryText(context),
+                  size: 19,
                 ),
               ),
-            ),
-            if (active)
-              Icon(Icons.chevron_right, color: LumiAppTheme.accent(context), size: 17),
-          ],
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: active
+                        ? LumiAppTheme.primaryText(context)
+                        : LumiAppTheme.secondaryText(context),
+                    fontSize: 12.5,
+                    fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+              if (active)
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: LumiAppTheme.accent(context),
+                    shape: BoxShape.circle,
+                  ),
+                ),
+            ],
           ),
         ),
       ),
