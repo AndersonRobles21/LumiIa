@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+
 import '/services/api_service.dart';
-import 'guia_detalle_screen.dart';
-import '../utils/responsive.dart';
 import '../services/task_notification_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
 import 'app_language.dart';
+import 'guia_detalle_screen.dart';
 
 class AgregarTareaScreen extends StatefulWidget {
   final String userId;
@@ -30,14 +32,30 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
   );
 
   bool _isProcessing = false;
+  bool _formatosFechaListos = false;
 
-  // Se mantiene en español porque se envía así al backend.
+  // El backend recibe estos valores en español.
   String _nivelDificultad = 'Media';
 
   String get _locale => AppLanguage.instance.isEnglish ? 'en' : 'es';
 
   String get _fechaFormateada =>
       DateFormat('dd / MMM / yyyy', _locale).format(_fechaSeleccionada);
+
+  @override
+  void initState() {
+    super.initState();
+    _inicializarFormatosFecha();
+  }
+
+  Future<void> _inicializarFormatosFecha() async {
+    await initializeDateFormatting('es');
+    await initializeDateFormatting('en');
+
+    if (!mounted) return;
+
+    setState(() => _formatosFechaListos = true);
+  }
 
   @override
   void dispose() {
@@ -48,7 +66,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
   }
 
   Future<void> _seleccionarFecha(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    final picked = await showDatePicker(
       context: context,
       locale: Locale(_locale),
       initialDate: _fechaSeleccionada,
@@ -69,7 +87,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
     }
   }
 
-  void _enviarAIA() async {
+  Future<void> _enviarAIA() async {
     if (_tituloController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -133,9 +151,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
         ),
       );
 
-      if (mounted) {
-        Navigator.pop(context);
-      }
+      if (mounted) Navigator.pop(context);
     } else {
       final mensaje = resultado?['mensaje']?.toString();
 
@@ -161,6 +177,17 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
 
   @override
   Widget build(BuildContext context) {
+    if (!_formatosFechaListos) {
+      return Scaffold(
+        backgroundColor: LumiAppTheme.pageBackground(context),
+        body: const Center(
+          child: CircularProgressIndicator(
+            color: Color(0xFFFF44AA),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
@@ -176,10 +203,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
       ),
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 24,
-            vertical: 10,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
           child: ConstrainedBox(
             constraints: BoxConstraints(
               maxWidth: Responsive.esEscritorio(context)
@@ -198,13 +222,6 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                       border: Border.all(
                         color: LumiAppTheme.outline(context),
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
                     )
                   : null,
               child: Column(
@@ -236,27 +253,10 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                                 style: TextStyle(
                                   color: LumiAppTheme.secondaryText(context),
                                   fontSize: 13,
-                                  height: 1.3,
                                 ),
                               ),
                               const SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                height: Responsive.esEscritorio(context)
-                                    ? 160
-                                    : Responsive.esTablet(context)
-                                        ? 140
-                                        : 120,
-                                child: Image.asset(
-                                  'logo/recordatorio.png',
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (_, __, ___) => const Icon(
-                                    Icons.notifications,
-                                    color: Color(0xFFFF44AA),
-                                    size: 40,
-                                  ),
-                                ),
-                              ),
+                              _buildReminderCard(context),
                             ],
                           ),
                         ),
@@ -316,10 +316,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                     onTap: () => _seleccionarFecha(context),
                     child: Container(
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: LumiAppTheme.surface(context),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
+                      decoration: _fieldBoxDecoration(context),
                       child: Row(
                         children: [
                           const Icon(
@@ -327,17 +324,18 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                             color: Color(0xFFFF44AA),
                           ),
                           const SizedBox(width: 12),
-                          Text(
-                            tr(
-                              'Fecha límite: $_fechaFormateada',
-                              'Due date: $_fechaFormateada',
-                            ),
-                            style: TextStyle(
-                              color: LumiAppTheme.primaryText(context),
-                              fontWeight: FontWeight.w500,
+                          Expanded(
+                            child: Text(
+                              tr(
+                                'Fecha límite: $_fechaFormateada',
+                                'Due date: $_fechaFormateada',
+                              ),
+                              style: TextStyle(
+                                color: LumiAppTheme.primaryText(context),
+                                fontWeight: FontWeight.w500,
+                              ),
                             ),
                           ),
-                          const Spacer(),
                           Icon(
                             Icons.edit_calendar,
                             color: LumiAppTheme.secondaryText(context),
@@ -361,10 +359,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                   const SizedBox(height: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(
-                      color: LumiAppTheme.surface(context),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
+                    decoration: _fieldBoxDecoration(context),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String>(
                         value: _nivelDificultad,
@@ -387,10 +382,7 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                           DropdownMenuItem(
                             value: 'Media',
                             child: Text(
-                              tr(
-                                'Media (equilibrado)',
-                                'Medium (balanced)',
-                              ),
+                              tr('Media (equilibrado)', 'Medium (balanced)'),
                             ),
                           ),
                           DropdownMenuItem(
@@ -412,11 +404,9 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                             ),
                           ),
                         ],
-                        onChanged: (nuevoValor) {
-                          if (nuevoValor != null) {
-                            setState(
-                              () => _nivelDificultad = nuevoValor,
-                            );
+                        onChanged: (valor) {
+                          if (valor != null) {
+                            setState(() => _nivelDificultad = valor);
                           }
                         },
                       ),
@@ -440,74 +430,19 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
                   SizedBox(
                     width: double.infinity,
                     height: Responsive.altoBoton(context) + 8,
-                    child: Responsive.esEscritorio(context)
-                        ? DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [
-                                  Color(0xFFFF44AA),
-                                  Color(0xFFB026FF),
-                                ],
-                              ),
-                              borderRadius: BorderRadius.circular(25),
-                            ),
-                            child: ElevatedButton(
-                              onPressed:
-                                  _isProcessing ? null : _enviarAIA,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(25),
-                                ),
-                              ),
-                              child: _buildSubmitButtonContent(context),
-                            ),
-                          )
-                        : ElevatedButton(
-                            onPressed: _isProcessing ? null : _enviarAIA,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFFFF44AA),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(25),
-                              ),
-                            ),
-                            child: _buildSubmitButtonContent(context),
-                          ),
-                  ),
-                  const SizedBox(height: 25),
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: Responsive.esEscritorio(context)
-                            ? 900
-                            : double.infinity,
-                        maxHeight: Responsive.esMovil(context) ? 150 : 220,
-                      ),
-                      child: Image.asset(
-                        'logo/consejo_tarea.png',
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, __, ___) => Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: LumiAppTheme.surface(context),
-                            borderRadius: BorderRadius.circular(15),
-                          ),
-                          child: Text(
-                            tr(
-                              'Cuéntame qué tienes que hacer y yo te ayudo a organizarlo.',
-                              'Tell me what you need to do and I will help you organize it.',
-                            ),
-                            style: TextStyle(
-                              color: LumiAppTheme.secondaryText(context),
-                              fontSize: 12,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
+                    child: ElevatedButton(
+                      onPressed: _isProcessing ? null : _enviarAIA,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF44AA),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(25),
                         ),
                       ),
+                      child: _buildSubmitButtonContent(context),
                     ),
                   ),
+                  const SizedBox(height: 25),
+                  _buildLumiAdviceCard(context),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -518,18 +453,205 @@ class _AgregarTareaScreenState extends State<AgregarTareaScreen>
     );
   }
 
+  Widget _buildReminderCard(BuildContext context) {
+    final ingles = AppLanguage.instance.isEnglish;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.surface(context),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFB026FF),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('💡', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontSize: 12.5,
+                  height: 1.35,
+                ),
+                children: ingles
+                    ? const [
+                        TextSpan(
+                          text: 'Remember:\n',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: 'In your title, specify whether it is a '),
+                        TextSpan(
+                          text: 'Task',
+                          style: TextStyle(
+                            color: Color(0xFF9D4EDD),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: ', '),
+                        TextSpan(
+                          text: 'Project',
+                          style: TextStyle(
+                            color: Color(0xFFFFB800),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: ', or an '),
+                        TextSpan(
+                          text: 'Exam.',
+                          style: TextStyle(
+                            color: Color(0xFFFF4D94),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ]
+                    : const [
+                        TextSpan(
+                          text: 'Recuerda:\n',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(
+                          text: 'En el título de tu trabajo debes especificar si es ',
+                        ),
+                        TextSpan(
+                          text: 'Trabajo',
+                          style: TextStyle(
+                            color: Color(0xFF9D4EDD),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: ', '),
+                        TextSpan(
+                          text: 'Proyecto',
+                          style: TextStyle(
+                            color: Color(0xFFFFB800),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        TextSpan(text: ' o '),
+                        TextSpan(
+                          text: 'Examen.',
+                          style: TextStyle(
+                            color: Color(0xFFFF4D94),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLumiAdviceCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 0),
+      decoration: BoxDecoration(
+        color: LumiAppTheme.surface(context),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFB026FF),
+          width: 1.5,
+        ),
+      ),
+      child: Row(
+        children: [
+          Image.asset(
+            'logo/lumi_tarea.png',
+            width: 200,
+            height: 190,
+            fit: BoxFit.contain,
+            errorBuilder: (_, __, ___) => const Icon(
+              Icons.smart_toy_rounded,
+              color: Color(0xFFFF44AA),
+              size: 52,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: RichText(
+              text: TextSpan(
+                style: TextStyle(
+                  color: LumiAppTheme.primaryText(context),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  height: 1.3,
+                ),
+                children: [
+                  TextSpan(
+                    text: tr(
+                      'Cuéntame qué tienes que hacer\ny yo te ayudo a ',
+                      'Tell me what you need to do,\nand I will help you ',
+                    ),
+                  ),
+                  TextSpan(
+                    text: tr('organizarlo.', 'organize it.'),
+                    style: const TextStyle(
+                      color: Color(0xFFB026FF),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _fieldBoxDecoration(BuildContext context) {
+    return BoxDecoration(
+      color: LumiAppTheme.surface(context),
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(
+        color: LumiAppTheme.outline(context),
+        width: 1.3,
+      ),
+    );
+  }
+
   InputDecoration _inputDecoration(BuildContext context, String hint) {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(
-        color: LumiAppTheme.secondaryText(context),
+        color: LumiAppTheme.secondaryText(context).withValues(alpha: 0.8),
         fontSize: 13,
       ),
       filled: true,
       fillColor: LumiAppTheme.surface(context),
-      border: OutlineInputBorder(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 18,
+        vertical: 17,
+      ),
+      enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(
+          color: LumiAppTheme.outline(context),
+          width: 1.3,
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(
+          color: Color(0xFF8B5CF6),
+          width: 2,
+        ),
       ),
     );
   }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:frontend/screens/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -86,6 +87,15 @@ class _LumiAppState extends State<LumiApp> with WidgetsBindingObserver {
       theme: LumiAppTheme.light,
       darkTheme: LumiAppTheme.dark,
       themeMode: ThemeController.instance.themeMode,
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [
+        Locale('en', ''),
+        Locale('es', ''),
+      ],
       initialRoute: '/splash',
       routes: {
         '/splash': (context) => const SplashScreen(),

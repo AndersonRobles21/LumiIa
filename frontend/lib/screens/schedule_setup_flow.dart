@@ -813,27 +813,30 @@ class _ScheduleSetupFlowState extends State<ScheduleSetupFlow>
   }
 
   Widget _editableSlot(String dayKey, int index, ScheduleSlot slot) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      leading: const Icon(Icons.schedule_rounded, color: Color(0xFFFF44AA)),
-      title: Text(
-        '${_formatMinutes(slot.startMinutes)} - ${_formatMinutes(slot.endMinutes)}',
-      ),
-      trailing: Wrap(
-        children: [
-          IconButton(
-            tooltip: tr('Editar horario', 'Edit time'),
-            onPressed: () => _pickTimeBlock(dayKey, slotIndex: index),
-            icon: const Icon(Icons.edit_outlined),
-          ),
-          IconButton(
-            tooltip: tr('Eliminar horario', 'Remove time'),
-            onPressed: () =>
-                setState(() => _slotsByDay[dayKey]!.removeAt(index)),
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-          ),
-        ],
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        leading: const Icon(Icons.schedule_rounded, color: Color(0xFFFF44AA)),
+        title: Text(
+          '${_formatMinutes(slot.startMinutes)} - ${_formatMinutes(slot.endMinutes)}',
+        ),
+        trailing: Wrap(
+          children: [
+            IconButton(
+              tooltip: tr('Editar horario', 'Edit time'),
+              onPressed: () => _pickTimeBlock(dayKey, slotIndex: index),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+            IconButton(
+              tooltip: tr('Eliminar horario', 'Remove time'),
+              onPressed: () =>
+                  setState(() => _slotsByDay[dayKey]!.removeAt(index)),
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            ),
+          ],
+        ),
       ),
     );
   }

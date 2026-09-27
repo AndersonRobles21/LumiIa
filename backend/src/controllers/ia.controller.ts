@@ -87,6 +87,7 @@ export async function generarPlan(req: Request, res: Response) {
     const dificultad = req.body.dificultad ?? "Media";
     const enfoque_adicional = req.body.enfoque_adicional ?? "";
     const mensajeUsuario = req.body.mensajeUsuario ?? "";
+    const idioma = req.body.idioma ?? "español";
 
     if (!usuario_id || !nombre || !fecha_entrega) {
       return res.status(400).json({ mensaje: "Faltan datos obligatorios." });
@@ -154,6 +155,7 @@ export async function generarPlan(req: Request, res: Response) {
       diasRestantes,
       minutosDisponibles,
       mensajeUsuario,
+      idioma, // PASAMOS EL IDIOMA AQUÍ
     });
 
     const tiempoEstimado = Number(planIA.tiempo_estimado_total ?? 0);
@@ -434,7 +436,7 @@ export async function eliminarPlan(req: Request, res: Response) {
 // 📌 ENDPOINT PARA EVALUAR LA TÉCNICA FEYNMAN CON IA
 export async function evaluarFeynman(req: Request, res: Response) {
   try {
-    const { concepto, explicacion } = req.body;
+    const { concepto, explicacion, idioma = "español" } = req.body;
 
     if (!concepto || !explicacion) {
       return res.status(400).json({ 
@@ -443,11 +445,15 @@ export async function evaluarFeynman(req: Request, res: Response) {
       });
     }
 
+    const idiomaPrompt = idioma === "inglés" ? "INGLÉS (English)" : "ESPAÑOL (Spanish)";
+
     const prompt = `Actúa como Lumi, una tutora virtual amigable pero estricta. El estudiante debe explicar el concepto "${concepto}" usando la técnica Feynman. 
 La explicación del estudiante es: "${explicacion}".
 
 Analiza detalladamente si la explicación es seria, coherente y demuestra que entendió el núcleo del tema. 
 Si el estudiante escribió una broma, una grosería, palabras repetidas sin sentido, o texto absurdo (como decir tonterías, insultos o cosas sin relación lógica con el concepto), debes rechazarlo (aprobado: false).
+
+DEBES ESCRIBIR EL MENSAJE DE RESPUESTA EN ${idiomaPrompt}. 
 
 Devuelve la respuesta estrictamente en un objeto JSON con esta estructura exacta y sin texto adicional por fuera del JSON:
 {
@@ -490,7 +496,7 @@ Devuelve la respuesta estrictamente en un objeto JSON con esta estructura exacta
 // 📌 ENDPOINT PARA REGENERAR EL PLAN Y SUS PASOS CON EL NUEVO MÉTODO SELECCIONADO Y NUEVA FECHA
 export async function regenerarMetodoPlan(req: Request, res: Response) {
   const { planId } = req.params;
-  let { metodo_estudio, usuario_id, nombre, descripcion, fecha_entrega, dificultad } = req.body;
+  let { metodo_estudio, usuario_id, nombre, descripcion, fecha_entrega, dificultad, idioma = "español" } = req.body;
 
   try {
     console.log(`🔄 [REGENERAR] Plan ID: ${planId} | Nuevo método: ${metodo_estudio} | Nueva fecha: ${fecha_entrega}`);
@@ -570,6 +576,7 @@ export async function regenerarMetodoPlan(req: Request, res: Response) {
       diasRestantes: 5,
       minutosDisponibles: 1200,
       mensajeUsuario: "",
+      idioma, // PASAMOS EL IDIOMA AQUÍ
     });
 
     if (!planIA) {

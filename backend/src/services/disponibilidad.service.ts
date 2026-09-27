@@ -1,12 +1,14 @@
 export type EstadoDisponibilidad = "SUFICIENTE" | "AJUSTADO" | "INSUFICIENTE";
 
-export interface HorarioDisponible {
+export interface HorarioSemanal {
+  dia: string;
   hora_inicio: string;
   hora_fin: string;
 }
 
-export interface HorarioSemanal extends HorarioDisponible {
-  dia: string;
+export interface HorarioDisponible extends HorarioSemanal {
+  id?: string;
+  usuario_id?: string;
 }
 
 export interface FranjaDisponible {
@@ -20,6 +22,7 @@ export interface FranjaDisponible {
 export interface UnidadPlanificable {
   clave: string;
   duracionMinutos: number;
+  titulo?: string;
 }
 
 export interface SegmentoPlanificado extends UnidadPlanificable {
@@ -36,37 +39,37 @@ export interface CapacidadPlan {
   estado: EstadoDisponibilidad;
 }
 
-function minutosDesdeMedianoche(valor: string): number {
-  const partes = String(valor).slice(0, 5).split(":");
-  return Number(partes[0]) * 60 + Number(partes[1] ?? 0);
-}
-
 const DIAS_CANONICOS = ["domingo", "lunes", "martes", "miercoles", "jueves", "viernes", "sabado"];
-const ALIAS_DIAS: Record<string, string> = {
-  dom: "domingo", domingo: "domingo",
-  lun: "lunes", lunes: "lunes",
-  mar: "martes", martes: "martes",
-  mie: "miercoles", miercoles: "miercoles",
-  jue: "jueves", jueves: "jueves",
-  vie: "viernes", viernes: "viernes",
-  sab: "sabado", sabado: "sabado",
-};
 
-function diaCanonico(valor: string): string {
-  const dia = String(valor).trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const resultado = ALIAS_DIAS[dia];
-  if (!resultado) throw new Error(`Día de horario inválido: ${valor}`);
-  return resultado;
+function diaCanonico(dia: string): string {
+  const normalizado = dia
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+  if (normalizado === "miercoles") return "miercoles";
+  if (normalizado === "sabado") return "sabado";
+  const canonico = DIAS_CANONICOS.find((d) => d.startsWith(normalizado.slice(0, 3)));
+  if (!canonico) throw new Error(`Día no válido: ${dia}`);
+  return canonico;
 }
 
-function fechaUTC(valor: string | Date): Date {
-  if (valor instanceof Date) {
-    return new Date(Date.UTC(valor.getUTCFullYear(), valor.getUTCMonth(), valor.getUTCDate()));
+function minutosDesdeMedianoche(horaStr: string): number {
+  if (!/^\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/.test(String(horaStr).trim())) {
+    throw new Error(`Hora inválida: ${horaStr}`);
   }
-  const [year, month, day] = String(valor).slice(0, 10).split("-").map(Number);
-  const fecha = new Date(Date.UTC(year, month - 1, day));
-  if (Number.isNaN(fecha.getTime())) throw new Error(`Fecha inválida: ${valor}`);
-  return fecha;
+  const [hora, minuto] = String(horaStr).slice(0, 5).split(":").map(Number);
+  if (hora > 23 || minuto > 59) throw new Error(`Hora inválida: ${horaStr}`);
+  return hora * 60 + minuto;
+}
+
+function fechaUTC(fecha: string | Date): Date {
+  const d = new Date(
+    typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fecha)
+      ? `${fecha}T00:00:00Z`
+      : fecha
+  );
+  if (Number.isNaN(d.getTime())) throw new Error(`Fecha inválida: ${fecha}`);
+  return d;
 }
 
 function fechaISO(fecha: Date): string {
@@ -74,9 +77,9 @@ function fechaISO(fecha: Date): string {
 }
 
 function sumarDias(fecha: Date, dias: number): Date {
-  const resultado = new Date(fecha);
-  resultado.setUTCDate(resultado.getUTCDate() + dias);
-  return resultado;
+  const d = new Date(fecha.getTime());
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d;
 }
 
 function minutosHorarioSeguro(valor: string): number {
@@ -164,7 +167,10 @@ export function distribuirUnidadesEnFranjas(
 ): SegmentoPlanificado[] {
   const capacidadPorFecha = new Map<string, number>();
   for (const franja of franjas) {
-    capacidadPorFecha.set(franja.fecha, (capacidadPorFecha.get(franja.fecha) ?? 0) + franja.minutos);
+    capacidadPorFecha.set(
+      franja.fecha,
+      (capacidadPorFecha.get(franja.fecha) || 0) + Math.max(1, Math.round(franja.minutos))
+    );
   }
 
   const resultado: SegmentoPlanificado[] = [];
@@ -189,9 +195,13 @@ export function distribuirUnidadesEnFranjas(
       pendiente -= asignado;
       capacidadPorFecha.set(fecha, capacidadInicial - asignado);
     }
+    
     if (pendiente > 0) {
-      throw new Error(`No hay disponibilidad suficiente para planificar ${unidad.clave}.`);
+      // AQUÍ ESTÁ EL CAMBIO PARA EL MENSAJE MÁS AMIGABLE
+      const nombreActividad = unidad.titulo ? `"${unidad.titulo}"` : "las tareas";
+      throw new Error(`No tienes suficientes horas en tus Horarios para agendar ${nombreActividad}. Añade más tiempo libre o elige una fecha límite más lejana.`);
     }
+    
     resultado.push(...segmentosUnidad.map((segmentoPlanificado) => ({
       ...segmentoPlanificado,
       totalSegmentos: segmentosUnidad.length,
@@ -228,7 +238,6 @@ export function calcularCapacidadPlan(
     if (minutosDisponibles < tiempoEstimadoMinutos) {
       estado = "INSUFICIENTE";
     } else if (minutosDisponibles < tiempoEstimadoMinutos * 1.2) {
-      // Ajustado: queda menos de un 20% de margen sobre el tiempo estimado.
       estado = "AJUSTADO";
     }
   }

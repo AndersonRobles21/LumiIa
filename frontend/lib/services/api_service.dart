@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'sound_service.dart';
+import '../screens/app_language.dart'; // NUEVO: Importar la clase de Idioma
 
 class ApiService {
   static String get _backendHost {
@@ -496,6 +497,8 @@ static Future<Map<String, dynamic>> login({required String userId}) async {
           'metodo_estudio': metodoEstudio,
           'dificultad': dificultad,
           'enfoque_adicional': enfoqueAdicional,
+          // NUEVO: Agregamos el idioma del sistema a la solicitud
+          'idioma': AppLanguage.instance.isEnglish ? 'inglés' : 'español',
         }),
       );
 
@@ -651,6 +654,8 @@ static Future<Map<String, dynamic>> login({required String userId}) async {
         body: jsonEncode({
           'concepto': concepto,
           'explicacion': explicacion,
+          // NUEVO: Agregamos el idioma del sistema a la solicitud
+          'idioma': AppLanguage.instance.isEnglish ? 'inglés' : 'español',
         }),
       );
 
@@ -686,6 +691,8 @@ static Future<Map<String, dynamic>> login({required String userId}) async {
           'descripcion': descripcion,
           'fecha_entrega': fechaEntrega,
           'dificultad': dificultad,
+          // NUEVO: Agregamos el idioma del sistema a la solicitud
+          'idioma': AppLanguage.instance.isEnglish ? 'inglés' : 'español',
         }),
       ).timeout(
         const Duration(seconds: 120),
