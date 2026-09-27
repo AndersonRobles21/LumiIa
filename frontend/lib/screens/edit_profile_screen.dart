@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
+import 'app_language.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String userId;
@@ -12,7 +13,8 @@ class EditProfileScreen extends StatefulWidget {
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
-class _EditProfileScreenState extends State<EditProfileScreen> {
+class _EditProfileScreenState extends State<EditProfileScreen>
+    with AppLanguageListenerMixin<EditProfileScreen> {
   static const _accent = Color(0xFFFF44AA);
   final _characters = List<int>.generate(18, (index) => index + 1);
   final Set<int> _purchased = {};
@@ -107,7 +109,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     final isNewPurchase = !_purchased.contains(character);
     if (isNewPurchase && _xp < _cost(character)) {
       _message(
-        'Necesitas ${_cost(character)} XP para desbloquear este personaje.',
+        tr(
+          'Necesitas ${_cost(character)} XP para desbloquear este personaje.',
+          'You need ${_cost(character)} XP to unlock this character.',
+        ),
       );
       return;
     }
@@ -116,23 +121,26 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         context: context,
         builder: (context) => AlertDialog(
           backgroundColor: LumiAppTheme.surface(context),
-          title: const Text(
-            'Desbloquear personaje',
+          title: Text(
+            tr('Desbloquear personaje', 'Unlock character'),
             style: TextStyle(color: Colors.white),
           ),
           content: Text(
-            '¿Seguro que quieres comprar el personaje $character por ${_cost(character)} XP?',
+            tr(
+              '¿Seguro que quieres comprar el personaje $character por ${_cost(character)} XP?',
+              'Are you sure you want to buy character $character for ${_cost(character)} XP?',
+            ),
             style: const TextStyle(color: Colors.white70),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
+              child: Text(tr('Cancelar', 'Cancel')),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
               style: FilledButton.styleFrom(backgroundColor: _accent),
-              child: const Text('Comprar'),
+              child: Text(tr('Comprar', 'Buy')),
             ),
           ],
         ),
@@ -165,8 +173,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
     _message(
       saved
-          ? 'Personaje seleccionado para tu foto de perfil.'
-          : 'No se pudo guardar el personaje.',
+          ? tr(
+              'Personaje seleccionado para tu foto de perfil.',
+              'Character selected for your profile picture.',
+            )
+          : tr('No se pudo guardar el personaje.', 'Could not save the character.'),
     );
   }
 
@@ -180,8 +191,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       backgroundColor: LumiAppTheme.pageBackground(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text(
-          'EDITAR PERFIL',
+        title: Text(
+          tr('EDITAR PERFIL', 'EDIT PROFILE'),
           style: TextStyle(fontSize: 18, letterSpacing: 1.5),
         ),
       ),
@@ -214,7 +225,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         const Icon(Icons.bolt, color: Colors.amber),
                         const SizedBox(width: 8),
                         Text(
-                          '$_xp XP disponibles',
+                          tr('$_xp XP disponibles', '$_xp XP available'),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -296,7 +307,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 ),
                                 Text(
                                   owned
-                                      ? 'Usar'
+                                      ? tr('Usar', 'Use')
                                       : unlocked
                                       ? '${_cost(character)} XP'
                                       : '🔒 ${_cost(character)} XP',

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'app_language.dart';
 
 // Solo importar local_auth en plataformas nativas (no web).
 // En web, usa el stub biometric_service_web.dart que provee la misma interfaz.
@@ -52,7 +53,7 @@ class BiometricService {
   /// y si tiene fallo false esta para q la pantalla de login pida la contraseña.
   /// En Web, siempre retorna false.
   static Future<bool> authenticate({
-    String reason = 'Confirma tu identidad para entrar a Lumi',
+    String? reason,
   }) async {
     if (kIsWeb) return false;
     try {
@@ -63,7 +64,12 @@ class BiometricService {
       if (available.isEmpty) return false;
 
       return await _auth.authenticate(
-        localizedReason: reason,
+        localizedReason:
+            reason ??
+            appLanguageText(
+              'Confirma tu identidad para entrar a Lumi',
+              'Confirm your identity to sign in to Lumi',
+            ),
         biometricOnly: true,
         persistAcrossBackgrounding: true,
       );

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class AdminUsuarioDetalleScreen extends StatefulWidget {
   final String adminUserId;
@@ -18,7 +19,9 @@ class AdminUsuarioDetalleScreen extends StatefulWidget {
   State<AdminUsuarioDetalleScreen> createState() => _AdminUsuarioDetalleScreenState();
 }
 
-class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
+class _AdminUsuarioDetalleScreenState
+    extends State<AdminUsuarioDetalleScreen>
+    with AppLanguageListenerMixin<AdminUsuarioDetalleScreen> {
   bool _loading = true;
   Map<String, dynamic> _usuario = {};
   List<dynamic> _planes = [];
@@ -143,8 +146,11 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
           side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.5)),
         ),
         title: Text('Eliminar usuario', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const Text(
-          'Esta acción elimina el perfil, planes, tareas y dependencias asociadas al usuario. ¿Continuar?',
+        content: Text(
+          tr(
+            'Esta acción elimina el perfil, planes, tareas y dependencias asociadas al usuario. ¿Continuar?',
+            'This action deletes the user profile, plans, tasks, and related data. Continue?',
+          ),
           style: TextStyle(color: Color(0xFFB0AEC4)),
         ),
         actions: [
@@ -189,8 +195,11 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
           side: BorderSide(color: const Color(0xFF00C2FF).withValues(alpha: 0.5)),
         ),
         title: Text('Delegar administrador', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
-        content: const Text(
-          'El usuario volverá a ser estudiante. Se conservarán su perfil, foto, tareas, planes y progreso.',
+        content: Text(
+          tr(
+            'El usuario volverá a ser estudiante. Se conservarán su perfil, foto, tareas, planes y progreso.',
+            'The user will become a student again. Their profile, photo, tasks, plans, and progress will be kept.',
+          ),
           style: TextStyle(color: Color(0xFFB0AEC4)),
         ),
         actions: [
@@ -266,7 +275,7 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
                       side: BorderSide(color: const Color(0xFFF716DC).withValues(alpha: 0.5)),
                     ),
                     title: Text('Promover a administrador', style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(ctx), fontWeight: FontWeight.bold, fontSize: 16)),
-                    content: const Text('¿Deseas promover este usuario a administrador?', style: TextStyle(color: Color(0xFFB0AEC4))),
+                    content: Text(tr('¿Deseas promover este usuario a administrador?', 'Do you want to promote this user to administrator?'), style: const TextStyle(color: Color(0xFFB0AEC4))),
                     actions: [
                       TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Color(0xFFB0AEC4)))),
                       DecoratedBox(
@@ -395,7 +404,7 @@ class _AdminUsuarioDetalleScreenState extends State<AdminUsuarioDetalleScreen> {
                       ..._tareas.map((tarea) => _infoCard(
                             title: (tarea['titulo'] ?? tarea['nombre'] ?? 'Tarea').toString(),
                             subtitle: (tarea['descripcion'] ?? '').toString(),
-                            meta: 'Completada: ${((tarea['completada'] ?? false) == true) ? 'Sí' : 'No'}',
+                            meta: '${tr('Completada', 'Completed')}: ${((tarea['completada'] ?? false) == true) ? tr('Sí', 'Yes') : tr('No', 'No')}',
                             accentColor: const Color(0xFFF716DC),
                           )),
                     const SizedBox(height: 24),

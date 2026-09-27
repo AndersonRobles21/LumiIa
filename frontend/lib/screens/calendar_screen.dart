@@ -1,13 +1,15 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
-import '/services/api_service.dart';
-import 'gamification_screen.dart';
-import 'app_bottom_navbar.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import '../theme/app_theme.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+import '/services/api_service.dart';
 import '../services/task_notification_service.dart';
+import '../theme/app_theme.dart';
+import 'app_bottom_navbar.dart';
+import 'app_language.dart';
+import 'gamification_screen.dart';
 
 const String kLumiBannerAsset = 'logo/lumi_gamificacion.png';
 
@@ -20,9 +22,12 @@ List<Map<String, dynamic>> normalizarEventosCalendario({
 
   for (final item in planes) {
     if (item is! Map) continue;
+
     final plan = Map<String, dynamic>.from(item);
     final id = (plan['plan_id'] ?? plan['id'] ?? '').toString().trim();
+
     if (id.isEmpty) continue;
+
     plan['id'] = id;
     plan['plan_id'] = id;
     planesPorId.putIfAbsent(id, () => plan);
@@ -30,26 +35,35 @@ List<Map<String, dynamic>> normalizarEventosCalendario({
 
   for (final item in tareas) {
     if (item is! Map) continue;
+
     final tarea = Map<String, dynamic>.from(item);
-    final planId = (tarea['plan_id'] ?? tarea['planId'] ?? '').toString().trim();
+    final planId =
+        (tarea['plan_id'] ?? tarea['planId'] ?? '').toString().trim();
 
     if (planId.isEmpty) {
       final id = (tarea['id'] ?? '').toString().trim();
-      if (id.isNotEmpty) tareasSueltasPorId.putIfAbsent(id, () => tarea);
+
+      if (id.isNotEmpty) {
+        tareasSueltasPorId.putIfAbsent(id, () => tarea);
+      }
       continue;
     }
 
     planesPorId.putIfAbsent(planId, () {
       final completado = tarea['plan_completado_en'] != null;
+
       return <String, dynamic>{
         'id': planId,
         'plan_id': planId,
         'nombre': tarea['plan_nombre'] ?? tarea['nombre'] ?? tarea['titulo'],
-        'descripcion': tarea['plan_descripcion'] ?? tarea['descripcion'] ?? '',
-        'fecha_creacion': tarea['plan_fecha_creacion'] ??
+        'descripcion':
+            tarea['plan_descripcion'] ?? tarea['descripcion'] ?? '',
+        'fecha_creacion':
+            tarea['plan_fecha_creacion'] ??
             tarea['fecha_creacion'] ??
             tarea['created_at'],
-        'fecha_entrega': tarea['plan_fecha_entrega'] ??
+        'fecha_entrega':
+            tarea['plan_fecha_entrega'] ??
             tarea['fecha_entrega'] ??
             tarea['fecha'],
         'completado_en': tarea['plan_completado_en'],
@@ -69,6 +83,7 @@ List<DateTime> fechasEventoCalendario(
   var cursor = fechaCreacion.isAfter(fechaEntrega)
       ? fechaEntrega
       : fechaCreacion;
+
   final fechas = <DateTime>[];
 
   while (!cursor.isAfter(fechaEntrega)) {
@@ -83,13 +98,18 @@ class CalendarScreen extends StatefulWidget {
   final String userId;
   final List<dynamic> tasks;
 
-  const CalendarScreen({super.key, required this.userId, required this.tasks});
+  const CalendarScreen({
+    super.key,
+    required this.userId,
+    required this.tasks,
+  });
 
   @override
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends State<CalendarScreen>
+    with AppLanguageListenerMixin<CalendarScreen> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   Map<DateTime, List<dynamic>> _eventsByDay = {};
@@ -108,18 +128,22 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void initState() {
     super.initState();
+
     final hoy = DateTime.now();
     _selectedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
     _focusedDay = DateTime.utc(hoy.year, hoy.month, hoy.day);
+
     _buildEventsFromList(
       normalizarEventosCalendario(tareas: widget.tasks),
     );
+
     _initLocaleAndData();
   }
 
   Future<void> _initLocaleAndData() async {
     try {
       await initializeDateFormatting('es_ES', null);
+      await initializeDateFormatting('en_US', null);
     } catch (_) {}
 
     if (!mounted) return;
@@ -136,15 +160,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
 
     final str = fechaRaw.toString().trim();
+
     if (str.isEmpty) return null;
 
     final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(str);
 
     if (match != null) {
-      final year = int.parse(match.group(1)!);
-      final month = int.parse(match.group(2)!);
-      final day = int.parse(match.group(3)!);
-      return DateTime.utc(year, month, day);
+      return DateTime.utc(
+        int.parse(match.group(1)!),
+        int.parse(match.group(2)!),
+        int.parse(match.group(3)!),
+      );
     }
 
     try {
@@ -165,14 +191,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
       final rawEntrega =
           task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+
       final fechaLimite = _parsearFecha(rawEntrega);
 
       final rawCreacion =
-          task['created_at'] ?? task['fecha_creacion'] ?? task['fechaCreacion'];
+          task['created_at'] ??
+          task['fecha_creacion'] ??
+          task['fechaCreacion'];
+
       final fechaInicio = _parsearFecha(rawCreacion) ?? hoyNormalizado;
 
       if (fechaLimite == null) {
         if (task['plan_id'] != null || task['planId'] != null) continue;
+
         events.putIfAbsent(fechaInicio, () => []).add(task);
         continue;
       }
@@ -190,9 +221,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     if (!mounted) return;
 
-    setState(() {
-      _eventsByDay = events;
-    });
+    setState(() => _eventsByDay = events);
   }
 
   Future<void> _cargarTareas() async {
@@ -202,7 +231,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
     final tareasManuales =
         await ApiService.getPlanesEstudio(widget.userId) ?? [];
-    final historialIA = await ApiService.obtenerHistorial(widget.userId) ?? [];
+
+    final historialIA =
+        await ApiService.obtenerHistorial(widget.userId) ?? [];
 
     if (!mounted) return;
 
@@ -212,11 +243,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       final id = task['id']?.toString().trim();
       final fecha =
           task['fecha_entrega'] ?? task['fechaEntrega'] ?? task['fecha'];
+
       return id != null && id.isNotEmpty && fecha != null;
     });
+
     final tareasParaNotificar = tieneTareasManualesValidas
         ? tareasManuales
-      : historialIA.whereType<Map>().map((plan) {
+        : historialIA.whereType<Map>().map((plan) {
             return <String, dynamic>{
               'id': plan['id'],
               'nombre': plan['nombre'] ?? plan['titulo'],
@@ -225,19 +258,16 @@ class _CalendarScreenState extends State<CalendarScreen> {
               'estado': plan['estado'],
             };
           }).toList();
-    final fuenteNotificaciones = tieneTareasManualesValidas
-        ? 'tareasManuales'
-      : 'historialIA (fallback)';
-    debugPrint(
-      '[LUMI notifications] fuente seleccionada: $fuenteNotificaciones; '
-      'elementos enviados=${tareasParaNotificar.length}',
+
+    unawaited(
+      TaskNotificationService.instance.syncTasks(tareasParaNotificar),
     );
-    unawaited(TaskNotificationService.instance.syncTasks(tareasParaNotificar));
 
     final eventosNormalizados = normalizarEventosCalendario(
       planes: historialIA,
       tareas: tareasManuales.isNotEmpty ? tareasManuales : widget.tasks,
     );
+
     final eventos = _crearMapaEventos(eventosNormalizados);
 
     setState(() {
@@ -250,8 +280,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _seleccionarDiaInicial() {
     final hoy = DateTime.now();
-    final hoyKey = DateTime.utc(hoy.year, hoy.month, hoy.day);
-    _fijarDiaSeleccionado(hoyKey);
+    _fijarDiaSeleccionado(DateTime.utc(hoy.year, hoy.month, hoy.day));
   }
 
   void _fijarDiaSeleccionado(DateTime dia) {
@@ -269,7 +298,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   String _formatDateHeader(DateTime day) {
-    final meses = [
+    const mesesEs = [
       'Enero',
       'Febrero',
       'Marzo',
@@ -284,11 +313,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
       'Diciembre',
     ];
 
-    return '${day.day} de ${meses[day.month - 1]} ${day.year}';
+    const mesesEn = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+
+    return AppLanguage.instance.isEnglish
+        ? '${mesesEn[day.month - 1]} ${day.day}, ${day.year}'
+        : '${day.day} de ${mesesEs[day.month - 1]} de ${day.year}';
   }
 
   String _formatearFechaCorta(DateTime day) {
-    final mesesCortos = [
+    const mesesEs = [
       'Ene',
       'Feb',
       'Mar',
@@ -303,31 +349,62 @@ class _CalendarScreenState extends State<CalendarScreen> {
       'Dic',
     ];
 
-    return '${day.day} de ${mesesCortos[day.month - 1]}';
+    const mesesEn = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+
+    return AppLanguage.instance.isEnglish
+        ? '${mesesEn[day.month - 1]} ${day.day}'
+        : '${day.day} de ${mesesEs[day.month - 1]}';
+  }
+
+  String _tipoEtiqueta(String tipo) {
+    switch (tipo) {
+      case 'Proyecto':
+        return tr('Proyecto', 'Project');
+      case 'Examen':
+        return tr('Examen', 'Exam');
+      case 'Entrega':
+        return tr('Entrega', 'Due date');
+      default:
+        return tr('Trabajos', 'Tasks');
+    }
   }
 
   Color _colorParaTarea(Map task) {
-    final tipo = _tipoNombreTarea(task);
-    return _tipoColores[tipo] ?? const Color(0xFF9D4EDD);
+    return _tipoColores[_tipoNombreTarea(task)] ?? const Color(0xFF9D4EDD);
   }
 
   String _tipoNombreTarea(Map task) {
     final nombre = (task['nombre'] ?? task['titulo'] ?? '')
         .toString()
         .toLowerCase();
-    final tipo = (task['tipo'] ?? '').toString();
 
-    if (tipo == 'Examen' || tipo == 'Proyecto' || tipo == 'Trabajos') {
-      return tipo;
-    }
+    final tipo = (task['tipo'] ?? '').toString().toLowerCase();
+
+    if (tipo == 'examen' || tipo == 'exam') return 'Examen';
+    if (tipo == 'proyecto' || tipo == 'project') return 'Proyecto';
+    if (tipo == 'trabajos' || tipo == 'tasks') return 'Trabajos';
 
     if (nombre.contains('examen') ||
+        nombre.contains('exam') ||
         nombre.contains('parcial') ||
         nombre.contains('quiz')) {
       return 'Examen';
     }
 
-    if (nombre.contains('proyecto')) {
+    if (nombre.contains('proyecto') || nombre.contains('project')) {
       return 'Proyecto';
     }
 
@@ -423,9 +500,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         color: LumiAppTheme.primaryText(context),
                         size: 14,
                       ),
-                      SizedBox(width: 4),
+                      const SizedBox(width: 4),
                       Text(
-                        'Gamificación',
+                        tr('Gamificación', 'Gamification'),
                         style: TextStyle(
                           color: LumiAppTheme.primaryText(context),
                           fontSize: 12,
@@ -437,7 +514,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Accede aquí para explorar tu progreso en forma de logros, insignias y más.',
+                  tr(
+                    'Accede aquí para explorar tu progreso en forma de logros, insignias y más.',
+                    'Explore your progress through achievements, badges, and more.',
+                  ),
                   style: TextStyle(
                     color: LumiAppTheme.secondaryText(context),
                     fontSize: 11.5,
@@ -470,19 +550,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           borderRadius: BorderRadius.circular(30),
                         ),
                         padding: const EdgeInsets.symmetric(vertical: 10),
-                        child: const Row(
+                        child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
-                              'Ver mis logros',
-                              style: TextStyle(
+                              tr('Ver mis logros', 'View my achievements'),
+                              style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 13.5,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            SizedBox(width: 6),
-                            Icon(
+                            const SizedBox(width: 6),
+                            const Icon(
                               Icons.arrow_forward_rounded,
                               color: Colors.white,
                               size: 16,
@@ -518,6 +598,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 event['fecha_entrega'] ??
                 event['fechaEntrega'] ??
                 event['fecha'];
+
             final fechaEntrega = _parsearFecha(rawEntrega);
 
             final esEntregaExacta =
@@ -526,26 +607,30 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 date.month == fechaEntrega.month &&
                 date.day == fechaEntrega.day;
 
-            dotColor = esEntregaExacta ? kColorEntrega : _colorParaTarea(event);
+            dotColor = esEntregaExacta
+                ? kColorEntrega
+                : _colorParaTarea(event);
           }
 
           return Container(
             width: 5.5,
             height: 5.5,
             margin: const EdgeInsets.symmetric(horizontal: 1.4),
-            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+            ),
           );
         }).toList(),
       ),
     );
   }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     if (!_localeReady) {
       return Scaffold(
         backgroundColor: LumiAppTheme.pageBackground(context),
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(color: Color(0xFF9D4EDD)),
         ),
       );
@@ -558,17 +643,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final esHoy =
         _selectedDay != null && isSameDay(_selectedDay, DateTime.now());
 
-    // 💻 Detección responsiva de pantalla grande (Computadora)
-    final bool esPantallaGrande = MediaQuery.of(context).size.width >= 800;
+    final esPantallaGrande = MediaQuery.of(context).size.width >= 800;
 
-    // 📜 Contenido principal del calendario empaquetado en una variable
-    final Widget contenidoCalendario = RefreshIndicator(
+    final contenidoCalendario = RefreshIndicator(
       color: const Color(0xFF9D4EDD),
       backgroundColor: LumiAppTheme.surface(context),
       onRefresh: _cargarTareas,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(20, 16, 20, esPantallaGrande ? 20 : 130),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          16,
+          20,
+          esPantallaGrande ? 20 : 130,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -576,7 +664,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Calendario',
+                  tr('Calendario', 'Calendar'),
                   style: TextStyle(
                     color: LumiAppTheme.primaryText(context),
                     fontSize: 30,
@@ -584,9 +672,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
-                  'Organiza tu tiempo y alcanza tus metas',
+                  tr(
+                    'Organiza tu tiempo y alcanza tus metas',
+                    'Organize your time and reach your goals',
+                  ),
                   style: TextStyle(
                     color: LumiAppTheme.secondaryText(context),
                     fontSize: 13,
@@ -615,11 +706,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               child: Column(
                 children: [
                   TableCalendar<dynamic>(
-                    locale: 'es_ES',
+                    locale: AppLanguage.instance.isEnglish ? 'en_US' : 'es_ES',
                     firstDay: DateTime.utc(2024, 1, 1),
                     lastDay: DateTime.utc(2035, 12, 31),
                     focusedDay: _focusedDay,
-                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                    selectedDayPredicate: (day) =>
+                        isSameDay(_selectedDay, day),
                     onDaySelected: (selectedDay, focusedDay) {
                       setState(() {
                         _selectedDay = DateTime.utc(
@@ -690,7 +782,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         color: LumiAppTheme.primaryText(context),
                         size: 28,
                       ),
-                      headerPadding: EdgeInsets.symmetric(vertical: 8),
+                      headerPadding: const EdgeInsets.symmetric(vertical: 8),
                     ),
                     daysOfWeekStyle: DaysOfWeekStyle(
                       weekdayStyle: TextStyle(
@@ -736,7 +828,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            entry.key,
+                            _tipoEtiqueta(entry.key),
                             style: TextStyle(
                               color: LumiAppTheme.secondaryText(context),
                               fontSize: 12,
@@ -779,10 +871,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     children: [
                       Text(
                         esHoy
-                            ? 'Trabajos para hoy'
+                            ? tr('Trabajos para hoy', 'Tasks for today')
                             : (_selectedDay != null
                                   ? _formatDateHeader(_selectedDay!)
-                                  : 'Trabajos asignados'),
+                                  : tr(
+                                      'Trabajos asignados',
+                                      'Assigned tasks',
+                                    )),
                         style: TextStyle(
                           color: LumiAppTheme.primaryText(context),
                           fontSize: 17,
@@ -802,8 +897,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           ),
                         ),
                         child: Text(
-                          '${selectedTasks.length} ${selectedTasks.length == 1 ? 'trabajo' : 'trabajos'}',
-                          style: TextStyle(
+                          selectedTasks.length == 1
+                              ? tr('1 trabajo', '1 task')
+                              : tr(
+                                  '${selectedTasks.length} trabajos',
+                                  '${selectedTasks.length} tasks',
+                                ),
+                          style: const TextStyle(
                             color: Color(0xFF9D4EDD),
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -837,7 +937,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              'No hay trabajos programados para este día',
+                              tr(
+                                'No hay trabajos programados para este día',
+                                'No tasks are scheduled for this day.',
+                              ),
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 color: LumiAppTheme.secondaryText(context),
@@ -855,21 +958,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       itemCount: selectedTasks.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 12),
                       itemBuilder: (context, index) {
-                        final t = selectedTasks[index];
-                        final map = t is Map ? t : {};
+                        final tarea = selectedTasks[index];
+                        final map = tarea is Map ? tarea : <dynamic, dynamic>{};
+
                         final titulo =
-                            map['nombre'] ?? map['titulo'] ?? 'Sin título';
+                            map['nombre'] ??
+                            map['titulo'] ??
+                            tr('Sin título', 'Untitled');
+
                         final desc = map['descripcion'] ?? '';
+
                         final completada =
                             map['completada'] == true ||
                             (map['estado'] ?? '').toString().toUpperCase() ==
                                 'COMPLETADA';
+
                         final color = _colorParaTarea(map);
 
                         final rawEntrega =
                             map['fecha_entrega'] ??
                             map['fechaEntrega'] ??
                             map['fecha'];
+
                         final fechaEntrega = _parsearFecha(rawEntrega);
 
                         final esDiaDeEntrega =
@@ -949,7 +1059,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                       ],
                                     ),
                                   ),
-                                  // ✏️ BOTÓN PARA EDITAR FECHA Y REACOPLAR EL PLAN
                                   IconButton(
                                     icon: const Icon(
                                       Icons.edit_calendar_rounded,
@@ -958,149 +1067,139 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                     ),
                                     onPressed: () async {
                                       final planId = map['id']?.toString();
+
                                       if (planId == null) {
                                         ScaffoldMessenger.of(
                                           context,
                                         ).showSnackBar(
-                                          const SnackBar(
+                                          SnackBar(
                                             content: Text(
-                                              'Esta tarea no se puede editar (ID no válido).',
+                                              tr(
+                                                'Esta tarea no se puede editar (ID no válido).',
+                                                'This task cannot be edited (invalid ID).',
+                                              ),
                                             ),
                                           ),
                                         );
                                         return;
                                       }
 
-                                      final DateTime?
-                                      fechaSeleccionada = await showDatePicker(
-                                        context: context,
-                                        initialDate:
-                                            fechaEntrega ?? DateTime.now(),
-                                        firstDate: DateTime.now().subtract(
-                                          const Duration(days: 30),
-                                        ),
-                                        lastDate: DateTime(2035, 12, 31),
-                                        builder: (context, child) {
-                                          return Theme(
-                                            data: Theme.of(context).copyWith(
-                                              colorScheme: Theme.of(context)
-                                                  .colorScheme
-                                                  .copyWith(
-                                                    primary: const Color(
-                                                      0xFF9D4EDD,
-                                                    ),
-                                                  ),
+                                      final fechaSeleccionada =
+                                          await showDatePicker(
+                                            context: context,
+                                            initialDate:
+                                                fechaEntrega ?? DateTime.now(),
+                                            firstDate: DateTime.now().subtract(
+                                              const Duration(days: 30),
                                             ),
-                                            child: child!,
-                                          );
-                                        },
-                                      );
-
-                                      if (fechaSeleccionada != null) {
-                                        final nuevaFechaStr = fechaSeleccionada
-                                            .toIso8601String()
-                                            .split('T')[0];
-
-                                        setState(() => _isLoading = true);
-                                        try {
-                                          // Cambiamos 'bool' por 'var' para que reciba la respuesta completa del servidor
-                                          var resultado =
-                                              await ApiService.reajustarPlanIA(
-                                                planId: planId,
-                                                nuevaFechaEntrega:
-                                                    nuevaFechaStr,
+                                            lastDate: DateTime(2035, 12, 31),
+                                            builder: (context, child) {
+                                              return Theme(
+                                                data: Theme.of(
+                                                  context,
+                                                ).copyWith(
+                                                  colorScheme: Theme.of(context)
+                                                      .colorScheme
+                                                      .copyWith(
+                                                        primary: const Color(
+                                                          0xFF9D4EDD,
+                                                        ),
+                                                      ),
+                                                ),
+                                                child: child!,
                                               );
+                                            },
+                                          );
 
-                                          // Verificamos si la respuesta es exitosa
-                                          if (resultado != null &&
-                                              resultado['ok'] == true) {
-                                            // Capturamos el mensaje de recomendación de tiempo que manda el backend
-                                            final String? advertenciaTiempo =
-                                                resultado['recomendacion_tiempo'];
+                                      if (fechaSeleccionada == null) return;
 
-                                            if (advertenciaTiempo != null) {
-                                              // Si el tiempo es muy corto, mostramos la alerta de advertencia en un SnackBar naranja
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  SnackBar(
-                                                    content: Text(
-                                                      advertenciaTiempo,
-                                                    ),
-                                                    backgroundColor:
-                                                        Colors.orange.shade800,
-                                                    duration: const Duration(
-                                                      seconds: 6,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            } else {
-                                              // Si todo está bien, mensaje normal de éxito
-                                              if (mounted) {
-                                                ScaffoldMessenger.of(
-                                                  context,
-                                                ).showSnackBar(
-                                                  const SnackBar(
-                                                    content: Text(
-                                                      '¡Fecha actualizada y plan reacoplado con éxito!',
-                                                    ),
-                                                    backgroundColor: Color(
-                                                      0xFF3DDC84,
-                                                    ),
-                                                  ),
-                                                );
-                                              }
-                                            }
+                                      final nuevaFechaStr = fechaSeleccionada
+                                          .toIso8601String()
+                                          .split('T')[0];
 
-                                            final nuevaUtc = DateTime.utc(
-                                              fechaSeleccionada.year,
-                                              fechaSeleccionada.month,
-                                              fechaSeleccionada.day,
+                                      setState(() => _isLoading = true);
+
+                                      try {
+                                        final resultado =
+                                            await ApiService.reajustarPlanIA(
+                                              planId: planId,
+                                              nuevaFechaEntrega: nuevaFechaStr,
                                             );
 
-                                            setState(() {
-                                              _selectedDay = nuevaUtc;
-                                              _focusedDay = nuevaUtc;
-                                            });
-                                          } else {
-                                            if (mounted) {
-                                              ScaffoldMessenger.of(
-                                                context,
-                                              ).showSnackBar(
-                                                const SnackBar(
-                                                  content: Text(
-                                                    'Error al actualizar la fecha en el servidor.',
-                                                  ),
-                                                  backgroundColor:
-                                                      Colors.redAccent,
-                                                ),
-                                              );
-                                            }
-                                          }
-                                        } catch (e) {
-                                          print(
-                                            'Error al actualizar fecha: $e',
-                                          );
+                                        if (resultado != null &&
+                                            resultado['ok'] == true) {
+                                          final advertenciaTiempo =
+                                              resultado[
+                                                      'recomendacion_tiempo']
+                                                  ?.toString();
+
                                           if (mounted) {
                                             ScaffoldMessenger.of(
                                               context,
                                             ).showSnackBar(
                                               SnackBar(
                                                 content: Text(
-                                                  'Error de conexión: $e',
+                                                  advertenciaTiempo ??
+                                                      tr(
+                                                        '¡Fecha actualizada y plan reacoplado con éxito!',
+                                                        'Date updated and plan rescheduled successfully!',
+                                                      ),
                                                 ),
-                                                backgroundColor:
-                                                    Colors.redAccent,
+backgroundColor: advertenciaTiempo != null
+    ? Colors.orange.shade800
+    : const Color(0xFF3DDC84),
+duration: advertenciaTiempo != null
+    ? const Duration(seconds: 6)
+    : const Duration(seconds: 4),
                                               ),
                                             );
                                           }
-                                        } finally {
-                                          await _cargarTareas();
+
+                                          final nuevaUtc = DateTime.utc(
+                                            fechaSeleccionada.year,
+                                            fechaSeleccionada.month,
+                                            fechaSeleccionada.day,
+                                          );
+
                                           if (mounted) {
-                                            setState(() => _isLoading = false);
+                                            setState(() {
+                                              _selectedDay = nuevaUtc;
+                                              _focusedDay = nuevaUtc;
+                                            });
                                           }
+                                        } else if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                tr(
+                                                  'Error al actualizar la fecha en el servidor.',
+                                                  'Error updating the date on the server.',
+                                                ),
+                                              ),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      } catch (error) {
+                                        if (mounted) {
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                '${tr('Error de conexión', 'Connection error')}: $error',
+                                              ),
+                                              backgroundColor: Colors.redAccent,
+                                            ),
+                                          );
+                                        }
+                                      } finally {
+                                        await _cargarTareas();
+
+                                        if (mounted) {
+                                          setState(() => _isLoading = false);
                                         }
                                       }
                                     },
@@ -1120,26 +1219,32 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 children: [
                                   if (completada)
                                     _buildStatusBadge(
-                                      'Completada',
+                                      tr('Completada', 'Completed'),
                                       const Color(0xFF3DDC84),
                                       Icons.check_circle,
                                     )
                                   else if (esDiaDeEntrega)
                                     _buildStatusBadge(
-                                      'Fecha de entrega hoy',
+                                      tr(
+                                        'Fecha de entrega hoy',
+                                        'Due date today',
+                                      ),
                                       kColorEntrega,
                                       Icons.alarm,
                                     )
                                   else if (diasRestantes > 0 &&
                                       fechaEntrega != null)
                                     _buildStatusBadge(
-                                      'Pendiente: ${_formatearFechaCorta(fechaEntrega)}',
+                                      tr(
+                                        'Pendiente: ${_formatearFechaCorta(fechaEntrega)}',
+                                        'Pending: ${_formatearFechaCorta(fechaEntrega)}',
+                                      ),
                                       color,
                                       Icons.schedule,
                                     )
                                   else
                                     _buildStatusBadge(
-                                      'Pendiente',
+                                      tr('Pendiente', 'Pending'),
                                       color,
                                       Icons.circle,
                                     ),
@@ -1160,7 +1265,6 @@ class _CalendarScreenState extends State<CalendarScreen> {
       ),
     );
 
-    // 🖥️ Retorno responsivo de la vista (Row para PC, Stack para Celular)
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(

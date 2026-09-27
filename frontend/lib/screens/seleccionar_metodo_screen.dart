@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '/services/api_service.dart';
-import '../utils/responsive.dart';
+
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
+import 'app_language.dart';
 
 class SeleccionarMetodoScreen extends StatefulWidget {
   final String tituloTarea;
-  final String metodoRecomendado; 
+  final String metodoRecomendado;
   final Function(String metodoSeleccionado) onMetodoSeleccionado;
 
   const SeleccionarMetodoScreen({
@@ -20,43 +21,60 @@ class SeleccionarMetodoScreen extends StatefulWidget {
       _SeleccionarMetodoScreenState();
 }
 
-class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
+class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen>
+    with AppLanguageListenerMixin<SeleccionarMetodoScreen> {
   late String _metodoActual;
 
   final List<Map<String, dynamic>> _metodos = [
     {
       'id': 'Método Feynman',
-      'titulo': 'Método Feynman',
-      'subtitulo': 'Explica para aprender',
-      'descripcion':
+      'tituloEs': 'Método Feynman',
+      'tituloEn': 'Feynman Method',
+      'subtituloEs': 'Explica para aprender',
+      'subtituloEn': 'Explain to learn',
+      'descripcionEs':
           'Si no puedes explicarlo de forma sencilla, no lo has entendido bien.',
+      'descripcionEn':
+          'If you cannot explain it simply, you have not understood it well.',
       'icono': Icons.lightbulb,
       'colorIcono': Colors.amber,
     },
     {
       'id': 'Técnica Pomodoro',
-      'titulo': 'Técnica Pomodoro',
-      'subtitulo': 'Gestión del tiempo',
-      'descripcion':
+      'tituloEs': 'Técnica Pomodoro',
+      'tituloEn': 'Pomodoro Technique',
+      'subtituloEs': 'Gestión del tiempo',
+      'subtituloEn': 'Time management',
+      'descripcionEs':
           'Alterna bloques de estudio intenso con descansos cortos.',
+      'descripcionEn':
+          'Alternate focused study sessions with short breaks.',
       'icono': Icons.timer_outlined,
       'colorIcono': const Color(0xFF00F0FF),
     },
     {
       'id': 'Active Recall',
-      'titulo': 'Active Recall',
-      'subtitulo': 'Recordatorio activo',
-      'descripcion':
+      'tituloEs': 'Active Recall',
+      'tituloEn': 'Active Recall',
+      'subtituloEs': 'Recordatorio activo',
+      'subtituloEn': 'Active recall',
+      'descripcionEs':
           'Fuerza a tu cerebro a recuperar información de la memoria sin ayuda.',
+      'descripcionEn':
+          'Train your brain to retrieve information from memory without help.',
       'icono': Icons.psychology,
       'colorIcono': const Color(0xFFFF44AA),
     },
     {
       'id': 'Spaced Repetition',
-      'titulo': 'Spaced Repetition',
-      'subtitulo': 'Repetición espaciada',
-      'descripcion':
+      'tituloEs': 'Spaced Repetition',
+      'tituloEn': 'Spaced Repetition',
+      'subtituloEs': 'Repetición espaciada',
+      'subtituloEn': 'Spaced repetition',
+      'descripcionEs':
           'Repasa los temas en intervalos de tiempo crecientes para consolidar la memoria.',
+      'descripcionEn':
+          'Review topics at increasing intervals to strengthen your memory.',
       'icono': Icons.calendar_month,
       'colorIcono': Colors.orangeAccent,
     },
@@ -72,16 +90,16 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
     setState(() => _metodoActual = id);
     widget.onMetodoSeleccionado(id);
 
-    // Devuelve el ID seleccionado de inmediato al chat para que proceda a actualizar la BD
     if (mounted) {
       Navigator.pop(context, id);
     }
   }
 
   bool _esElRecomendado(String idMetodo) {
-    final rec = widget.metodoRecomendado.toLowerCase();
+    final recomendado = widget.metodoRecomendado.toLowerCase();
     final id = idMetodo.toLowerCase();
-    return rec.contains(id) || id.contains(rec);
+
+    return recomendado.contains(id) || id.contains(recomendado);
   }
 
   @override
@@ -94,7 +112,11 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
         backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: LumiAppTheme.primaryText(context),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -108,7 +130,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                   width: 32,
                   height: 32,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Icon(
+                  errorBuilder: (_, __, ___) => const Icon(
                     Icons.smart_toy,
                     color: Color(0xFF00F0FF),
                     size: 18,
@@ -132,7 +154,10 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 12,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -143,18 +168,21 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      SizedBox(height: 12),
+                      const SizedBox(height: 12),
                       Text(
-                        'Métodos de Estudio',
+                        tr('Métodos de estudio', 'Study methods'),
                         style: TextStyle(
                           color: LumiAppTheme.primaryText(context),
                           fontSize: 25,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 8),
+                      const SizedBox(height: 8),
                       Text(
-                        'Selecciona el método que mejor se adapte a tu objetivo actual.',
+                        tr(
+                          'Selecciona el método que mejor se adapte a tu objetivo actual.',
+                          'Choose the method that best fits your current goal.',
+                        ),
                         style: TextStyle(
                           color: LumiAppTheme.secondaryText(context),
                           fontSize: 13,
@@ -171,7 +199,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                   child: Image.asset(
                     'logo/metodos.png',
                     fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => const Icon(
+                    errorBuilder: (_, __, ___) => const Icon(
                       Icons.smart_toy,
                       color: Color(0xFF00F0FF),
                       size: 110,
@@ -181,9 +209,10 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            ..._metodos.map((m) {
-              final esRecomendado = _esElRecomendado(m['id']);
-              final esSeleccionado = m['id'] == _metodoActual;
+            ..._metodos.map((metodo) {
+              final id = metodo['id'] as String;
+              final esRecomendado = _esElRecomendado(id);
+              final esSeleccionado = id == _metodoActual;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 22),
@@ -191,7 +220,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                   clipBehavior: Clip.none,
                   children: [
                     GestureDetector(
-                      onTap: () => _seleccionar(m['id']),
+                      onTap: () => _seleccionar(id),
                       child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
@@ -201,7 +230,8 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                             color: esSeleccionado
                                 ? const Color(0xFFBD00FF)
                                 : esRecomendado
-                                    ? const Color(0xFFBD00FF).withOpacity(0.6)
+                                    ? const Color(0xFFBD00FF)
+                                        .withValues(alpha: 0.6)
                                     : LumiAppTheme.outline(context),
                             width: esSeleccionado || esRecomendado ? 2 : 1,
                           ),
@@ -209,10 +239,10 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                               ? [
                                   BoxShadow(
                                     color: const Color(0xFFBD00FF)
-                                        .withOpacity(0.35),
+                                        .withValues(alpha: 0.35),
                                     blurRadius: 12,
                                     spreadRadius: 1,
-                                  )
+                                  ),
                                 ]
                               : [],
                         ),
@@ -226,8 +256,8 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                 borderRadius: BorderRadius.circular(15),
                               ),
                               child: Icon(
-                                m['icono'] as IconData,
-                                color: m['colorIcono'] as Color,
+                                metodo['icono'] as IconData,
+                                color: metodo['colorIcono'] as Color,
                                 size: 32,
                               ),
                             ),
@@ -237,9 +267,12 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    m['titulo'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
+                                    tr(
+                                      metodo['tituloEs'] as String,
+                                      metodo['tituloEn'] as String,
+                                    ),
+                                    style: TextStyle(
+                                      color: LumiAppTheme.primaryText(context),
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -255,7 +288,10 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text(
-                                      m['subtitulo'],
+                                      tr(
+                                        metodo['subtituloEs'] as String,
+                                        metodo['subtituloEn'] as String,
+                                      ),
                                       style: const TextStyle(
                                         color: Colors.white70,
                                         fontSize: 10,
@@ -265,9 +301,12 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                                   ),
                                   const SizedBox(height: 8),
                                   Text(
-                                    m['descripcion'],
-                                    style: const TextStyle(
-                                      color: Colors.white60,
+                                    tr(
+                                      metodo['descripcionEs'] as String,
+                                      metodo['descripcionEn'] as String,
+                                    ),
+                                    style: TextStyle(
+                                      color: LumiAppTheme.secondaryText(context),
                                       fontSize: 14,
                                       height: 1.3,
                                     ),
@@ -293,7 +332,7 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                             borderRadius: BorderRadius.circular(12),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.4),
+                                color: Colors.black.withValues(alpha: 0.4),
                                 blurRadius: 6,
                                 offset: const Offset(0, 2),
                               ),
@@ -301,13 +340,19 @@ class _SeleccionarMetodoScreenState extends State<SeleccionarMetodoScreen> {
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.auto_awesome,
-                                  color: Colors.white, size: 12),
-                              SizedBox(width: 4),
+                            children: [
+                              const Icon(
+                                Icons.auto_awesome,
+                                color: Colors.white,
+                                size: 12,
+                              ),
+                              const SizedBox(width: 4),
                               Text(
-                                'Recomendado por Lumi',
-                                style: TextStyle(
+                                tr(
+                                  'Recomendado por Lumi',
+                                  'Recommended by Lumi',
+                                ),
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,

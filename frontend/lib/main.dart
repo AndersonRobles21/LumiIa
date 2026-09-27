@@ -1,5 +1,5 @@
 import 'dart:async';
-
+import 'package:frontend/screens/app_language.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:frontend/screens/login_screen.dart';
@@ -28,6 +28,7 @@ void main() async {
   }
 
   await ThemeController.instance.initialize();
+  await AppLanguage.instance.initialize();
   runApp(const LumiApp());
 }
 

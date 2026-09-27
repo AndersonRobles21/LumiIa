@@ -445,7 +445,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       IconButton(
-                                        tooltip: 'Editar personaje',
+                                        tooltip: tr('Editar personaje', 'Edit character'),
                                         icon: const Icon(
                                           Icons.face_retouching_natural,
                                           color: Colors.white70,

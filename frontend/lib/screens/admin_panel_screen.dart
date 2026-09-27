@@ -9,6 +9,7 @@ import 'admin_usuario_detalle_screen.dart';
 import 'admin_usuarios_list_v2.dart';
 import 'configuracion_screen.dart';
 import 'dart:async';
+import 'app_language.dart';
 
 import 'login_screen.dart';
 
@@ -21,7 +22,8 @@ class AdminPanelScreen extends StatefulWidget {
   State<AdminPanelScreen> createState() => _AdminPanelScreenState();
 }
 
-class _AdminPanelScreenState extends State<AdminPanelScreen> {
+class _AdminPanelScreenState extends State<AdminPanelScreen>
+    with AppLanguageListenerMixin<AdminPanelScreen> {
   bool _loading = true;
   Map<String, dynamic> _summary = {};
   List<dynamic> _profileAlerts = [];
@@ -182,7 +184,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 ),
               ),
               IconButton(
-                tooltip: 'Configuración',
+                tooltip: tr('Configuración', 'Settings'),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -197,7 +199,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                 ),
               ),
               IconButton(
-                tooltip: 'Cerrar sesión',
+                tooltip: tr('Cerrar sesión', 'Sign out'),
                 onPressed: () async => await _cerrarSesion(context),
                 icon: const Icon(
                   Icons.logout_rounded,
@@ -318,7 +320,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                                 'Estudiantes activos',
                                 _getLabel(_summary['estudiantes']),
                                 Icons.verified_user_outlined,
-                                'En línea ahora',
+                                tr('En línea ahora', 'Online now'),
                               ),
                               _buildStatCard(
                                 'Planes generados',
@@ -373,7 +375,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
                                   color: Color(0xFFF716DC),
                                 ),
                                 label: Text(
-                                  'Ver estadísticas completas',
+                                  tr('Ver estadísticas completas', 'View full statistics'),
                                   style: GoogleFonts.orbitron(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -386,7 +388,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
 
                           // Accesos a Listas de Usuarios
                           Text(
-                            'Gestión de usuarios',
+                            tr('Gestión de usuarios', 'User management'),
                             style: GoogleFonts.orbitron(
                               color: Colors.white,
                               fontSize: 18,
@@ -597,7 +599,7 @@ class _AdminPanelScreenState extends State<AdminPanelScreen> {
             (alert) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
+                '• ${(alert['mensaje'] ?? tr('Se actualizó tu perfil.', 'Your profile was updated.')).toString()}',
                 style: TextStyle(
                   color: LumiAppTheme.primaryText(context),
                   fontSize: 13,

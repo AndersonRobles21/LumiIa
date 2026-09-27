@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '/services/api_service.dart'; // Asegúrate de tener tu ApiService importado
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class FeynmanScreen extends StatefulWidget {
   final String tituloTarea;
@@ -17,7 +18,8 @@ class FeynmanScreen extends StatefulWidget {
   State<FeynmanScreen> createState() => _FeynmanScreenState();
 }
 
-class _FeynmanScreenState extends State<FeynmanScreen> {
+class _FeynmanScreenState extends State<FeynmanScreen>
+    with AppLanguageListenerMixin<FeynmanScreen> {
   final _explicacionController = TextEditingController();
   int _indexConceptoActual = 0;
   int _longitudActual = 0;
@@ -45,7 +47,14 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
 
     if (texto.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Escribe tu explicación sencilla antes de continuar')),
+        SnackBar(
+          content: Text(
+            tr(
+              'Escribe tu explicación sencilla antes de continuar',
+              'Write your simple explanation before continuing.',
+            ),
+          ),
+        ),
       );
       return;
     }
@@ -53,7 +62,12 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
     if (_longitudActual < minimoCaracteres) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('⚠️ Tu explicación es muy corta. Escribe al menos $minimoCaracteres caracteres detallando el tema.'),
+          content: Text(
+            tr(
+              '⚠️ Tu explicación es muy corta. Escribe al menos $minimoCaracteres caracteres detallando el tema.',
+              '⚠️ Your explanation is too short. Write at least $minimoCaracteres characters describing the topic.',
+            ),
+          ),
           backgroundColor: Colors.orangeAccent,
         ),
       );
@@ -73,14 +87,19 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
       explicacion: texto,
     );
 
-    setState(() => _isEvaluando = false);
-
     if (!mounted) return;
+
+setState(() => _isEvaluando = false);
 
     if (resultado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('❌ Error de conexión con el servidor. Inténtalo de nuevo.'),
+        SnackBar(
+          content: Text(
+            tr(
+              '❌ Error de conexión con el servidor. Inténtalo de nuevo.',
+              '❌ Could not connect to the server. Please try again.',
+            ),
+          ),
           backgroundColor: Colors.redAccent,
         ),
       );
@@ -88,13 +107,15 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
     }
 
     final bool aprobado = resultado['aprobado'] == true;
-    final String mensajeIa = resultado['mensaje'] ?? 'Revisa tu explicación.';
+    final String mensajeIa =
+        resultado['mensaje'] ??
+        tr('Revisa tu explicación.', 'Review your explanation.');
 
     if (!aprobado) {
       // Si la IA detecta que es una broma, incoherente o superficial
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('🤖 Lumi dice: "$mensajeIa"'),
+          content: Text('${tr('🤖 Lumi dice:', '🤖 Lumi says:')} "$mensajeIa"'),
           backgroundColor: Colors.redAccent,
           duration: const Duration(seconds: 4),
         ),
@@ -105,7 +126,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
     // ¡Aprobado por la IA!
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('🎉 ¡Brillante! $mensajeIa'),
+        content: Text('${tr('🎉 ¡Brillante!', '🎉 Brilliant!')} $mensajeIa'),
         backgroundColor: const Color(0xFFBD00FF),
       ),
     );
@@ -139,7 +160,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Técnica Feynman',
+          tr('Técnica Feynman', 'Feynman Technique'),
           style: TextStyle(color: LumiAppTheme.primaryText(context), fontWeight: FontWeight.bold, fontSize: 22),
         ),
         centerTitle: true,
@@ -160,13 +181,19 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                 children: [
                   Icon(Icons.lightbulb_outline, color: Color(0xFFFF44AA), size: 14),
                   SizedBox(width: 6),
-                  Text('Domina un concepto con IA', style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 11)),
+                  Text(
+                    tr('Domina un concepto con IA', 'Master a concept with AI'),
+                    style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 11),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Enseñar es la mejor forma de aprender.\nLumi evaluará tu explicación.',
+              tr(
+                'Enseñar es la mejor forma de aprender.\nLumi evaluará tu explicación.',
+                'Teaching is the best way to learn.\nLumi will evaluate your explanation.',
+              ),
               style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13, height: 1.3),
               textAlign: TextAlign.center,
             ),
@@ -181,7 +208,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text('Concepto ${index + 1}'),
+                        label: Text(tr('Concepto ${index + 1}', 'Concept ${index + 1}')),
                         selected: esSel,
                         selectedColor: Theme.of(context).colorScheme.primary,
                         backgroundColor: LumiAppTheme.surfaceVariant(context),
@@ -219,7 +246,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                       _buildAvatarLumiSmall(),
                       const SizedBox(width: 10),
                       Text(
-                        'Tu concepto a explicar',
+                        tr('Tu concepto a explicar', 'Your concept to explain'),
                         style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -257,7 +284,10 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                       _buildAvatarLumiSmall(),
                       const SizedBox(width: 10),
                       Text(
-                        'Explícalo con tus propias palabras',
+                        tr(
+                          'Explícalo con tus propias palabras',
+                          'Explain it in your own words',
+                        ),
                         style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 15, fontWeight: FontWeight.bold),
                       ),
                     ],
@@ -268,7 +298,10 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                     maxLines: 5,
                     style: TextStyle(color: LumiAppTheme.primaryText(context), fontSize: 13),
                     decoration: InputDecoration(
-                      hintText: 'Escribe una explicación seria y detallada del concepto...',
+                      hintText: tr(
+                        'Escribe una explicación seria y detallada del concepto...',
+                        'Write a thorough explanation of the concept...',
+                      ),
                       hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
                       filled: true,
                       fillColor: const Color(0xFF26204E),
@@ -282,7 +315,7 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: Text(
-                      '$_longitudActual / $minimoRequerido mín.',
+                      '$_longitudActual / $minimoRequerido ${tr('mín.', 'min.')}',
                       style: TextStyle(
                         color: _longitudActual >= minimoRequerido ? Colors.greenAccent : Colors.orangeAccent,
                         fontSize: 11,
@@ -311,9 +344,9 @@ class _FeynmanScreenState extends State<FeynmanScreen> {
                             height: 20,
                             child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
-                        : const Text(
-                            'Hecho',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
+                        : Text(
+                            tr('Hecho', 'Done'),
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                           ),
                   ),
                 ),

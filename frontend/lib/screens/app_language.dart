@@ -6,45 +6,66 @@ enum AppLang { es, en }
 
 class AppLanguage extends ChangeNotifier {
   AppLanguage._internal();
+
   static final AppLanguage instance = AppLanguage._internal();
 
+  static const String _storageKey = 'app_language';
+
   AppLang _current = AppLang.es;
+
   AppLang get current => _current;
   bool get isEnglish => _current == AppLang.en;
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
-    final saved = prefs.getString('app_language');
-    if (saved == 'en') {
-      _current = AppLang.en;
-    } else {
-      _current = AppLang.es;
-    }
+    final savedLanguage = prefs.getString(_storageKey);
+
+    _current = savedLanguage == 'en' ? AppLang.en : AppLang.es;
     notifyListeners();
   }
 
   Future<void> setLanguage(AppLang lang) async {
     if (_current == lang) return;
+
     _current = lang;
+
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('app_language', lang == AppLang.en ? 'en' : 'es');
+    await prefs.setString(
+      _storageKey,
+      lang == AppLang.en ? 'en' : 'es',
+    );
+
     notifyListeners();
   }
 
-  void toggle() => setLanguage(isEnglish ? AppLang.es : AppLang.en);
+  Future<void> toggle() async {
+    await setLanguage(isEnglish ? AppLang.es : AppLang.en);
+  }
 
-  /// Devuelve el texto traducido para un key q si falta la traducción, regresa la clave para que sea fácil detectar qué falta por traducir.
+  /// Traducción por clave.
+  /// Si falta una clave, devuelve la misma clave para detectar qué falta.
   String t(String key) {
     final entry = _strings[key];
+
     if (entry == null) return key;
+
     return entry[_current] ?? entry[AppLang.es] ?? key;
   }
 
   static final Map<String, Map<AppLang, String>> _strings = {
-    //  Configuración 
-    'config_title': {AppLang.es: 'Configuración', AppLang.en: 'Settings'},
-    'login_title': {AppLang.es: 'Iniciar Sesión', AppLang.en: 'Sign in'},
-    'login_password': {AppLang.es: 'Contraseña', AppLang.en: 'Password'},
+    // Configuración
+    'config_title': {
+      AppLang.es: 'Configuración',
+      AppLang.en: 'Settings',
+    },
+    'login_title': {
+      AppLang.es: 'Iniciar sesión',
+      AppLang.en: 'Sign in',
+    },
+    'login_password': {
+      AppLang.es: 'Contraseña',
+      AppLang.en: 'Password',
+    },
     'login_use_biometric': {
       AppLang.es: 'Usar huella',
       AppLang.en: 'Use fingerprint',
@@ -55,9 +76,12 @@ class AppLanguage extends ChangeNotifier {
     },
     'login_no_account': {
       AppLang.es: '¿No tienes una cuenta? ',
-      AppLang.en: 'Don\'t have an account? ',
+      AppLang.en: 'Don’t have an account? ',
     },
-    'login_register': {AppLang.es: 'Regístrate', AppLang.en: 'Sign up'},
+    'login_register': {
+      AppLang.es: 'Regístrate',
+      AppLang.en: 'Sign up',
+    },
     'login_verifying_biometric': {
       AppLang.es: 'Verificando huella...',
       AppLang.en: 'Verifying fingerprint...',
@@ -86,7 +110,10 @@ class AppLanguage extends ChangeNotifier {
       AppLang.es: 'Recibe un recordatorio de tu horario de estudio',
       AppLang.en: 'Get a reminder of your study schedule',
     },
-    'section_security': {AppLang.es: 'Seguridad', AppLang.en: 'Security'},
+    'section_security': {
+      AppLang.es: 'Seguridad',
+      AppLang.en: 'Security',
+    },
     'biometric_title': {
       AppLang.es: 'Inicio con biometría',
       AppLang.en: 'Biometric login',
@@ -115,21 +142,40 @@ class AppLanguage extends ChangeNotifier {
       AppLang.es: 'Preferencias',
       AppLang.en: 'Preferences',
     },
-    'language': {AppLang.es: 'Idioma', AppLang.en: 'Language'},
+    'language': {
+      AppLang.es: 'Idioma',
+      AppLang.en: 'Language',
+    },
     'study_methods': {
       AppLang.es: 'Métodos de estudio preferidos',
       AppLang.en: 'Preferred study methods',
     },
     'study_methods_msg': {
       AppLang.es:
-          'Podrás elegir y guardar tus métodos de estudio favoritos (Pomodoro, mapas mentales, práctica activa, etc.) directamente desde aquí en una próxima actualización.',
+          'Podrás elegir y guardar tus métodos de estudio favoritos '
+          '(Pomodoro, mapas mentales, práctica activa, etc.) '
+          'directamente desde aquí en una próxima actualización.',
       AppLang.en:
-          'You\'ll be able to choose and save your favorite study methods (Pomodoro, mind maps, active recall, etc.) right from here in an upcoming update.',
+          'You’ll be able to choose and save your favorite study methods '
+          '(Pomodoro, mind maps, active recall, etc.) '
+          'right from here in an upcoming update.',
     },
-    'section_support': {AppLang.es: 'Soporte', AppLang.en: 'Support'},
-    'help_center': {AppLang.es: 'Centro de ayuda', AppLang.en: 'Help center'},
-    'about_lumi': {AppLang.es: 'Acerca de Lumi', AppLang.en: 'About Lumi'},
-    'logout': {AppLang.es: 'Cerrar sesión', AppLang.en: 'Log out'},
+    'section_support': {
+      AppLang.es: 'Soporte',
+      AppLang.en: 'Support',
+    },
+    'help_center': {
+      AppLang.es: 'Centro de ayuda',
+      AppLang.en: 'Help center',
+    },
+    'about_lumi': {
+      AppLang.es: 'Acerca de Lumi',
+      AppLang.en: 'About Lumi',
+    },
+    'logout': {
+      AppLang.es: 'Cerrar sesión',
+      AppLang.en: 'Log out',
+    },
     'logout_confirm_title': {
       AppLang.es: '¿Cerrar sesión?',
       AppLang.en: 'Log out?',
@@ -137,9 +183,13 @@ class AppLanguage extends ChangeNotifier {
     'logout_confirm_content': {
       AppLang.es:
           'Tendrás que volver a iniciar sesión para acceder a tu cuenta.',
-      AppLang.en: 'You\'ll need to sign in again to access your account.',
+      AppLang.en:
+          'You’ll need to sign in again to access your account.',
     },
-    'cancel': {AppLang.es: 'Cancelar', AppLang.en: 'Cancel'},
+    'cancel': {
+      AppLang.es: 'Cancelar',
+      AppLang.en: 'Cancel',
+    },
     'change_password_title': {
       AppLang.es: 'Cambiar contraseña',
       AppLang.en: 'Change password',
@@ -160,15 +210,27 @@ class AppLanguage extends ChangeNotifier {
       AppLang.es: 'No se pudo enviar el correo. Intenta de nuevo más tarde.',
       AppLang.en: 'Could not send the email. Please try again later.',
     },
-    'select_language': {AppLang.es: 'Idioma', AppLang.en: 'Language'},
-    'close': {AppLang.es: 'Cerrar', AppLang.en: 'Close'},
-    'understood': {AppLang.es: 'Entendido', AppLang.en: 'Got it'},
+    'select_language': {
+      AppLang.es: 'Idioma',
+      AppLang.en: 'Language',
+    },
+    'close': {
+      AppLang.es: 'Cerrar',
+      AppLang.en: 'Close',
+    },
+    'understood': {
+      AppLang.es: 'Entendido',
+      AppLang.en: 'Got it',
+    },
 
-    //  Historial IA 
-    'history_title': {AppLang.es: 'Historial IA', AppLang.en: 'AI History'},
+    // Historial IA
+    'history_title': {
+      AppLang.es: 'Historial IA',
+      AppLang.en: 'AI History',
+    },
     'history_intro_1': {
       AppLang.es: 'Aquí verás tus planes de IA generados previamente.',
-      AppLang.en: 'Here you\'ll see the AI plans you\'ve generated before.',
+      AppLang.en: 'Here you’ll see the AI plans you’ve generated before.',
     },
     'history_intro_2': {
       AppLang.es: 'Selecciona uno para revisarlo en detalle.',
@@ -187,7 +249,7 @@ class AppLanguage extends ChangeNotifier {
       AppLang.en: 'Study plan',
     },
 
-    //  Barra de navegación 
+    // Barra de navegación
     'nav_calendar_soon': {
       AppLang.es: '📅 Calendario: disponible próximamente.',
       AppLang.en: '📅 Calendar: coming soon.',
@@ -195,7 +257,13 @@ class AppLanguage extends ChangeNotifier {
   };
 }
 
+/// Úsalo para textos directos:
+/// tr('Español', 'English')
+String appLanguageText(String spanish, String english) {
+  return AppLanguage.instance.isEnglish ? english : spanish;
+}
 
+/// Agrégalo a cada pantalla que debe refrescarse al cambiar idioma.
 mixin AppLanguageListenerMixin<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
@@ -213,7 +281,7 @@ mixin AppLanguageListenerMixin<T extends StatefulWidget> on State<T> {
     if (mounted) setState(() {});
   }
 
-  /// Este es el q devuelve [es] o [en] según el idioma seleccionado
-  String tr(String es, String en) =>
-      AppLanguage.instance.isEnglish ? en : es;
+  String tr(String es, String en) => appLanguageText(es, en);
+
+  String t(String key) => AppLanguage.instance.t(key);
 }

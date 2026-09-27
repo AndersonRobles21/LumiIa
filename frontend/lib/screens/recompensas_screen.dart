@@ -6,6 +6,7 @@ import 'dashboard_screen.dart';
 import 'calendar_screen.dart';
 import 'historial_ia_screen.dart';
 import 'profile_screen.dart';
+import 'app_language.dart';
 
 class RecompensasScreen extends StatefulWidget {
   final String userId;
@@ -16,7 +17,8 @@ class RecompensasScreen extends StatefulWidget {
   State<RecompensasScreen> createState() => _RecompensasScreenState();
 }
 
-class _RecompensasScreenState extends State<RecompensasScreen> {
+class _RecompensasScreenState extends State<RecompensasScreen>
+    with AppLanguageListenerMixin<RecompensasScreen> {
   bool _isLoading = true;
   int _totalTareas = 0;
   int _completadas = 0;
@@ -63,6 +65,22 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
     return 'Nuevo';
   }
 
+  String get _nivelActualEn => switch (_nivelActual) {
+    'Legendario' => 'Legendary',
+    'Experto' => 'Expert',
+    'Avanzado' => 'Advanced',
+    'Principiante' => 'Beginner',
+    _ => 'New',
+  };
+
+  String _tituloLogro(String titulo) => switch (titulo) {
+    'Primera' => tr('Primera', 'First'),
+    'Ritmo' => tr('Ritmo', 'Momentum'),
+    'Constancia' => tr('Constancia', 'Consistency'),
+    'Leyenda' => tr('Leyenda', 'Legend'),
+    _ => titulo,
+  };
+
   double get _progresoNivel {
     const niveles = [0, 100, 300, 600, 1000];
     for (int i = 0; i < niveles.length - 1; i++) {
@@ -90,11 +108,20 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
       final siguiente = niveles[i + 1]['puntos'] as int;
       final nombre = niveles[i + 1]['nombre'] as String;
       if (_puntos >= actual && _puntos < siguiente) {
-        return 'Faltan ${siguiente - _puntos} pts para llegar a $nombre';
+        return tr(
+          'Faltan ${siguiente - _puntos} pts para llegar a $nombre',
+          '${siguiente - _puntos} pts left to reach ${switch (nombre) {
+            'Principiante' => 'Beginner',
+            'Avanzado' => 'Advanced',
+            'Experto' => 'Expert',
+            'Legendario' => 'Legendary',
+            _ => 'New',
+          }}',
+        );
       }
     }
 
-    return '¡Ya alcanzaste el máximo nivel!';
+    return tr('¡Ya alcanzaste el máximo nivel!', 'You reached the highest level!');
   }
 
   List<Map<String, dynamic>> get _logros {
@@ -136,7 +163,7 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Recompensas',
+                        tr('Recompensas', 'Rewards'),
                         style: TextStyle(
                           color: LumiAppTheme.primaryText(context),
                           fontSize: 24,
@@ -164,7 +191,10 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       Text(
-                                        'Nivel $_nivelActual',
+                                        tr(
+                                          'Nivel $_nivelActual',
+                                          'Level $_nivelActualEn',
+                                        ),
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 18,
@@ -209,8 +239,8 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                           child: Column(
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             children: [
-                                              const Text(
-                                                'Progreso de nivel',
+                                              Text(
+                                                tr('Progreso de nivel', 'Level progress'),
                                                 style: TextStyle(
                                                   color: Colors.white70,
                                                   fontSize: 12,
@@ -244,14 +274,14 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      _metricCard('Tareas', '$_totalTareas'),
-                                      _metricCard('Hechas', '$_completadas'),
-                                      _metricCard('Faltan', '$_pendientes'),
+                                      _metricCard(tr('Tareas', 'Tasks'), '$_totalTareas'),
+                                      _metricCard(tr('Hechas', 'Completed'), '$_completadas'),
+                                      _metricCard(tr('Faltan', 'Remaining'), '$_pendientes'),
                                     ],
                                   ),
                                   const SizedBox(height: 24),
-                                  const Text(
-                                    'Logros',
+                                  Text(
+                                    tr('Logros', 'Achievements'),
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 18,
@@ -285,7 +315,9 @@ class _RecompensasScreenState extends State<RecompensasScreen> {
                                             ),
                                             const SizedBox(height: 8),
                                             Text(
-                                              logro['titulo'] as String,
+                                              _tituloLogro(
+                                                logro['titulo'] as String,
+                                              ),
                                               textAlign: TextAlign.center,
                                               style: TextStyle(
                                                 color: activo ? Colors.white : Colors.white38,

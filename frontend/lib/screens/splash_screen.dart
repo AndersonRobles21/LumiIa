@@ -1,15 +1,17 @@
 import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../services/api_service.dart';
+import '../utils/responsive.dart';
+import 'app_language.dart';
 import 'dashboard_screen.dart';
 import 'profile_screen.dart';
-import '../utils/responsive.dart';
 
 const Color kPurplePrimary = Color(0xFFB026FF);
 const Color kPurpleSecondary = Color(0xFF7B2FF7);
 const Color kPurpleAccent = Color(0xFFD87BFF);
-const Color kBackgroundDark = Color(0xFF03010A);
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -19,10 +21,11 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, AppLanguageListenerMixin<SplashScreen> {
   late final AnimationController _bounceController;
   late final AnimationController _loadingController;
   late final AnimationController _fadeController;
+
   late final Animation<double> _bounceAnimation;
   late final Animation<double> _loadingAnimation;
   late final Animation<double> _fadeAnimation;
@@ -86,15 +89,20 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _restoreSession() async {
     final session = Supabase.instance.client.auth.currentSession;
+
     if (session == null) {
-      if (mounted) Navigator.of(context).pushReplacementNamed('/login');
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/login');
+      }
       return;
     }
 
     final profile = await ApiService.getProfile(session.user.id);
+
     if (!mounted) return;
 
     final isAdmin = (profile?['es_admin'] ?? false) == true;
+
     if (isAdmin) {
       Navigator.of(context).pushReplacementNamed(
         '/admin-panel',
@@ -104,8 +112,10 @@ class _SplashScreenState extends State<SplashScreen>
     }
 
     final name = (profile?['nombre'] ?? '').toString().trim();
-    final objective = (profile?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
+    final objective =
+        (profile?['perfil_estudio']?['objetivo'] ?? '').toString().trim();
     final schedules = profile?['horarios'] as List?;
+
     final profileReady = name.isNotEmpty &&
         (objective.isNotEmpty || (schedules != null && schedules.isNotEmpty));
 
@@ -126,17 +136,55 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  Widget _logo(double size) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Image.asset(
+        'logo/lumisplash.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _slogan() {
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          letterSpacing: 1.1,
+          fontWeight: FontWeight.w600,
+        ),
+        children: [
+          TextSpan(text: tr('LA ', '')),
+          TextSpan(
+            text: tr(
+              'PROCRASTINACIÓN ',
+              'PROCRASTINATION ',
+            ),
+            style: const TextStyle(color: kPurpleAccent),
+          ),
+          TextSpan(text: tr('TERMINA ', 'ENDS ')),
+          TextSpan(
+            text: tr('AQUÍ', 'HERE'),
+            style: const TextStyle(color: kPurpleAccent),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // El Splash es una excepción visual intencional: conserva el fondo negro
-    // diseñado para sus imágenes, independientemente del tema seleccionado.
     return Scaffold(
       backgroundColor: Colors.black,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
           final height = constraints.maxHeight;
-
           final robotSize = math.min(width * 0.62, height * 0.34);
 
           if (Responsive.esEscritorio(context)) {
@@ -170,20 +218,13 @@ class _SplashScreenState extends State<SplashScreen>
                       children: [
                         AnimatedBuilder(
                           animation: _bounceAnimation,
-                          builder: (context, child) => Transform.translate(
-                            offset: Offset(0, _bounceAnimation.value),
-                            child: child,
-                          ),
-                          child: SizedBox(
-                            width: 190,
-                            height: 190,
-                            child: Image.asset(
-                              'logo/lumisplash.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          ),
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(0, _bounceAnimation.value),
+                              child: child,
+                            );
+                          },
+                          child: _logo(190),
                         ),
                         const SizedBox(height: 12),
                         const Text(
@@ -196,29 +237,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                         const SizedBox(height: 6),
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              letterSpacing: 1.1,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            children: [
-                              const TextSpan(text: 'LA '),
-                              TextSpan(
-                                text: 'PROCRASTINACIÓN ',
-                                style: TextStyle(color: kPurpleAccent),
-                              ),
-                              const TextSpan(text: 'TERMINA '),
-                              TextSpan(
-                                text: 'AQUÍ',
-                                style: TextStyle(color: kPurpleAccent),
-                              ),
-                            ],
-                          ),
-                        ),
+                        _slogan(),
                         const SizedBox(height: 24),
                         const _InfoCard(),
                         const SizedBox(height: 28),
@@ -239,20 +258,20 @@ class _SplashScreenState extends State<SplashScreen>
                   'logo/Fondo_splash.png',
                   fit: BoxFit.cover,
                   alignment: Alignment.center,
-                  errorBuilder: (context, error, stackTrace) {
-                    return const SizedBox.shrink();
-                  },
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
                 ),
               ),
               SafeArea(
                 child: FadeTransition(
                   opacity: _fadeAnimation,
                   child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: Responsive.paddingHorizontalRecomendado(context)),
+                    padding: EdgeInsets.symmetric(
+                      horizontal:
+                          Responsive.paddingHorizontalRecomendado(context),
+                    ),
                     child: Column(
                       children: [
                         SizedBox(height: height * 0.10),
-
                         AnimatedBuilder(
                           animation: _bounceAnimation,
                           builder: (context, child) {
@@ -261,22 +280,10 @@ class _SplashScreenState extends State<SplashScreen>
                               child: child,
                             );
                           },
-                          child: SizedBox(
-                            width: robotSize,
-                            height: robotSize,
-                            child: Image.asset(
-                              'logo/lumisplash.png',
-                              fit: BoxFit.contain,
-                              errorBuilder: (context, error, stackTrace) {
-                                return const SizedBox.shrink();
-                              },
-                            ),
-                          ),
+                          child: _logo(robotSize),
                         ),
-
                         SizedBox(height: height * 0.16),
-
-                        Text(
+                        const Text(
                           'LUMI',
                           style: TextStyle(
                             fontSize: 48,
@@ -285,45 +292,11 @@ class _SplashScreenState extends State<SplashScreen>
                             letterSpacing: 4,
                           ),
                         ),
-
                         const SizedBox(height: 6),
-
-                        RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              letterSpacing: 1.1,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: 'LA ',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              TextSpan(
-                                text: 'PROCRASTINACIÓN ',
-                                style: TextStyle(color: kPurpleAccent),
-                              ),
-                              TextSpan(
-                                text: 'TERMINA ',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                              TextSpan(
-                                text: 'AQUÍ',
-                                style: TextStyle(color: kPurpleAccent),
-                              ),
-                            ],
-                          ),
-                        ),
-
+                        _slogan(),
                         SizedBox(height: height * 0.045),
-
                         const _InfoCard(),
-
                         const Spacer(),
-
                         Padding(
                           padding: EdgeInsets.only(bottom: height * 0.08),
                           child: _LoadingBar(animation: _loadingAnimation),
@@ -346,52 +319,65 @@ class _InfoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.symmetric(
-        horizontal: Responsive.paddingHorizontalRecomendado(context) / 2,
-        vertical: Responsive.espacio(context),
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFF140D24).withOpacity(0.85),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: kPurpleSecondary.withOpacity(0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.school,
-            color: Colors.white70,
-            size: 32,
+    return AnimatedBuilder(
+      animation: AppLanguage.instance,
+      builder: (context, _) {
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.symmetric(
+            horizontal: Responsive.paddingHorizontalRecomendado(context) / 2,
+            vertical: Responsive.espacio(context),
           ),
-          SizedBox(width: Responsive.espacio(context) * 2),
-          Flexible(
-            child: RichText(
-              text: TextSpan(
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  height: 1.3,
-                  fontWeight: FontWeight.w400,
-                ),
-                children: [
-                  TextSpan(text: 'Tu compañero inteligente\npara aprender '),
-                  TextSpan(
-                    text: 'sin límites',
-                    style: TextStyle(
-                      color: kPurpleAccent,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
+          decoration: BoxDecoration(
+            color: const Color(0xFF140D24).withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: kPurpleSecondary.withValues(alpha: 0.3),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.school,
+                color: Colors.white70,
+                size: 32,
+              ),
+              SizedBox(width: Responsive.espacio(context) * 2),
+              Flexible(
+                child: RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      height: 1.3,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    children: [
+                      TextSpan(
+                        text: appLanguageText(
+                          'Tu compañero inteligente\npara aprender ',
+                          'Your smart learning\ncompanion ',
+                        ),
+                      ),
+                      TextSpan(
+                        text: appLanguageText(
+                          'sin límites',
+                          'without limits',
+                        ),
+                        style: const TextStyle(
+                          color: kPurpleAccent,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -399,54 +385,61 @@ class _InfoCard extends StatelessWidget {
 class _LoadingBar extends StatelessWidget {
   final Animation<double> animation;
 
-  const _LoadingBar({required this.animation});
+  const _LoadingBar({
+    required this.animation,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Text(
-          'CARGANDO...',
-          style: TextStyle(
-            fontSize: 10,
-            color: kPurpleAccent,
-            letterSpacing: 2,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        AnimatedBuilder(
-          animation: animation,
-          builder: (context, child) {
-            return Container(
-              height: 6,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFF120826),
-                borderRadius: BorderRadius.circular(3),
+    return AnimatedBuilder(
+      animation: AppLanguage.instance,
+      builder: (context, _) {
+        return Column(
+          children: [
+            Text(
+              appLanguageText('CARGANDO...', 'LOADING...'),
+              style: const TextStyle(
+                fontSize: 10,
+                color: kPurpleAccent,
+                letterSpacing: 2,
+                fontWeight: FontWeight.w500,
               ),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: animation.value,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [
-                          kPurpleSecondary,
-                          kPurplePrimary,
-                          kPurpleAccent,
-                        ],
+            ),
+            const SizedBox(height: 8),
+            AnimatedBuilder(
+              animation: animation,
+              builder: (context, child) {
+                return Container(
+                  height: 6,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF120826),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FractionallySizedBox(
+                      widthFactor: animation.value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [
+                              kPurpleSecondary,
+                              kPurplePrimary,
+                              kPurpleAccent,
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
                       ),
-                      borderRadius: BorderRadius.circular(3),
                     ),
                   ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

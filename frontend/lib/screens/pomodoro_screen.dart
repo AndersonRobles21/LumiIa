@@ -1,13 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import '../utils/responsive.dart';
-import '../theme/app_theme.dart';
+
 import '../services/sound_service.dart';
+import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
+import 'app_language.dart';
 
 class PomodoroScreen extends StatefulWidget {
   final String tituloTarea;
-  final int tiempoEstudioMinutos; // Por defecto 25 min
-  final int tiempoDescansoMinutos; // Por defecto 5 min
+  final int tiempoEstudioMinutos;
+  final int tiempoDescansoMinutos;
 
   const PomodoroScreen({
     super.key,
@@ -20,84 +23,105 @@ class PomodoroScreen extends StatefulWidget {
   State<PomodoroScreen> createState() => _PomodoroScreenState();
 }
 
-class _PomodoroScreenState extends State<PomodoroScreen> {
+class _PomodoroScreenState extends State<PomodoroScreen>
+    with AppLanguageListenerMixin<PomodoroScreen> {
   Timer? _timer;
   late int _segundosRestantes;
   late int _tiempoTotalInicial;
+
   bool _estaActivo = false;
-  bool _esTiempoEstudio = true; // true = Enfoque, false = Descanso
-  int _cicloActual = 1; // De 1 a 4 ciclos
+  bool _esTiempoEstudio = true;
+  int _cicloActual = 1;
 
   @override
   void initState() {
     super.initState();
-    _resetearTiempo();
+    _configurarTiempo();
+  }
+
+  void _configurarTiempo() {
+    _tiempoTotalInicial = (_esTiempoEstudio
+            ? widget.tiempoEstudioMinutos
+            : widget.tiempoDescansoMinutos) *
+        60;
+
+    _segundosRestantes = _tiempoTotalInicial;
+    _estaActivo = false;
   }
 
   void _resetearTiempo() {
-    setState(() {
-      _tiempoTotalInicial = (_esTiempoEstudio
-              ? widget.tiempoEstudioMinutos
-              : widget.tiempoDescansoMinutos) *
-          60;
-      _segundosRestantes = _tiempoTotalInicial;
-      _estaActivo = false;
-    });
     _timer?.cancel();
+
+    setState(() {
+      _configurarTiempo();
+    });
   }
 
   void _alternarTimer() {
     if (_estaActivo) {
       _timer?.cancel();
       setState(() => _estaActivo = false);
-    } else {
-      setState(() => _estaActivo = true);
-      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_segundosRestantes > 0) {
-          setState(() => _segundosRestantes--);
-        } else {
-          _timer?.cancel();
-          _siguienteCiclo();
-        }
-      });
+      return;
     }
+
+    setState(() => _estaActivo = true);
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_segundosRestantes > 0) {
+        setState(() => _segundosRestantes--);
+        return;
+      }
+
+      _timer?.cancel();
+      _siguienteCiclo();
+    });
   }
 
   void _siguienteCiclo() {
     if (_esTiempoEstudio) {
       SoundService.instance.play(LumiSound.pomodoroCompleted);
     }
+
     setState(() {
       if (_esTiempoEstudio) {
-        _esTiempoEstudio = false; // Pasar a descanso
+        _esTiempoEstudio = false;
       } else {
-        _esTiempoEstudio = true; // Pasar a estudio
+        _esTiempoEstudio = true;
+
         if (_cicloActual < 4) {
           _cicloActual++;
         } else {
-          _cicloActual = 1; // Reiniciar ciclo tras completar sesión
+          _cicloActual = 1;
         }
       }
-      _resetearTiempo();
+
+      _configurarTiempo();
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           _esTiempoEstudio
-              ? '🧠 ¡Hora de enfocarse en "${widget.tituloTarea}"!'
-              : '☕ ¡Hora de descansar! Tómate un respiro de 5 minutos.',
+              ? tr(
+                  '🧠 ¡Hora de enfocarte en "${widget.tituloTarea}"!',
+                  '🧠 Time to focus on "${widget.tituloTarea}"!',
+                )
+              : tr(
+                  '☕ ¡Hora de descansar! Tómate un respiro de ${widget.tiempoDescansoMinutos} minutos.',
+                  '☕ Time for a break! Take a ${widget.tiempoDescansoMinutos}-minute breather.',
+                ),
         ),
+        backgroundColor: const Color(0xFFBD00FF),
       ),
     );
   }
 
   String _formatearTiempo(int segundos) {
     final minutos = segundos ~/ 60;
-    final segs = segundos % 60;
-    final mStr = minutos.toString().padLeft(2, '0');
-    final sStr = segs.toString().padLeft(2, '0');
-    return '$mStr:$sStr';
+    final segundosRestantes = segundos % 60;
+
+    return '${minutos.toString().padLeft(2, '0')}:'
+        '${segundosRestantes.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -108,7 +132,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final porcentajeProgreso = _segundosRestantes / _tiempoTotalInicial;
+    final porcentajeProgreso = _tiempoTotalInicial == 0
+        ? 0.0
+        : _segundosRestantes / _tiempoTotalInicial;
+
     final tamanioTemporizador = (Responsive.anchoPantalla(context) * 0.58)
         .clamp(180.0, 240.0);
 
@@ -118,11 +145,15 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 20),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: LumiAppTheme.primaryText(context),
+            size: 20,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Técnica Pomodoro',
+          tr('Técnica Pomodoro', 'Pomodoro Technique'),
           style: TextStyle(
             color: LumiAppTheme.primaryText(context),
             fontWeight: FontWeight.bold,
@@ -135,23 +166,34 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         child: Column(
           children: [
-            // 📌 TARJETA DE LA TAREA ACTUAL
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
               decoration: BoxDecoration(
                 color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: const Color(0xFFBD00FF).withOpacity(0.4)),
+                border: Border.all(
+                  color: const Color(0xFFBD00FF).withValues(alpha: 0.4),
+                ),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.task_alt, color: Color(0xFF00F0FF), size: 20),
+                  const Icon(
+                    Icons.task_alt,
+                    color: Color(0xFF00F0FF),
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Trabajo activo: ${widget.tituloTarea}',
+                      tr(
+                        'Trabajo activo: ${widget.tituloTarea}',
+                        'Active task: ${widget.tituloTarea}',
+                      ),
                       style: TextStyle(
-                                color: LumiAppTheme.primaryText(context),
+                        color: LumiAppTheme.primaryText(context),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -162,21 +204,21 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ),
             ),
             const SizedBox(height: 16),
-
-            // ⏰ TARJETA PRINCIPAL DEL TEMPORIZADOR
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+              padding: const EdgeInsets.symmetric(
+                vertical: 28,
+                horizontal: 16,
+              ),
               decoration: BoxDecoration(
                 color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(28),
                 border: Border.all(
-                  color: const Color(0xFF3B2F6E).withOpacity(0.5),
+                  color: const Color(0xFF3B2F6E).withValues(alpha: 0.5),
                 ),
               ),
               child: Column(
                 children: [
-                  // Círculo del Temporizador
                   SizedBox(
                     width: tamanioTemporizador,
                     height: tamanioTemporizador,
@@ -207,8 +249,8 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                             const SizedBox(height: 4),
                             Text(
                               _esTiempoEstudio
-                                  ? 'Enfoque profundo'
-                                  : 'Descanso corto',
+                                  ? tr('Enfoque profundo', 'Deep focus')
+                                  : tr('Descanso corto', 'Short break'),
                               style: TextStyle(
                                 color: LumiAppTheme.secondaryText(context),
                                 fontSize: 14,
@@ -221,18 +263,16 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                     ),
                   ),
                   const SizedBox(height: 30),
-
-                  // BOTONES DE CONTROL (Reiniciar / Pausar-Iniciar)
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 12,
-                      runSpacing: 12,
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 12,
+                    runSpacing: 12,
                     children: [
-                      // Botón Reiniciar
                       ElevatedButton.icon(
                         onPressed: _resetearTiempo,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: LumiAppTheme.surfaceVariant(context),
+                          backgroundColor:
+                              LumiAppTheme.surfaceVariant(context),
                           foregroundColor: LumiAppTheme.primaryText(context),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 20,
@@ -243,15 +283,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           ),
                         ),
                         icon: const Icon(Icons.refresh, size: 18),
-                        label: const Text(
-                          'Reiniciar',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        label: Text(
+                          tr('Reiniciar', 'Reset'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      // Botón Pausar / Iniciar
                       ElevatedButton.icon(
                         onPressed: _alternarTimer,
                         style: ElevatedButton.styleFrom(
@@ -270,11 +306,10 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
                           size: 20,
                         ),
                         label: Text(
-                          _estaActivo ? 'Pausar' : 'Iniciar',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          _estaActivo
+                              ? tr('Pausar', 'Pause')
+                              : tr('Iniciar', 'Start'),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -283,10 +318,11 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // 🎯 BARRA DE CICLOS
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 16,
+              ),
               decoration: BoxDecoration(
                 color: const Color(0xFF1B163B),
                 borderRadius: BorderRadius.circular(20),
@@ -305,31 +341,33 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // 🖼️ IMAGEN INFERIOR
-            Center(
-              child: FractionallySizedBox(
-                widthFactor: Responsive.esMovil(context)
-                    ? 0.9
-                    : Responsive.esTablet(context)
-                        ? 0.7
-                        : 0.55,
-                child: AspectRatio(
-                  aspectRatio: 1.8,
-                  child: Image.asset(
-                    'logo/pomodoro.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) => Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1B163B),
-                        borderRadius: BorderRadius.circular(20),
+            FractionallySizedBox(
+              widthFactor: Responsive.esMovil(context)
+                  ? 0.9
+                  : Responsive.esTablet(context)
+                      ? 0.7
+                      : 0.55,
+              child: AspectRatio(
+                aspectRatio: 1.8,
+                child: Image.asset(
+                  'logo/pomodoro.png',
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1B163B),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      tr(
+                        '⚡ ¿Cómo funciona?\n${widget.tiempoEstudioMinutos} min de estudio • ${widget.tiempoDescansoMinutos} min de descanso • Repite 4 ciclos',
+                        '⚡ How does it work?\n${widget.tiempoEstudioMinutos} min study • ${widget.tiempoDescansoMinutos} min break • Repeat for 4 cycles',
                       ),
-                      child: const Text(
-                        '⚡ ¿Cómo funciona?\n25 min estudio • 5 min descanso • Repite 4 ciclos',
-                        style: TextStyle(color: Colors.white70, fontSize: 13),
-                        textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 13,
                       ),
+                      textAlign: TextAlign.center,
                     ),
                   ),
                 ),
@@ -370,6 +408,7 @@ class _PomodoroScreenState extends State<PomodoroScreen> {
 
   Widget _buildLineaConectora(int cicloAnterior) {
     final estaActiva = _cicloActual > cicloAnterior;
+
     return Expanded(
       child: Container(
         height: 3,

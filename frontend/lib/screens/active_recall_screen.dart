@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class ActiveRecallScreen extends StatefulWidget {
   final String tituloTarea;
@@ -16,7 +17,8 @@ class ActiveRecallScreen extends StatefulWidget {
   State<ActiveRecallScreen> createState() => _ActiveRecallScreenState();
 }
 
-class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
+class _ActiveRecallScreenState extends State<ActiveRecallScreen>
+    with AppLanguageListenerMixin<ActiveRecallScreen> {
   bool _mostrarRespuesta = false;
   int _preguntaActualIndex = 0;
 
@@ -27,16 +29,28 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
         ? widget.preguntasRespuestas
         : [
             {
-              'pregunta': '¿Qué es y para qué sirve ${widget.tituloTarea}?',
+              'pregunta': tr(
+                '¿Qué es y para qué sirve ${widget.tituloTarea}?',
+                'What is ${widget.tituloTarea} and what is it used for?',
+              ),
               'respuesta':
-                  'Es el concepto principal estructurado en tu plan de estudio de Lumi para lograr el máximo aprendizaje y dominio del tema.',
+                  tr(
+                    'Es el concepto principal estructurado en tu plan de estudio de Lumi para lograr el máximo aprendizaje y dominio del tema.',
+                    'It is the main concept in your Lumi study plan, designed to help you master the topic.',
+                  ),
             }
           ];
 
     final totalPreguntas = listaPreguntas.length;
     final itemActual = listaPreguntas[_preguntaActualIndex];
-    final textoPregunta = itemActual['pregunta'] ?? itemActual['titulo'] ?? 'Pregunta de repaso';
-    final textoRespuesta = itemActual['respuesta'] ?? itemActual['descripcion'] ?? 'Respuesta detallada no disponible.';
+    final textoPregunta =
+        itemActual['pregunta'] ??
+        itemActual['titulo'] ??
+        tr('Pregunta de repaso', 'Review question');
+    final textoRespuesta =
+        itemActual['respuesta'] ??
+        itemActual['descripcion'] ??
+        tr('Respuesta detallada no disponible.', 'Detailed answer unavailable.');
 
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
@@ -69,13 +83,25 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
                 errorBuilder: (_, __, ___) => Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(color: LumiAppTheme.surface(context), borderRadius: BorderRadius.circular(15)),
-                  child: Text('✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.', style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 12)),
+                  child: Text(
+                    tr(
+                      '✨ ¡Pon a prueba tu memoria! Intenta recordar sin mirar tus apuntes.',
+                      '✨ Test your memory! Try to recall the answer without looking at your notes.',
+                    ),
+                    style: TextStyle(
+                      color: LumiAppTheme.secondaryText(context),
+                      fontSize: 12,
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'Piensa la respuesta y presiona el botón\npara comprobar',
+            Text(
+              tr(
+                'Piensa la respuesta y presiona el botón\npara comprobar',
+                'Think of the answer, then press the button\nto check it.',
+              ),
               style: TextStyle(color: Colors.white60, fontSize: 13, height: 1.3),
               textAlign: TextAlign.center,
             ),
@@ -146,8 +172,13 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
                         _preguntaActualIndex++;
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('🎉 ¡Has completado todas las preguntas de Active Recall!'),
+                          SnackBar(
+                            content: Text(
+                              tr(
+                                '🎉 ¡Has completado todas las preguntas de Active Recall!',
+                                '🎉 You have completed all Active Recall questions!',
+                              ),
+                            ),
                             backgroundColor: Color(0xFFBD00FF),
                           ),
                         );
@@ -161,7 +192,9 @@ class _ActiveRecallScreenState extends State<ActiveRecallScreen> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                 ),
                 child: Text(
-                  _mostrarRespuesta ? 'Siguiente' : 'Respuesta',
+                  _mostrarRespuesta
+                      ? tr('Siguiente', 'Next')
+                      : tr('Respuesta', 'Answer'),
                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
               ),

@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class OlvidarContrasena extends StatefulWidget {
   const OlvidarContrasena({super.key});
@@ -11,7 +12,8 @@ class OlvidarContrasena extends StatefulWidget {
   State<OlvidarContrasena> createState() => _OlvidarContrasenaState();
 }
 
-class _OlvidarContrasenaState extends State<OlvidarContrasena> {
+class _OlvidarContrasenaState extends State<OlvidarContrasena>
+    with AppLanguageListenerMixin<OlvidarContrasena> {
   final _emailController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -42,12 +44,22 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     setState(() => _errorMessage = null);
 
     if (email.isEmpty) {
-      setState(() => _errorMessage = 'Ingresa tu correo electrónico.');
+      setState(
+        () => _errorMessage = tr(
+          'Ingresa tu correo electrónico.',
+          'Enter your email address.',
+        ),
+      );
       return;
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un correo electrónico válido.');
+      setState(
+        () => _errorMessage = tr(
+          'Ingresa un correo electrónico válido.',
+          'Enter a valid email address.',
+        ),
+      );
       return;
     }
 
@@ -75,7 +87,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'Ocurrió un error al enviar el correo. Inténtalo de nuevo.';
+        _errorMessage = tr(
+          'Ocurrió un error al enviar el correo. Inténtalo de nuevo.',
+          'An error occurred while sending the email. Please try again.',
+        );
       });
     }
   }
@@ -88,18 +103,33 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     setState(() => _errorMessage = null);
 
     if (newPass.isEmpty || confirmPass.isEmpty) {
-      setState(() => _errorMessage = 'Completa todos los campos obligatorios.');
+      setState(
+        () => _errorMessage = tr(
+          'Completa todos los campos obligatorios.',
+          'Complete all required fields.',
+        ),
+      );
       return;
     }
 
     final passwordRegex = RegExp(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$');
     if (!passwordRegex.hasMatch(newPass)) {
-      setState(() => _errorMessage = 'Mín. 8 caracteres, incluir mayúscula, minúscula y número.');
+      setState(
+        () => _errorMessage = tr(
+          'Mín. 8 caracteres, incluir mayúscula, minúscula y número.',
+          'Use at least 8 characters, including uppercase, lowercase, and a number.',
+        ),
+      );
       return;
     }
 
     if (newPass != confirmPass) {
-      setState(() => _errorMessage = 'Las contraseñas no coinciden.');
+      setState(
+        () => _errorMessage = tr(
+          'Las contraseñas no coinciden.',
+          'Passwords do not match.',
+        ),
+      );
       return;
     }
 
@@ -125,7 +155,10 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'No se pudo actualizar la contraseña.';
+        _errorMessage = tr(
+          'No se pudo actualizar la contraseña.',
+          'Could not update the password.',
+        );
       });
     }
   }
@@ -215,7 +248,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ),
           Expanded(
             child: Text(
-              'Recuperación de Cuenta',
+              tr('Recuperación de Cuenta', 'Account Recovery'),
               textAlign: TextAlign.center,
               style: GoogleFonts.orbitron(
                 color: LumiAppTheme.primaryText(context),
@@ -257,14 +290,17 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              'Elige un Método',
+              tr('Elige un Método', 'Choose a method'),
               style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Selecciona cómo deseas recuperar el acceso a tu cuenta.',
+              tr(
+                'Selecciona cómo deseas recuperar el acceso a tu cuenta.',
+                'Choose how you want to recover access to your account.',
+              ),
               style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
               textAlign: TextAlign.center,
             ),
@@ -272,8 +308,11 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 30),
           _buildMethodCard(
             icon: Icons.mark_email_read_rounded,
-            title: 'Correo Electrónico (Supabase)',
-            description: 'Recibe un enlace oficial de recuperación en tu bandeja.',
+            title: tr('Correo Electrónico (Supabase)', 'Email (Supabase)'),
+            description: tr(
+              'Recibe un enlace oficial de recuperación en tu bandeja.',
+              'Receive an official recovery link in your inbox.',
+            ),
             accentColor: const Color(0xFF00C2FF),
             onTap: () => setState(() {
               _errorMessage = null;
@@ -286,7 +325,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 30),
           _buildPrimaryButton(
-            label: 'Volver al Inicio de Sesión',
+            label: tr('Volver al Inicio de Sesión', 'Back to sign in'),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
         ],
@@ -307,24 +346,27 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 20),
           Center(
             child: Text(
-              'Recuperar por Correo',
+              tr('Recuperar por Correo', 'Recover by email'),
               style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Te enviaremos un enlace seguro a tu correo registrado mediante Supabase.',
+              tr(
+                'Te enviaremos un enlace seguro a tu correo registrado mediante Supabase.',
+                'We will send a secure link to your registered email through Supabase.',
+              ),
               style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(height: 30),
-          Text('Correo Electrónico', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(tr('Correo Electrónico', 'Email'), style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildTextField(
             controller: _emailController,
-            hint: 'ejemplo@correo.com',
+            hint: tr('ejemplo@correo.com', 'example@email.com'),
             prefixIcon: Icons.email_outlined,
             keyboardType: TextInputType.emailAddress,
           ),
@@ -334,7 +376,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 24),
           _buildPrimaryButton(
-            label: 'Enviar Enlace de Recuperación',
+            label: tr('Enviar Enlace de Recuperación', 'Send recovery link'),
             onPressed: _isLoading ? null : _sendSupabaseRecoveryEmail,
             isLoading: _isLoading,
           ),
@@ -364,19 +406,22 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ),
           const SizedBox(height: 24),
           Text(
-            '¡Correo Enviado!',
+            tr('¡Correo Enviado!', 'Email sent!'),
             style: GoogleFonts.orbitron(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
-            'Hemos enviado un enlace de recuperación a ${_emailController.text.trim()}. Revisa tu bandeja de entrada o spam para restablecer tu contraseña.',
+            tr(
+              'Hemos enviado un enlace de recuperación a ${_emailController.text.trim()}. Revisa tu bandeja de entrada o spam para restablecer tu contraseña.',
+              'We sent a recovery link to ${_emailController.text.trim()}. Check your inbox or spam folder to reset your password.',
+            ),
             style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 35),
           _buildPrimaryButton(
-            label: 'Volver al Inicio de Sesión',
+            label: tr('Volver al Inicio de Sesión', 'Back to sign in'),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
         ],
@@ -394,24 +439,27 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           const SizedBox(height: 10),
           Center(
             child: Text(
-              'Nueva Contraseña',
+              tr('Nueva Contraseña', 'New password'),
               style: GoogleFonts.orbitron(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w700),
             ),
           ),
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Crea una contraseña segura (Mín. 8 caracteres, mayúscula y número).',
+              tr(
+                'Crea una contraseña segura (Mín. 8 caracteres, mayúscula y número).',
+                'Create a secure password (at least 8 characters, with an uppercase letter and a number).',
+              ),
               style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
               textAlign: TextAlign.center,
             ),
           ),
           const SizedBox(height: 24),
-          Text('Nueva Contraseña', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(tr('Nueva Contraseña', 'New password'), style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildTextField(
             controller: _newPasswordController,
-            hint: 'Mínimo 8 caracteres',
+            hint: tr('Mínimo 8 caracteres', 'At least 8 characters'),
             prefixIcon: Icons.lock_outline_rounded,
             obscureText: _obscureNew,
             suffixIcon: IconButton(
@@ -420,11 +468,11 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('Confirmar Contraseña', style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
+          Text(tr('Confirmar Contraseña', 'Confirm password'), style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           _buildTextField(
             controller: _confirmPasswordController,
-            hint: 'Repite tu nueva contraseña',
+            hint: tr('Repite tu nueva contraseña', 'Re-enter your new password'),
             prefixIcon: Icons.lock_outline_rounded,
             obscureText: _obscureConfirm,
             suffixIcon: IconButton(
@@ -438,7 +486,7 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ],
           const SizedBox(height: 24),
           _buildPrimaryButton(
-            label: 'Actualizar Contraseña',
+            label: tr('Actualizar Contraseña', 'Update password'),
             onPressed: _isLoading ? null : _updatePasswordInSupabase,
             isLoading: _isLoading,
           ),
@@ -467,19 +515,22 @@ class _OlvidarContrasenaState extends State<OlvidarContrasena> {
           ),
           const SizedBox(height: 24),
           Text(
-            '¡Contraseña Actualizada!',
+            tr('¡Contraseña Actualizada!', 'Password updated!'),
             style: GoogleFonts.orbitron(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 8),
           Text(
-            'Tu contraseña ha sido modificada con éxito en Supabase. Ya puedes iniciar sesión con tus nuevas credenciales.',
+            tr(
+              'Tu contraseña ha sido modificada con éxito en Supabase. Ya puedes iniciar sesión con tus nuevas credenciales.',
+              'Your password was successfully changed in Supabase. You can now sign in with your new credentials.',
+            ),
             style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 12),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 35),
           _buildPrimaryButton(
-            label: 'Ir al Inicio de Sesión',
+            label: tr('Ir al Inicio de Sesión', 'Go to sign in'),
             onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
           ),
         ],

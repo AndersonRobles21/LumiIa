@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../services/api_service.dart';
 import 'admin_usuario_detalle_screen.dart';
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class AdminUsuariosListV2 extends StatefulWidget {
   final String adminUserId;
@@ -14,7 +15,8 @@ class AdminUsuariosListV2 extends StatefulWidget {
   State<AdminUsuariosListV2> createState() => _AdminUsuariosListV2State();
 }
 
-class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
+class _AdminUsuariosListV2State extends State<AdminUsuariosListV2>
+    with AppLanguageListenerMixin<AdminUsuariosListV2> {
   bool _loading = true;
   List<dynamic> _usuarios = [];
   List<dynamic> _usuariosFiltrados = [];
@@ -94,7 +96,9 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
 
   @override
   Widget build(BuildContext context) {
-    final tituloPanel = widget.onlyAdmins ? 'Panel de Administradores' : 'Panel de Estudiantes';
+    final tituloPanel = widget.onlyAdmins
+        ? tr('Panel de Administradores', 'Administrators panel')
+        : tr('Panel de Estudiantes', 'Students panel');
 
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
@@ -102,7 +106,9 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
         backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         title: Text(
-          widget.onlyAdmins ? 'Administradores' : 'Estudiantes',
+          widget.onlyAdmins
+              ? tr('Administradores', 'Administrators')
+              : tr('Estudiantes', 'Students'),
           style: GoogleFonts.orbitron(fontWeight: FontWeight.w700, fontSize: 18),
         ),
       ),
@@ -160,7 +166,10 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                   ),
                                   const SizedBox(height: 3),
                                   Text(
-                                    'Gestión y visualización de registros activos',
+                                    tr(
+                                      'Gestión y visualización de registros activos',
+                                      'Manage and view active records',
+                                    ),
                                     style: GoogleFonts.orbitron(
                                       color: LumiAppTheme.secondaryText(context),
                                       fontSize: 11,
@@ -182,7 +191,10 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                               controller: _searchController,
                               style: GoogleFonts.orbitron(color: LumiAppTheme.primaryText(context), fontSize: 13),
                               decoration: InputDecoration(
-                                hintText: 'Buscar por nombre o correo...',
+                                hintText: tr(
+                                  'Buscar por nombre o correo...',
+                                  'Search by name or email...',
+                                ),
                                 hintStyle: GoogleFonts.orbitron(color: Colors.grey[600], fontSize: 12),
                                 filled: true,
                                 fillColor: LumiAppTheme.surface(context),
@@ -216,7 +228,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                 style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12),
                                 items: [
                                   DropdownMenuItem(value: 'az', child: Text('A → Z', style: GoogleFonts.orbitron(fontSize: 12))),
-                                  DropdownMenuItem(value: 'recent', child: Text('Recientes', style: GoogleFonts.orbitron(fontSize: 12))),
+                                  DropdownMenuItem(value: 'recent', child: Text(tr('Recientes', 'Recent'), style: GoogleFonts.orbitron(fontSize: 12))),
                                 ],
                                 onChanged: (v) {
                                   if (v == null) return;
@@ -240,7 +252,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: const Color(0xFFCC3355)),
                           ),
-                          child: Text('Error: $_error', style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12)),
+                          child: Text('${tr('Error', 'Error')}: $_error', style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12)),
                         ),
 
                       // --- CUADRÍCULA DE CARTAS MULTICOLOR ---
@@ -253,7 +265,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                     const Icon(Icons.search_off_rounded, color: Color(0xFFB0AEC4), size: 48),
                                     const SizedBox(height: 12),
                                     Text(
-                                      'No se encontraron usuarios.',
+                                      tr('No se encontraron usuarios.', 'No users found.'),
                                       style: GoogleFonts.orbitron(color: const Color(0xFFB0AEC4), fontSize: 14),
                                     ),
                                   ],
@@ -331,7 +343,9 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                                       borderRadius: BorderRadius.circular(8),
                                                     ),
                                                     child: Text(
-                                                      widget.onlyAdmins ? 'ADMIN' : 'STUDENT',
+                                                      widget.onlyAdmins
+                                                          ? tr('ADMIN', 'ADMIN')
+                                                          : tr('STUDENT', 'STUDENT'),
                                                       style: GoogleFonts.orbitron(
                                                         color: Colors.white,
                                                         fontSize: 9,
@@ -395,7 +409,7 @@ class _AdminUsuariosListV2State extends State<AdminUsuariosListV2> {
                                                   ),
                                                   const SizedBox(height: 3),
                                                   Text(
-                                                    'Reg: $fecha',
+                                                    '${tr('Reg:', 'Joined:')} $fecha',
                                                     style: GoogleFonts.orbitron(
                                                       color: Colors.white70,
                                                       fontSize: 10,

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'package:frontend/screens/olvidar_contraseña.dart';
-import 'register_screen.dart';
-import '/screens/dashboard_screen.dart';
-import 'profile_screen.dart';
 import '../services/api_service.dart';
-import '../utils/responsive.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
+import '/screens/dashboard_screen.dart';
+import 'app_language.dart';
+import 'profile_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,17 +18,14 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen>
+    with AppLanguageListenerMixin<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+
   bool _obscurePassword = true;
   bool _isLoading = false;
   String? _errorMessage;
-
-  @override
-  void initState() {
-    super.initState();
-  }
 
   @override
   void dispose() {
@@ -42,42 +41,63 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _errorMessage = null);
 
     if (email.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Por favor, llena todos los campos.');
+      setState(() {
+        _errorMessage = tr(
+          'Por favor, llena todos los campos.',
+          'Please fill in all fields.',
+        );
+      });
       return;
     }
 
-    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email)) {
-      setState(() => _errorMessage = 'Ingresa un correo electrónico válido.');
+    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+    if (!emailRegex.hasMatch(email)) {
+      setState(() {
+        _errorMessage = tr(
+          'Ingresa un correo electrónico válido.',
+          'Enter a valid email address.',
+        );
+      });
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // 1. Autenticación real con Supabase
-      final AuthResponse response = await Supabase.instance.client.auth
-          .signInWithPassword(email: email, password: password);
+      final response = await Supabase.instance.client.auth
+          .signInWithPassword(
+        email: email,
+        password: password,
+      );
 
       final user = response.user;
+
       if (user == null) {
-        throw Exception('No se pudo recuperar la sesión del usuario.');
+        throw Exception(
+          tr(
+            'No se pudo recuperar la sesión del usuario.',
+            'Could not retrieve the user session.',
+          ),
+        );
       }
 
-      final String userId = user.id;
-
       try {
-        await ApiService.login(userId: userId);
+        await ApiService.login(userId: user.id);
       } catch (_) {}
 
       if (!mounted) return;
-      setState(() => _isLoading = false);
 
-      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            '✓ ¡Bienvenido de nuevo a LUMI!',
-            style: GoogleFonts.orbitron(fontWeight: FontWeight.bold),
+            tr(
+              '✓ ¡Bienvenido de nuevo a LUMI!',
+              '✓ Welcome back to LUMI!',
+            ),
+            style: GoogleFonts.orbitron(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           backgroundColor: const Color(0xFF22C55E),
           behavior: SnackBarBehavior.floating,
@@ -88,24 +108,35 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       await _openAuthenticatedArea(user);
-    } catch (e) {
+    } on AuthException catch (error) {
       if (!mounted) return;
 
-      // Limpiamos y traducimos los errores comunes de Supabase o credenciales erróneas
-      String errorText = e
-          .toString()
-          .replaceAll('Exception: ', '')
-          .replaceAll('AuthException: ', '');
-
-      if (errorText.toLowerCase().contains('invalid login credentials') ||
-          errorText.toLowerCase().contains('invalid grant') ||
-          errorText.toLowerCase().contains('unauthorized')) {
-        errorText = 'Correo o contraseña incorrectos. Verifica tus datos.';
-      }
+      final message = error.message.toLowerCase();
 
       setState(() {
         _isLoading = false;
-        _errorMessage = errorText;
+        _errorMessage =
+            message.contains('invalid login credentials') ||
+                message.contains('invalid grant') ||
+                message.contains('unauthorized')
+            ? tr(
+                'Correo o contraseña incorrectos. Verifica tus datos.',
+                'Incorrect email or password. Please check your credentials.',
+              )
+            : tr(
+                'No se pudo iniciar sesión. Inténtalo de nuevo.',
+                'Could not sign in. Please try again.',
+              );
+      });
+    } catch (error) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+        _errorMessage = error
+            .toString()
+            .replaceAll('Exception: ', '')
+            .replaceAll('AuthException: ', '');
       });
     }
   }
@@ -113,20 +144,20 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _openAuthenticatedArea(User user) async {
     final userId = user.id;
     final perfil = await ApiService.getProfile(userId);
+
     if (!mounted) return;
 
-    setState(() => _isLoading = false);
-    final bool esAdmin = (perfil?['es_admin'] ?? false) == true;
+    final esAdmin = (perfil?['es_admin'] ?? false) == true;
     final nombre = (perfil?['nombre'] ?? '').toString().trim();
     final objetivo = (perfil?['perfil_estudio']?['objetivo'] ?? '')
         .toString()
         .trim();
     final horarios = perfil?['horarios'] as List?;
+
     final perfilListo =
         nombre.isNotEmpty &&
         (objetivo.isNotEmpty || (horarios != null && horarios.isNotEmpty));
 
-    if (!context.mounted) return;
     if (esAdmin) {
       Navigator.pushReplacementNamed(
         context,
@@ -139,7 +170,7 @@ class _LoginScreenState extends State<LoginScreen> {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
-        builder: (context) => perfilListo
+        builder: (_) => perfilListo
             ? DashboardScreen(userId: userId)
             : ProfileScreen(userId: userId),
       ),
@@ -148,6 +179,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDesktop = Responsive.esEscritorio(context);
+
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
       body: Container(
@@ -176,86 +209,26 @@ class _LoginScreenState extends State<LoginScreen> {
               constraints: BoxConstraints(
                 maxWidth: Responsive.anchoMaximoContenido(context),
               ),
-              child: Builder(
-                builder: (context) {
-                  final isDesktop = Responsive.esEscritorio(context);
-
-                  if (isDesktop) {
-                    return SizedBox(
-                      height: Responsive.altoPantalla(context) * 0.85,
-                      child: Container(
-                        width: double.infinity,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF110D20),
-                          borderRadius: BorderRadius.circular(26),
-                          border: Border.all(
-                            color: const Color(0xFF8B5CF6).withValues(alpha: 0.2),
-                          ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.22),
-                              blurRadius: 36,
-                              offset: const Offset(0, 18),
-                            ),
-                          ],
+              child: isDesktop
+                  ? _buildDesktopLayout(context)
+                  : SingleChildScrollView(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: Responsive.paddingHorizontalRecomendado(
+                          context,
                         ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Row(
-                          children: [
-                            Expanded(
-                              flex: 5,
-                              child: _buildDesktopWelcomePanel(context),
-                            ),
-                            Expanded(
-                              flex: 6,
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 44,
-                                  vertical: 28,
-                                ),
-                                child: Center(
-                                  child: ConstrainedBox(
-                                    constraints: const BoxConstraints(
-                                      maxWidth: 440,
-                                    ),
-                                    child: SingleChildScrollView(
-                                      child: _buildFormContent(context),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                        vertical: Responsive.espacio(context) * 2,
                       ),
-                    );
-                  }
-
-                  return SingleChildScrollView(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: Responsive.paddingHorizontalRecomendado(
-                        context,
-                      ),
-                      vertical: Responsive.espacio(context) * 2,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 10),
-                        Center(
-                          child: _buildHeroLogo(
+                      child: Column(
+                        children: [
+                          _buildHeroLogo(
                             width: Responsive.anchoPantalla(context) * 0.45,
                             height: Responsive.altoPantalla(context) * 0.18,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFormContent(context),
-                      ],
+                          const SizedBox(height: 16),
+                          _buildFormContent(context),
+                        ],
+                      ),
                     ),
-                  );
-                },
-              ),
             ),
           ),
         ),
@@ -263,16 +236,65 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Componente visual reutilizable para el logotipo con efecto glow
-  Widget _buildHeroLogo({required double width, required double height}) {
+  Widget _buildDesktopLayout(BuildContext context) {
+    return SizedBox(
+      height: Responsive.altoPantalla(context) * 0.85,
+      child: Container(
+        width: double.infinity,
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          color: LumiAppTheme.surface(context),
+          borderRadius: BorderRadius.circular(26),
+          border: Border.all(
+            color: LumiAppTheme.outline(context),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.22),
+              blurRadius: 36,
+              offset: const Offset(0, 18),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 5,
+              child: _buildDesktopWelcomePanel(),
+            ),
+            Expanded(
+              flex: 6,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 44,
+                  vertical: 28,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 440),
+                    child: SingleChildScrollView(
+                      child: _buildFormContent(context),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeroLogo({
+    required double width,
+    required double height,
+  }) {
     return Container(
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Theme.of(
-              context,
-            ).colorScheme.primary.withValues(alpha: 0.15),
+            color: const Color(0xFFF716DC).withValues(alpha: 0.15),
             blurRadius: 50,
             spreadRadius: 10,
           ),
@@ -283,16 +305,16 @@ class _LoginScreenState extends State<LoginScreen> {
         width: width,
         height: height,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => Icon(
+        errorBuilder: (_, __, ___) => const Icon(
           Icons.auto_awesome,
-          size: 60,
-          color: Theme.of(context).colorScheme.primary,
+          color: Color(0xFFF716DC),
+          size: 70,
         ),
       ),
     );
   }
 
-  Widget _buildDesktopWelcomePanel(BuildContext context) {
+  Widget _buildDesktopWelcomePanel() {
     return Container(
       height: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
@@ -300,87 +322,56 @@ class _LoginScreenState extends State<LoginScreen> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF211638), Color(0xFF151024)],
+          colors: [
+            Color(0xFF211638),
+            Color(0xFF151024),
+          ],
         ),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _buildHeroLogo(width: 190, height: 190),
-        ],
+      child: Center(
+        child: _buildHeroLogo(width: 190, height: 190),
       ),
     );
   }
 
-  // Contenido unificado del formulario
   Widget _buildFormContent(BuildContext context) {
     final isDesktop = Responsive.esEscritorio(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
       children: [
-        if (isDesktop) ...[
-          Center(
-            child: Text(
-              'Iniciar Sesión',
-              style: GoogleFonts.orbitron(
-                color: Colors.white,
-                fontSize: 34,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
+        Center(
+          child: Text(
+            tr('Iniciar sesión', 'Sign in'),
+            style: GoogleFonts.orbitron(
+              color: LumiAppTheme.primaryText(context),
+              fontSize: isDesktop ? 34 : 28,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.2,
             ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Bienvenido de nuevo a tu espacio',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.orbitron(
-                color: const Color(0xFFB0AEC4),
-                fontSize: 14,
-              ),
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-        ] else ...[
-          Center(
-            child: Text(
-              'Iniciar Sesión',
-              style: GoogleFonts.orbitron(
-                color: Colors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              'Bienvenido de nuevo a tu espacio',
-              style: GoogleFonts.orbitron(
-                color: const Color(0xFFB0AEC4),
-                fontSize: 13,
-              ),
-            ),
-          ),
-          SizedBox(height: Responsive.espacio(context) * 3),
-        ],
-
-        Text(
-          'Correo Electrónico',
-          style: GoogleFonts.orbitron(
-            color: const Color(0xFFB0AEC4),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 8),
+        Center(
+          child: Text(
+            tr(
+              'Bienvenido de nuevo a tu espacio',
+              'Welcome back to your space',
+            ),
+            textAlign: TextAlign.center,
+            style: GoogleFonts.orbitron(
+              color: LumiAppTheme.secondaryText(context),
+              fontSize: isDesktop ? 14 : 13,
+            ),
+          ),
+        ),
+        SizedBox(height: Responsive.espacio(context) * 3),
+
+        _label(tr('Correo electrónico', 'Email')),
+        const SizedBox(height: 8),
         _buildTextField(
           controller: _emailController,
-          hint: 'tucorreo@gmail.com',
+          hint: tr('tucorreo@gmail.com', 'your@email.com'),
           keyboardType: TextInputType.emailAddress,
           prefixIcon: const Icon(
             Icons.mail_outline_rounded,
@@ -388,16 +379,10 @@ class _LoginScreenState extends State<LoginScreen> {
             size: 20,
           ),
         ),
+
         SizedBox(height: Responsive.espacio(context) * 2),
 
-        Text(
-          'Contraseña',
-          style: GoogleFonts.orbitron(
-            color: const Color(0xFFB0AEC4),
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        _label(tr('Contraseña', 'Password')),
         const SizedBox(height: 8),
         _buildTextField(
           controller: _passwordController,
@@ -416,8 +401,9 @@ class _LoginScreenState extends State<LoginScreen> {
               color: const Color(0xFFF716DC),
               size: 20,
             ),
-            onPressed: () =>
-                setState(() => _obscurePassword = !_obscurePassword),
+            onPressed: () {
+              setState(() => _obscurePassword = !_obscurePassword);
+            },
           ),
         ),
 
@@ -426,18 +412,18 @@ class _LoginScreenState extends State<LoginScreen> {
           _buildErrorContainer(_errorMessage!),
         ],
 
-        SizedBox(height: Responsive.espacio(context) * 3.5),
+        SizedBox(height: Responsive.espacio(context) * 3),
 
-        // Botón principal con degradado y sombra neón
         SizedBox(
-          width: isDesktop ? Responsive.anchoBoton(context) : double.infinity,
+          width: double.infinity,
           height: Responsive.altoBoton(context),
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFFF716DC), Color(0xFFA41CF9)],
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
+                colors: [
+                  Color(0xFFF716DC),
+                  Color(0xFFA41CF9),
+                ],
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
@@ -467,19 +453,18 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     )
                   : Text(
-                      'Iniciar Sesión',
+                      tr('Iniciar sesión', 'Sign in'),
                       style: GoogleFonts.orbitron(
                         color: Colors.white,
                         fontSize: Responsive.tamanioTexto(context),
                         fontWeight: FontWeight.bold,
-                        letterSpacing: 1.0,
                       ),
                     ),
             ),
           ),
         ),
 
-        SizedBox(height: Responsive.espacio(context) * 2),
+        SizedBox(height: Responsive.espacio(context) * 1.5),
 
         Center(
           child: TextButton(
@@ -487,34 +472,28 @@ class _LoginScreenState extends State<LoginScreen> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const OlvidarContrasena(),
+                  builder: (_) => const OlvidarContrasena(),
                 ),
               );
             },
-            style: TextButton.styleFrom(
-              foregroundColor: const Color(0xFFB0AEC4),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            ),
             child: Text(
-              '¿Olvidaste tu contraseña?',
+              tr('¿Olvidaste tu contraseña?', 'Forgot your password?'),
               style: GoogleFonts.orbitron(
+                color: LumiAppTheme.secondaryText(context),
                 fontSize: Responsive.tamanioTexto(context) - 1,
                 decoration: TextDecoration.underline,
-                decorationColor: const Color(0xFFB0AEC4),
               ),
             ),
           ),
         ),
 
-        const SizedBox(height: 8),
-
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '¿No tienes una cuenta? ',
+              tr('¿No tienes una cuenta? ', "Don't have an account? "),
               style: GoogleFonts.orbitron(
-                color: const Color(0xFFB0AEC4),
+                color: LumiAppTheme.secondaryText(context),
                 fontSize: Responsive.tamanioTexto(context) - 2,
               ),
             ),
@@ -523,12 +502,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const RegisterScreen(),
+                    builder: (_) => const RegisterScreen(),
                   ),
                 );
               },
               child: Text(
-                'Regístrate',
+                tr('Regístrate', 'Sign up'),
                 style: GoogleFonts.orbitron(
                   color: const Color(0xFFF716DC),
                   fontSize: Responsive.tamanioTexto(context) - 2,
@@ -539,6 +518,17 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: GoogleFonts.orbitron(
+        color: LumiAppTheme.secondaryText(context),
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+      ),
     );
   }
 
@@ -576,16 +566,14 @@ class _LoginScreenState extends State<LoginScreen> {
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
             color: LumiAppTheme.outline(context),
-            width: 1.0,
           ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFFF716DC), width: 1.5),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Colors.redAccent, width: 1.0),
+          borderSide: const BorderSide(
+            color: Color(0xFFF716DC),
+            width: 1.5,
+          ),
         ),
       ),
     );
@@ -594,11 +582,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildErrorContainer(String message) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 14,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: Colors.redAccent.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.5)),
+        border: Border.all(
+          color: Colors.redAccent.withValues(alpha: 0.5),
+        ),
       ),
       child: Row(
         children: [

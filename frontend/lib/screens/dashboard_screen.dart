@@ -1,13 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '/services/api_service.dart';
-import 'agregar_tarea_screen.dart';
-import 'app_bottom_navbar.dart';
-import 'guia_detalle_screen.dart';
-import '../utils/responsive.dart';
 import '../services/task_notification_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive.dart';
+import 'agregar_tarea_screen.dart';
+import 'app_bottom_navbar.dart';
+import 'app_language.dart';
+import 'guia_detalle_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String userId;
@@ -18,7 +20,8 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with AppLanguageListenerMixin<DashboardScreen> {
   Timer? _completedPlansTimer;
   bool _isStreakDialogOpen = false;
   int activeTab = 0;
@@ -31,15 +34,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> _profileAlerts = [];
   List<bool> completedDays = List<bool>.filled(7, false);
 
-  final List<String> weekDays = [
-    'Lun',
-    'Mar',
-    'Mié',
-    'Jue',
-    'Vie',
-    'Sáb',
-    'Dom',
-  ];
+  List<String> get weekDays => [
+        tr('Lun', 'Mon'),
+        tr('Mar', 'Tue'),
+        tr('Mié', 'Wed'),
+        tr('Jue', 'Thu'),
+        tr('Vie', 'Fri'),
+        tr('Sáb', 'Sat'),
+        tr('Dom', 'Sun'),
+      ];
 
   @override
   void initState() {
@@ -64,6 +67,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final profileData = await ApiService.getProfile(widget.userId);
     final profileAlerts = await ApiService.getProfileAlerts(widget.userId);
+
     if (mounted) {
       setState(() {
         userName = profileData?['nombre']?.toString().trim() ?? '';
@@ -72,6 +76,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     await _loadActivePlans();
+
     final prefs = await SharedPreferences.getInstance();
     await _updateStreakAutomatically(prefs);
 
@@ -85,25 +90,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     if (historialData == null || historialData.isEmpty) {
       if (!mounted) return;
+
       setState(() => plans = []);
       return;
     }
 
     final now = DateTime.now();
+    final loadedPlans = <StudyPlan>[];
 
-    List<StudyPlan> loadedPlans = [];
-
-    for (var plan in historialData) {
+    for (final plan in historialData) {
       final planId = plan['id']?.toString();
+
       if (planId == null) continue;
 
-      final nombre = plan['nombre'] ?? plan['titulo'] ?? 'Sin título';
-      final descripcion = plan['descripcion'] ?? 'Plan de estudio';
+      final nombre =
+          plan['nombre'] ?? plan['titulo'] ?? tr('Sin título', 'Untitled');
+
+      final descripcion = plan['descripcion'] ??
+          tr('Plan de estudio', 'Study plan');
 
       final planCompleto = await ApiService.obtenerPlan(planId);
 
-      double progress = 0.0;
-      bool allCompleted = false;
+      var progress = 0.0;
+      var allCompleted = false;
 
       if (planCompleto != null &&
           planCompleto['pasos'] != null &&
@@ -111,15 +120,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final pasos = planCompleto['pasos'] as List;
 
         if (pasos.isNotEmpty) {
-          int totalSubpasos = 0;
-          int subpasosCompletados = 0;
+          var totalSubpasos = 0;
+          var subpasosCompletados = 0;
 
-          for (var paso in pasos) {
+          for (final paso in pasos) {
             if (paso['subpasos'] != null && paso['subpasos'] is List) {
               final subpasos = paso['subpasos'] as List;
+
               totalSubpasos += subpasos.length;
               subpasosCompletados += subpasos
-                  .where((s) => s['completado'] == true || s['completado'] == 1)
+                  .where(
+                    (subpaso) =>
+                        subpaso['completado'] == true ||
+                        subpaso['completado'] == 1,
+                  )
                   .length;
             }
           }
@@ -134,6 +148,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final completedAt = DateTime.tryParse(
         plan['completado_en']?.toString() ?? '',
       )?.toLocal();
+
       if (completedAt != null &&
           now.difference(completedAt) >= const Duration(hours: 5)) {
         continue;
@@ -151,12 +166,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     if (!mounted) return;
+
     setState(() => plans = loadedPlans);
   }
 
   Future<void> _updateStreakAutomatically(SharedPreferences prefs) async {
     final success = await ApiService.registrarRachaHoy(widget.userId);
-    if (!success) debugPrint('No se pudo actualizar la racha diaria.');
+
+    if (!success) {
+      debugPrint('No se pudo actualizar la racha diaria.');
+    }
 
     await _loadStreakFromServer();
     await _verificarYMostrarStreakDiario(prefs);
@@ -186,7 +205,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     completedDays = List<bool>.filled(7, false);
 
-    for (int i = 0; i < streak && i <= todayIndex; i++) {
+    for (var i = 0; i < streak && i <= todayIndex; i++) {
       completedDays[todayIndex - i] = true;
     }
   }
@@ -194,9 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showStreakDialog() {
     if (_isStreakDialogOpen || !mounted) return;
 
-    setState(() {
-      _isStreakDialogOpen = true;
-    });
+    setState(() => _isStreakDialogOpen = true);
 
     showModalBottomSheet(
       context: context,
@@ -204,20 +221,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isDismissible: false,
       enableDrag: false,
       backgroundColor: LumiAppTheme.surface(context),
-      barrierColor: Colors.black.withOpacity(0.0),
-      builder: (BuildContext sheetContext) {
-        return _buildStreakBottomSheet(sheetContext);
-      },
+      barrierColor: Colors.black.withOpacity(0),
+      builder: (sheetContext) => _buildStreakBottomSheet(sheetContext),
     ).whenComplete(() {
       if (mounted) {
-        setState(() {
-          _isStreakDialogOpen = false;
-        });
+        setState(() => _isStreakDialogOpen = false);
       }
     });
   }
 
-  Future<void> _verificarYMostrarStreakDiario(SharedPreferences prefs) async {
+  Future<void> _verificarYMostrarStreakDiario(
+    SharedPreferences prefs,
+  ) async {
     if (_isStreakDialogOpen) return;
 
     final todayString = DateTime.now().toIso8601String().split('T')[0];
@@ -233,6 +248,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'last_streak_dialog_shown_${widget.userId}',
           todayString,
         );
+
         _showStreakDialog();
       }
     }
@@ -246,7 +262,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(24),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -270,7 +288,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           SizedBox(height: Responsive.espacio(sheetContext)),
           Text(
-            '$activeStreak Racha activa !',
+            tr(
+              '$activeStreak ${activeStreak == 1 ? 'día' : 'días'} de racha activa',
+              '$activeStreak ${activeStreak == 1 ? 'day' : 'days'} active streak',
+            ),
             style: TextStyle(
               color: LumiAppTheme.primaryText(context),
               fontSize: Responsive.tamanioTitulo(sheetContext),
@@ -283,7 +304,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               horizontal: Responsive.paddingHorizontalRecomendado(sheetContext),
             ),
             child: Text(
-              'Completar una lección al día como rutina.',
+              tr(
+                'Completa una lección al día como rutina.',
+                'Complete one lesson a day as a routine.',
+              ),
               style: TextStyle(
                 color: LumiAppTheme.secondaryText(context),
                 fontSize: Responsive.tamanioTexto(sheetContext),
@@ -364,8 +388,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                 ),
                 child: Text(
-                  'Seguir Aprendiendo',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  tr('Seguir aprendiendo', 'Keep learning'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
                 ),
               ),
             ),
@@ -393,8 +420,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se pudo cargar el plan seleccionado.'),
+        SnackBar(
+          content: Text(
+            tr(
+              'No se pudo cargar el plan seleccionado.',
+              'Could not load the selected plan.',
+            ),
+          ),
         ),
       );
       return;
@@ -404,7 +436,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => GuiaDetalleScreen(guiaData: planData)),
+      MaterialPageRoute(
+        builder: (_) => GuiaDetalleScreen(guiaData: planData),
+      ),
     );
 
     await _loadActivePlans();
@@ -415,9 +449,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: LumiAppTheme.surface(ctx),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
         title: Text(
-          '¿Eliminar plan?',
+          tr('¿Eliminar plan?', 'Delete plan?'),
           style: TextStyle(
             color: LumiAppTheme.primaryText(ctx),
             fontSize: 16,
@@ -425,7 +461,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         content: Text(
-          '¿Estás seguro de que quieres eliminar "${plan.title}"? Esta acción no se puede deshacer.',
+          tr(
+            '¿Estás seguro de que quieres eliminar "${plan.title}"? Esta acción no se puede deshacer.',
+            'Are you sure you want to delete "${plan.title}"? This action cannot be undone.',
+          ),
           style: TextStyle(
             color: LumiAppTheme.secondaryText(ctx),
             fontSize: 13,
@@ -435,15 +474,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
-              'Cancelar',
-              style: TextStyle(color: LumiAppTheme.secondaryText(ctx)),
+              tr('Cancelar', 'Cancel'),
+              style: TextStyle(
+                color: LumiAppTheme.secondaryText(ctx),
+              ),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Eliminar',
-              style: TextStyle(
+            child: Text(
+              tr('Eliminar', 'Delete'),
+              style: const TextStyle(
                 color: Color(0xFFFF4444),
                 fontWeight: FontWeight.bold,
               ),
@@ -471,20 +512,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Plan eliminado correctamente'),
-            backgroundColor: Color(0xFF4CAF50),
+          SnackBar(
+            content: Text(
+              tr(
+                'Plan eliminado correctamente.',
+                'Plan deleted successfully.',
+              ),
+            ),
+            backgroundColor: const Color(0xFF4CAF50),
           ),
         );
 
         final tareasActualizadas = await ApiService.getPlanesEstudio(
           widget.userId,
         );
+
         if (tareasActualizadas != null) {
-          debugPrint(
-            '[LUMI notifications] eliminación exitosa; sincronizando tareas desde DashboardScreen',
+          await TaskNotificationService.instance.syncTasks(
+            tareasActualizadas,
           );
-          await TaskNotificationService.instance.syncTasks(tareasActualizadas);
         }
 
         await _loadActivePlans();
@@ -492,19 +538,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo eliminar el plan'),
-            backgroundColor: Color(0xFFFF4444),
+          SnackBar(
+            content: Text(
+              tr(
+                'No se pudo eliminar el plan.',
+                'Could not delete the plan.',
+              ),
+            ),
+            backgroundColor: const Color(0xFFFF4444),
           ),
         );
       }
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al eliminar el plan'),
-          backgroundColor: Color(0xFFFF4444),
+        SnackBar(
+          content: Text(
+            tr(
+              'Error al eliminar el plan.',
+              'Error deleting the plan.',
+            ),
+          ),
+          backgroundColor: const Color(0xFFFF4444),
         ),
       );
     } finally {
@@ -513,8 +569,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
     }
   }
-
-  @override
+    @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
@@ -539,7 +594,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildMainContent() {
     return isLoading
         ? const Center(
-            child: CircularProgressIndicator(color: Color(0xFFD942FF)),
+            child: CircularProgressIndicator(
+              color: Color(0xFFD942FF),
+            ),
           )
         : RefreshIndicator(
             color: const Color(0xFFD942FF),
@@ -640,7 +697,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$activeStreak días de racha',
+                  tr(
+                    '$activeStreak ${activeStreak == 1 ? 'día' : 'días'} de racha',
+                    '$activeStreak ${activeStreak == 1 ? 'day' : 'days'} streak',
+                  ),
                   style: TextStyle(
                     color: LumiAppTheme.primaryText(context),
                     fontSize: 17,
@@ -650,8 +710,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const SizedBox(height: 4),
                 Text(
                   activeStreak > 0
-                      ? 'Tu constancia está dando frutos.'
-                      : 'Completa una sesión hoy para iniciar tu racha.',
+                      ? tr(
+                          'Tu constancia está dando frutos.',
+                          'Your consistency is paying off.',
+                        )
+                      : tr(
+                          'Completa una sesión hoy para iniciar tu racha.',
+                          'Complete a session today to start your streak.',
+                        ),
                   style: TextStyle(
                     color: LumiAppTheme.secondaryText(context),
                     fontSize: 13,
@@ -682,15 +748,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(
                 Icons.notifications_active_outlined,
                 color: Color(0xFFFF8ACB),
               ),
               SizedBox(width: 8),
+            ],
+          ),
+          Row(
+            children: [
               Text(
-                'Alertas de tu perfil',
+                tr('Alertas de tu perfil', 'Profile alerts'),
                 style: TextStyle(
                   color: LumiAppTheme.primaryText(context),
                   fontWeight: FontWeight.bold,
@@ -703,7 +773,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             (alert) => Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Text(
-                '• ${(alert['mensaje'] ?? 'Se actualizó tu perfil.').toString()}',
+                '• ${(alert['mensaje'] ?? tr('Se actualizó tu perfil.', 'Your profile was updated.')).toString()}',
                 style: TextStyle(
                   color: LumiAppTheme.primaryText(context),
                   fontSize: 13,
@@ -739,7 +809,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             right: Responsive.espacio(context) * 1.5,
             child: Container(
               width: 120,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 9,
+              ),
               decoration: BoxDecoration(
                 color: LumiAppTheme.surface(context),
                 borderRadius: BorderRadius.circular(22),
@@ -757,7 +830,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   SizedBox(height: Responsive.espacio(context) / 2),
                   Text(
-                    'Tu asistente personal',
+                    tr('Tu asistente personal', 'Your personal assistant'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: LumiAppTheme.primaryText(context),
@@ -793,7 +866,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '¡Hola, $userName!',
+                        tr('¡Hola, $userName!', 'Hello, $userName!'),
                         style: TextStyle(
                           color: LumiAppTheme.primaryText(context),
                           fontSize: Responsive.tamanioTitulo(context),
@@ -802,7 +875,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       SizedBox(height: Responsive.espacio(context) / 2),
                       Text(
-                        '¿Listo para aprender hoy?',
+                        tr(
+                          '¿Listo para aprender hoy?',
+                          'Ready to learn today?',
+                        ),
                         style: TextStyle(
                           color: LumiAppTheme.secondaryText(context),
                           fontSize: 13,
@@ -823,9 +899,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: const Color(0xFF8B5CF6).withValues(alpha: 0.3),
                     ),
                   ),
-                  child: const Text(
-                    'Principiante',
-                    style: TextStyle(
+                  child: Text(
+                    tr('Principiante', 'Beginner'),
+                    style: const TextStyle(
                       color: Color(0xFFB997FF),
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
@@ -848,7 +924,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     horizontal: Responsive.espacio(context) * 1.5,
                   ),
                   child: Text(
-                    'Principiante',
+                    tr('Principiante', 'Beginner'),
                     style: TextStyle(
                       color: LumiAppTheme.primaryText(context),
                       fontSize: Responsive.tamanioTexto(context),
@@ -866,7 +942,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             SizedBox(height: Responsive.espacio(context) * 1.25),
             Text(
-              '¡Hola, $userName!',
+              tr('¡Hola, $userName!', 'Hello, $userName!'),
               style: TextStyle(
                 color: LumiAppTheme.primaryText(context),
                 fontSize: Responsive.tamanioTitulo(context),
@@ -875,7 +951,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             SizedBox(height: Responsive.espacio(context) / 2),
             Text(
-              '¿Listo para aprender hoy?',
+              tr('¿Listo para aprender hoy?', 'Ready to learn today?'),
               style: TextStyle(
                 color: LumiAppTheme.secondaryText(context),
                 fontSize: 11,
@@ -897,8 +973,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       padding: EdgeInsets.all(
         Responsive.esEscritorio(context)
-        ? 18
-        : Responsive.espacio(context) * 1.5,
+            ? 18
+            : Responsive.espacio(context) * 1.5,
       ),
       decoration: BoxDecoration(
         color: LumiAppTheme.surface(context),
@@ -919,7 +995,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Tu plan de estudio de hoy',
+            tr('Tu plan de estudio de hoy', 'Your study plan for today'),
             style: TextStyle(
               color: LumiAppTheme.primaryText(context),
               fontSize: Responsive.tamanioSubtitulo(context),
@@ -928,8 +1004,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           SizedBox(height: Responsive.espacio(context) / 2),
           Text(
-            '${plans.length} ${plans.length == 1 ? 'Plan activo' : 'Planes activos'}',
-            style: const TextStyle(color: Color(0xFFE474FF), fontSize: 9),
+            plans.length == 1
+                ? tr('1 plan activo', '1 active plan')
+                : tr(
+                    '${plans.length} planes activos',
+                    '${plans.length} active plans',
+                  ),
+            style: const TextStyle(
+              color: Color(0xFFE474FF),
+              fontSize: 9,
+            ),
           ),
           SizedBox(
             height: Responsive.esEscritorio(context)
@@ -942,7 +1026,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: double.infinity,
               alignment: Alignment.centerLeft,
               child: Text(
-                'No tienes planes activos. ¡Crea uno nuevo!',
+                tr(
+                  'No tienes planes activos. ¡Crea uno nuevo!',
+                  'You have no active plans. Create a new one!',
+                ),
                 style: TextStyle(
                   color: LumiAppTheme.secondaryText(context),
                   fontSize: Responsive.tamanioTexto(context),
@@ -978,7 +1065,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: 16),
         color: const Color(0xFFFF4444),
-        child: const Icon(Icons.delete, color: Colors.white, size: 24),
+        child: const Icon(
+          Icons.delete,
+          color: Colors.white,
+          size: 24,
+        ),
       ),
       child: InkWell(
         onTap: () => _openPlanDetail(plan),
@@ -1088,7 +1179,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Crea un nuevo plan de estudio',
+            tr(
+              'Crea un nuevo plan de estudio',
+              'Create a new study plan',
+            ),
             style: TextStyle(
               color: LumiAppTheme.primaryText(context),
               fontSize: Responsive.tamanioSubtitulo(context),
@@ -1097,7 +1191,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           SizedBox(height: Responsive.espacio(context)),
           Text(
-            'Usa la IA de Lumi para generar planes personalizados.',
+            tr(
+              'Usa la IA de Lumi para generar planes personalizados.',
+              'Use Lumi AI to generate personalized plans.',
+            ),
             style: TextStyle(
               color: LumiAppTheme.secondaryText(context),
               fontSize: 9,
@@ -1110,7 +1207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             child: ElevatedButton.icon(
               onPressed: _openAddTaskScreen,
               icon: const Icon(Icons.add, size: 18),
-              label: const Text('Crear plan'),
+              label: Text(tr('Crear plan', 'Create plan')),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFD72CFA),
                 foregroundColor: Colors.white,
@@ -1128,7 +1225,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildBottomNavigation() {
-    return AppBottomNavbar(userId: widget.userId, currentIndex: activeTab);
+    return AppBottomNavbar(
+      userId: widget.userId,
+      currentIndex: activeTab,
+    );
   }
 }
 

@@ -1,24 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '/services/api_service.dart';
-import 'seleccionar_metodo_screen.dart';
-import 'pomodoro_screen.dart';
-import 'feynman_screen.dart';
-import 'active_recall_screen.dart';
-import 'spaced_repetition_screen.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive.dart';
+import 'active_recall_screen.dart';
+import 'app_language.dart';
+import 'feynman_screen.dart';
+import 'pomodoro_screen.dart';
+import 'seleccionar_metodo_screen.dart';
+import 'spaced_repetition_screen.dart';
 
 class GuiaDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> guiaData;
 
-  const GuiaDetalleScreen({super.key, required this.guiaData});
+  const GuiaDetalleScreen({
+    super.key,
+    required this.guiaData,
+  });
 
   @override
   State<GuiaDetalleScreen> createState() => _GuiaDetalleScreenState();
 }
 
-class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
+class _GuiaDetalleScreenState extends State<GuiaDetalleScreen>
+    with AppLanguageListenerMixin<GuiaDetalleScreen> {
   bool _isLoading = true;
   bool _cambiandoMetodo = false;
 
@@ -38,7 +44,8 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   final List<Map<String, dynamic>> _mensajes = [];
   final ScrollController _scrollController = ScrollController();
-  final TextEditingController _sidebarSearchController = TextEditingController();
+  final TextEditingController _sidebarSearchController =
+      TextEditingController();
 
   String _userId = '';
 
@@ -46,22 +53,37 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     final horas = minutos ~/ 60;
     final minutosRestantes = minutos % 60;
 
-    if (horas == 0) return "$minutosRestantes min";
-    if (minutosRestantes == 0) return "$horas h";
+    if (horas == 0) {
+      return tr('$minutosRestantes min', '$minutosRestantes min');
+    }
 
-    return "$horas h $minutosRestantes min";
+    if (minutosRestantes == 0) {
+      return tr('$horas h', '$horas h');
+    }
+
+    return tr(
+      '$horas h $minutosRestantes min',
+      '$horas h $minutosRestantes min',
+    );
   }
 
   Future<void> _abrirUrl(String urlString) async {
     if (urlString.trim().isEmpty) return;
 
-    final Uri uri = Uri.parse(urlString.trim());
+    final uri = Uri.parse(urlString.trim());
 
     if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('No se pudo abrir el enlace: $urlString')),
+        SnackBar(
+          content: Text(
+            tr(
+              'No se pudo abrir el enlace: $urlString',
+              'Could not open the link: $urlString',
+            ),
+          ),
+        ),
       );
     }
   }
@@ -119,8 +141,11 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
 
   Future<void> _cargarHistorialConversaciones() async {
     if (_userId.isEmpty) return;
+
     final historial = await ApiService.obtenerHistorial(_userId);
+
     if (!mounted || historial == null) return;
+
     setState(() => _historialConversaciones = historial);
   }
 
@@ -146,40 +171,53 @@ class _GuiaDetalleScreenState extends State<GuiaDetalleScreen> {
     cargandoFases = List.generate(fasesPasos.length, (_) => false);
   }
 
-void _inicializarMensajesChat() {
-    final nombrePlan =
-        guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo o Tarea';
+  void _inicializarMensajesChat() {
+    final nombrePlan = guiaActual['nombre'] ??
+        guiaActual['titulo'] ??
+        tr('Trabajo o tarea', 'Work or assignment');
     final metodoEstudio = guiaActual['metodo_estudio'] ?? 'Pomodoro';
     final recomendacionTiempo = guiaActual['recomendacion_tiempo'];
 
     _mensajes.clear();
 
-    // 🚨 Si el backend mandó la alerta de tiempo insuficiente, la ponemos primero en rojo
-    if (recomendacionTiempo != null && recomendacionTiempo.toString().isNotEmpty) {
+    if (recomendacionTiempo != null &&
+        recomendacionTiempo.toString().isNotEmpty) {
       _mensajes.add({
         'esBot': true,
-        'texto': '⚠️ ALERTA DE TIEMPO:\n$recomendacionTiempo',
+        'texto': tr(
+          '⚠️ ALERTA DE TIEMPO:\n$recomendacionTiempo',
+          '⚠️ TIME ALERT:\n$recomendacionTiempo',
+        ),
         'tipo': 'alerta_tiempo',
       });
     }
 
-    String materialInicial =
-        "🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n";
+    var materialInicial = tr(
+      '🛠️ HERRAMIENTAS Y RECURSOS DE APOYO PARA TU TAREA:\n\n',
+      '🛠️ TOOLS AND SUPPORTING RESOURCES FOR YOUR ASSIGNMENT:\n\n',
+    );
 
     if (recursos.isNotEmpty) {
       for (var i = 0; i < recursos.length; i++) {
         final rec = recursos[i];
-        final nombreRec =
-            rec['nombre'] ?? rec['titulo'] ?? 'Material de apoyo ${i + 1}';
-        materialInicial += "• ${i + 1}. $nombreRec\n\n";
+        final nombreRec = rec['nombre'] ??
+            rec['titulo'] ??
+            tr('Material de apoyo ${i + 1}', 'Support material ${i + 1}');
+
+        materialInicial += '• ${i + 1}. $nombreRec\n\n';
       }
     } else {
-      materialInicial +=
-          "• Ten listos tus apuntes, editor de código o libreta de notas antes de comenzar.\n\n";
+      materialInicial += tr(
+        '• Ten listos tus apuntes, editor de código o libreta de notas antes de comenzar.\n\n',
+        '• Have your notes, code editor, or notebook ready before you begin.\n\n',
+      );
     }
 
     if (consejos.isNotEmpty) {
-      materialInicial += "💡 Consejo general de Lumi:\n${consejos.first}";
+      materialInicial += tr(
+        '💡 Consejo general de Lumi:\n${consejos.first}',
+        '💡 General Lumi tip:\n${consejos.first}',
+      );
     }
 
     _mensajes.add({
@@ -191,29 +229,31 @@ void _inicializarMensajesChat() {
 
     _mensajes.add({
       'esBot': true,
-      'texto':
-          '¡Hola! Vamos a empezar a trabajar en tu "$nombrePlan".\n\nHe seleccionado el método **$metodoEstudio** porque es el que mejor se adapta a esta actividad. ¿Deseas mantenerlo o prefieres cambiarlo?',
+      'texto': tr(
+        '¡Hola! Vamos a empezar a trabajar en tu "$nombrePlan".\n\nHe seleccionado el método **$metodoEstudio** porque es el que mejor se adapta a esta actividad. ¿Deseas mantenerlo o prefieres cambiarlo?',
+        'Hello! Let’s start working on "$nombrePlan".\n\nI selected the **$metodoEstudio** method because it best fits this activity. Would you like to keep it or change it?',
+      ),
       'tipo': 'bienvenida',
     });
 
-    bool hayFasesPendientes = false;
+    var hayFasesPendientes = false;
 
-    for (int i = 0; i < fasesPasos.length; i++) {
+    for (var i = 0; i < fasesPasos.length; i++) {
       final fase = fasesPasos[i];
 
       if (fase is Map) {
         final subpasos = (fase['subpasos'] as List?) ?? [];
-
-        final todosCompletos =
-            subpasos.isNotEmpty &&
+        final todosCompletos = subpasos.isNotEmpty &&
             subpasos.every((sub) => sub['completado'] == true);
         final faseCompletaDirecta = fase['completado'] == true;
 
         if (todosCompletos || faseCompletaDirecta) {
           _mensajes.add({
             'esBot': true,
-            'texto':
-                '📋 PASO ${i + 1} DE ${fasesPasos.length}: ${fase['titulo'] ?? 'Paso'}\n\n✅ ¡Fase completada con anterioridad!',
+            'texto': tr(
+              '📋 PASO ${i + 1} DE ${fasesPasos.length}: ${fase['titulo'] ?? 'Paso'}\n\n✅ ¡Fase completada con anterioridad!',
+              '📋 STEP ${i + 1} OF ${fasesPasos.length}: ${fase['titulo'] ?? 'Step'}\n\n✅ This phase was already completed!',
+            ),
             'faseIndexChat': i,
           });
         } else {
@@ -227,10 +267,13 @@ void _inicializarMensajesChat() {
 
     if (!hayFasesPendientes && fasesPasos.isNotEmpty) {
       _faseActualIndex = fasesPasos.length - 1;
+
       _mensajes.add({
         'esBot': true,
-        'texto':
-            '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
+        'texto': tr(
+          '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
+          '🏆 Amazing! You have completed every step in this guide.',
+        ),
       });
     }
   }
@@ -239,18 +282,26 @@ void _inicializarMensajesChat() {
     if (index >= fasesPasos.length) return;
 
     final fase = fasesPasos[index];
-    final tituloFase = fase['titulo'] ?? 'Paso ${index + 1}';
+    final tituloFase =
+        fase['titulo'] ?? tr('Paso ${index + 1}', 'Step ${index + 1}');
     final descFase = fase['descripcion'] ?? '';
     final consejoPaso = fase['consejo_paso'] ?? fase['consejo'] ?? '';
     final duracion = fase['duracion_minutos'] ?? 20;
 
-    String mensajePaso =
-        '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
-        '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
-        '⏱️ Tiempo estimado de enfoque: $duracion minutos.';
+    var mensajePaso = tr(
+      '📋 PASO ${index + 1} DE ${fasesPasos.length}: $tituloFase\n\n'
+      '🎯 ¿Qué debes hacer exactamente?\n$descFase\n\n'
+      '⏱️ Tiempo estimado de enfoque: $duracion minutos.',
+      '📋 STEP ${index + 1} OF ${fasesPasos.length}: $tituloFase\n\n'
+      '🎯 What exactly should you do?\n$descFase\n\n'
+      '⏱️ Estimated focus time: $duracion minutes.',
+    );
 
     if (consejoPaso.toString().isNotEmpty) {
-      mensajePaso += '\n\n💡 Tip clave para este paso:\n$consejoPaso';
+      mensajePaso += tr(
+        '\n\n💡 Tip clave para este paso:\n$consejoPaso',
+        '\n\n💡 Key tip for this step:\n$consejoPaso',
+      );
     }
 
     _mensajes.add({
@@ -260,25 +311,15 @@ void _inicializarMensajesChat() {
     });
   }
 
-  void _mostrarFasePaso(int index) {
-    if (index >= fasesPasos.length) return;
-
-    setState(() {
-      _agregarMensajeFase(index);
-    });
-
-    _scrollToBottom();
-  }
-
   Future<void> _reiniciarProgreso() async {
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
 
-    for (var fase in fasesPasos) {
+    for (final fase in fasesPasos) {
       if (fase is Map) {
         fase['completado'] = false;
         final subpasos = (fase['subpasos'] as List?) ?? [];
 
-        for (var sub in subpasos) {
+        for (final sub in subpasos) {
           if (sub is Map) sub['completado'] = false;
         }
       }
@@ -299,9 +340,14 @@ void _inicializarMensajesChat() {
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('🔄 ¡Progreso reiniciado! Volviste al Paso 1.'),
-        backgroundColor: Color(0xFF00F0FF),
+      SnackBar(
+        content: Text(
+          tr(
+            '🔄 ¡Progreso reiniciado! Volviste al Paso 1.',
+            '🔄 Progress reset! You are back at Step 1.',
+          ),
+        ),
+        backgroundColor: const Color(0xFF00F0FF),
       ),
     );
 
@@ -331,8 +377,7 @@ void _inicializarMensajesChat() {
       );
     }
 
-    if (!mounted) return;
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   Future<void> _completarFasePaso(int faseIndex) async {
@@ -346,11 +391,14 @@ void _inicializarMensajesChat() {
 
     if (faltanSubpasos && subpasosList.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            '⚠️ Debes marcar todos los subpasos de esta fase antes de continuar.',
+            tr(
+              '⚠️ Debes marcar todos los subpasos de esta fase antes de continuar.',
+              '⚠️ Complete every substep in this phase before continuing.',
+            ),
           ),
-          backgroundColor: Color(0xFFFF44AA),
+          backgroundColor: const Color(0xFFFF44AA),
         ),
       );
       return;
@@ -362,7 +410,7 @@ void _inicializarMensajesChat() {
 
     fase['completado'] = true;
 
-    for (var sub in subpasosList) {
+    for (final sub in subpasosList) {
       sub['completado'] = true;
     }
 
@@ -380,7 +428,10 @@ void _inicializarMensajesChat() {
 
       _mensajes.add({
         'esBot': true,
-        'texto': '✅ ¡Paso ${faseIndex + 1} completado y guardado con éxito!',
+        'texto': tr(
+          '✅ ¡Paso ${faseIndex + 1} completado y guardado con éxito!',
+          '✅ Step ${faseIndex + 1} completed and saved successfully!',
+        ),
       });
 
       if (faseIndex + 1 < fasesPasos.length) {
@@ -389,8 +440,10 @@ void _inicializarMensajesChat() {
       } else {
         _mensajes.add({
           'esBot': true,
-          'texto':
-              '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
+          'texto': tr(
+            '🏆 ¡Increíble! Has finalizado por completo todos los pasos de esta guía.',
+            '🏆 Amazing! You have completed every step in this guide.',
+          ),
         });
       }
     });
@@ -409,31 +462,40 @@ void _inicializarMensajesChat() {
     final nivel = (_nivelesExplicacionFase[index] ?? 0) + 1;
     _nivelesExplicacionFase[index] = nivel;
 
-    String explicacionExtensa = "";
-
-    if (nivel == 1) {
-      explicacionExtensa =
-          '🧠 EXPLICACIÓN PROFUNDA (Paso ${index + 1}: $tituloFase)\n\n'
-          '1. Objetivo Metodológico ($metodoEstudio):\n'
-          'En este punto la meta es: $descFase.\n\n'
-          '2. Guía de Ejecución:\n'
-          '• Abre tu entorno de trabajo y céntrate solo en los subpasos indicados arriba.\n'
-          '• Ve marcando cada casilla a medida que los vayas ejecutando.';
-    } else {
-      explicacionExtensa =
-          '🔍 EXPLICACIÓN SENCILLA (Nivel $nivel - Paso ${index + 1})\n\n'
-          'Tranquil@, divide "$tituloFase" en pequeñas acciones de 10 minutos y completa los subpasos uno por uno.';
-    }
+    final explicacion = nivel == 1
+        ? tr(
+            '🧠 EXPLICACIÓN PROFUNDA (Paso ${index + 1}: $tituloFase)\n\n'
+            '1. Objetivo metodológico ($metodoEstudio):\n'
+            'En este punto la meta es: $descFase.\n\n'
+            '2. Guía de ejecución:\n'
+            '• Abre tu entorno de trabajo y céntrate solo en los subpasos indicados arriba.\n'
+            '• Ve marcando cada casilla a medida que los vayas ejecutando.',
+            '🧠 IN-DEPTH EXPLANATION (Step ${index + 1}: $tituloFase)\n\n'
+            '1. Method goal ($metodoEstudio):\n'
+            'At this point, your goal is: $descFase.\n\n'
+            '2. How to do it:\n'
+            '• Open your workspace and focus only on the substeps above.\n'
+            '• Check each box as you complete it.',
+          )
+        : tr(
+            '🔍 EXPLICACIÓN SENCILLA (Nivel $nivel - Paso ${index + 1})\n\n'
+            'Tranquil@, divide "$tituloFase" en pequeñas acciones de 10 minutos y completa los subpasos uno por uno.',
+            '🔍 SIMPLE EXPLANATION (Level $nivel - Step ${index + 1})\n\n'
+            'Take it easy: break "$tituloFase" into small 10-minute actions and complete the substeps one at a time.',
+          );
 
     setState(() {
       _mensajes.add({
         'esBot': false,
-        'texto': '¿Me explicas mejor el Paso ${index + 1}?',
+        'texto': tr(
+          '¿Me explicas mejor el Paso ${index + 1}?',
+          'Can you explain Step ${index + 1} better?',
+        ),
       });
 
       _mensajes.add({
         'esBot': true,
-        'texto': explicacionExtensa,
+        'texto': explicacion,
         'faseIndexChat': index,
       });
     });
@@ -442,43 +504,62 @@ void _inicializarMensajesChat() {
   }
 
   void _procesarOpcionRapida(String opcion) {
+    String textoUsuario;
+    String respuestaBot = '';
+
+    switch (opcion) {
+      case 'step':
+        textoUsuario = tr('Paso a paso', 'Step by step');
+        break;
+      case 'explain':
+        textoUsuario = tr('Explica qué toca hacer', 'Explain what I need to do');
+        break;
+      case 'topic':
+        textoUsuario = tr('¿Qué es este tema?', 'What is this topic?');
+        break;
+      default:
+        textoUsuario = tr('Dame un consejo', 'Give me advice');
+    }
+
     setState(() {
-      _mensajes.add({'esBot': false, 'texto': opcion});
+      _mensajes.add({'esBot': false, 'texto': textoUsuario});
 
-      final opLower = opcion.toLowerCase();
-      String respuestaBot = "";
-
-      if (opLower.contains('paso a paso')) {
+      if (opcion == 'step') {
         _agregarMensajeFase(_faseActualIndex);
-      } else if (opLower.contains('explica que toca hacer')) {
+      } else if (opcion == 'explain') {
         _nivelExplicacionGeneral++;
-        respuestaBot =
-            '📌 EXPLICACIÓN GENERAL DEL TRABAJO\n\n'
-            'Este plan divide tu proyecto en fases independientes. Completa los subpasos de la tarjeta actual para avanzar a la siguiente.';
+
+        respuestaBot = tr(
+          '📌 EXPLICACIÓN GENERAL DEL TRABAJO\n\n'
+          'Este plan divide tu proyecto en fases independientes. Completa los subpasos de la tarjeta actual para avanzar a la siguiente.',
+          '📌 GENERAL EXPLANATION\n\n'
+          'This plan divides your project into independent phases. Complete the substeps on the current card to move on to the next one.',
+        );
 
         _mensajes.add({'esBot': true, 'texto': respuestaBot});
-      } else if (opLower.contains('qué es este tema') ||
-          opLower.contains('que es este tema')) {
-        final titulo =
-            guiaActual['nombre'] ??
+      } else if (opcion == 'topic') {
+        final titulo = guiaActual['nombre'] ??
             guiaActual['titulo'] ??
-            'el tema de tu tarea';
+            tr('el tema de tu tarea', 'your assignment topic');
 
-        respuestaBot =
-            '📚 SOBRE EL TEMA: "$titulo"\n\nEsta actividad abarca conceptos fundamentales según la rúbrica.';
-
-        _mensajes.add({'esBot': true, 'texto': respuestaBot});
-      } else if (opLower.contains('dame un consejo')) {
-        final consejo = consejos.isNotEmpty
-            ? consejos.first
-            : "Elimina distracciones por los próximos 25 minutos.";
-
-        respuestaBot = '💡 CONSEJO DE LUMI:\n$consejo';
+        respuestaBot = tr(
+          '📚 SOBRE EL TEMA: "$titulo"\n\nEsta actividad abarca conceptos fundamentales según la rúbrica.',
+          '📚 ABOUT THE TOPIC: "$titulo"\n\nThis activity covers fundamental concepts based on the rubric.',
+        );
 
         _mensajes.add({'esBot': true, 'texto': respuestaBot});
       } else {
-        respuestaBot =
-            "Entendido. Selecciona una opción de abajo para continuar.";
+        final consejo = consejos.isNotEmpty
+            ? consejos.first
+            : tr(
+                'Elimina distracciones por los próximos 25 minutos.',
+                'Remove distractions for the next 25 minutes.',
+              );
+
+        respuestaBot = tr(
+          '💡 CONSEJO DE LUMI:\n$consejo',
+          '💡 LUMI TIP:\n$consejo',
+        );
 
         _mensajes.add({'esBot': true, 'texto': respuestaBot});
       }
@@ -492,15 +573,18 @@ void _inicializarMensajesChat() {
         .toString()
         .toLowerCase();
 
-    final titulo =
-        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+    final titulo = (guiaActual['nombre'] ??
+            guiaActual['titulo'] ??
+            tr('Trabajo', 'Assignment'))
+        .toString();
 
-    final conceptosIA = List<String>.from(
-      conceptosClave.map((e) => e.toString()),
-    );
+    final conceptosIA =
+        List<String>.from(conceptosClave.map((e) => e.toString()));
 
     final preguntasIA = List<Map<String, dynamic>>.from(
-      preguntasRecall.whereType<Map>().map((e) => Map<String, dynamic>.from(e)),
+      preguntasRecall
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e)),
     );
 
     if (metodo.contains('feynman')) {
@@ -544,8 +628,10 @@ void _inicializarMensajesChat() {
   }
 
   Future<void> _cambiarMetodoEstudio() async {
-    final tituloPlan =
-        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+    final tituloPlan = (guiaActual['nombre'] ??
+            guiaActual['titulo'] ??
+            tr('Trabajo', 'Assignment'))
+        .toString();
 
     final nuevoMetodo = await Navigator.push<String>(
       context,
@@ -553,7 +639,7 @@ void _inicializarMensajesChat() {
         builder: (_) => SeleccionarMetodoScreen(
           tituloTarea: tituloPlan,
           metodoRecomendado: guiaActual['metodo_estudio'] ?? 'Pomodoro',
-          onMetodoSeleccionado: (metodo) {},
+          onMetodoSeleccionado: (_) {},
         ),
       ),
     );
@@ -561,16 +647,20 @@ void _inicializarMensajesChat() {
     if (nuevoMetodo == null || !mounted) return;
 
     final planId = (guiaActual['id'] ?? guiaActual['plan_id'])?.toString();
-
     final userId = _userId.isNotEmpty
         ? _userId
         : guiaActual['usuario_id']?.toString() ?? '';
 
     if (planId == null || planId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error: No se encontró el ID del plan'),
-          backgroundColor: Color(0xFFFF4444),
+        SnackBar(
+          content: Text(
+            tr(
+              'Error: no se encontró el ID del plan.',
+              'Error: the plan ID was not found.',
+            ),
+          ),
+          backgroundColor: const Color(0xFFFF4444),
         ),
       );
       return;
@@ -578,11 +668,14 @@ void _inicializarMensajesChat() {
 
     if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text(
-            'Error: No se encontró el usuario. Cierra y vuelve a abrir el plan.',
+            tr(
+              'Error: no se encontró el usuario. Cierra y vuelve a abrir el plan.',
+              'Error: the user was not found. Close and reopen the plan.',
+            ),
           ),
-          backgroundColor: Color(0xFFFF4444),
+          backgroundColor: const Color(0xFFFF4444),
         ),
       );
       return;
@@ -623,7 +716,12 @@ void _inicializarMensajesChat() {
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('¡Método cambiado a $nuevoMetodo! 🚀'),
+            content: Text(
+              tr(
+                '¡Método cambiado a $nuevoMetodo! 🚀',
+                'Method changed to $nuevoMetodo! 🚀',
+              ),
+            ),
             backgroundColor: const Color(0xFF4CAF50),
           ),
         );
@@ -633,9 +731,14 @@ void _inicializarMensajesChat() {
         setState(() => _cambiandoMetodo = false);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error: El servidor no respondió correctamente'),
-            backgroundColor: Color(0xFFFF4444),
+          SnackBar(
+            content: Text(
+              tr(
+                'Error: el servidor no respondió correctamente.',
+                'Error: the server did not respond correctly.',
+              ),
+            ),
+            backgroundColor: const Color(0xFFFF4444),
           ),
         );
       }
@@ -646,7 +749,12 @@ void _inicializarMensajesChat() {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error al cambiar método: $e'),
+          content: Text(
+            tr(
+              'Error al cambiar método: $e',
+              'Error changing the method: $e',
+            ),
+          ),
           backgroundColor: const Color(0xFFFF4444),
         ),
       );
@@ -655,8 +763,10 @@ void _inicializarMensajesChat() {
 
   @override
   Widget build(BuildContext context) {
-    final tituloPlan =
-        (guiaActual['nombre'] ?? guiaActual['titulo'] ?? 'Trabajo').toString();
+    final tituloPlan = (guiaActual['nombre'] ??
+            guiaActual['titulo'] ??
+            tr('Trabajo', 'Assignment'))
+        .toString();
 
     return Scaffold(
       backgroundColor: LumiAppTheme.pageBackground(context),
@@ -664,7 +774,11 @@ void _inicializarMensajesChat() {
         backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: LumiAppTheme.primaryText(context), size: 18),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: LumiAppTheme.primaryText(context),
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -686,49 +800,13 @@ void _inicializarMensajesChat() {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: Color(0xFF00F0FF), size: 22),
-            tooltip: 'Reiniciar pasos',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  backgroundColor: LumiAppTheme.surface(context),
-                  title: Text(
-                    '¿Reiniciar progreso?',
-                    style: TextStyle(color: LumiAppTheme.primaryText(context)),
-                  ),
-                  content: Text(
-                    'Esto desmarcará todos tus checkboxes y te devolverá al Paso 1. ¿Deseas continuar?',
-                    style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 13),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text(
-                        'Cancelar',
-                        style: TextStyle(color: Color(0xFF9E9AC8)),
-                      ),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF44AA),
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _reiniciarProgreso();
-                      },
-                      child: const Text(
-                        'Sí, reiniciar',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
+            icon: const Icon(
+              Icons.refresh,
+              color: Color(0xFF00F0FF),
+              size: 22,
+            ),
+            tooltip: tr('Reiniciar pasos', 'Reset steps'),
+            onPressed: _mostrarDialogoReinicio,
           ),
           IconButton(
             icon: const Icon(
@@ -736,6 +814,7 @@ void _inicializarMensajesChat() {
               color: Colors.amberAccent,
               size: 24,
             ),
+            tooltip: tr('Abrir técnica de estudio', 'Open study technique'),
             onPressed: _abrirPantallaTecnicaDinamica,
           ),
         ],
@@ -749,437 +828,31 @@ void _inicializarMensajesChat() {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      CircularProgressIndicator(color: Color(0xFFBD00FF)),
-                      SizedBox(height: 16),
+                      const CircularProgressIndicator(
+                        color: Color(0xFFBD00FF),
+                      ),
+                      const SizedBox(height: 16),
                       Text(
-                        'Cambiando método de estudio...\nEsto puede tardar unos segundos.',
+                        tr(
+                          'Cambiando método de estudio...\nEsto puede tardar unos segundos.',
+                          'Changing study method...\nThis may take a few seconds.',
+                        ),
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 14),
+                        style: TextStyle(
+                          color: LumiAppTheme.secondaryText(context),
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
                 )
               : LayoutBuilder(
                   builder: (context, constraints) {
-                    final conversation = Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
-                      ),
-                      color: const Color(0xFF13102A),
-                      child: const Text(
-                        'Consejo: Toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
-                        style: TextStyle(
-                          color: Color(0xFF9E9AC8),
-                          fontSize: 11,
-                          height: 1.3,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                        itemCount: _mensajes.length,
-                        itemBuilder: (context, index) {
-                          final msg = _mensajes[index];
-                          final esBot = msg['esBot'] as bool;
-                          final esAlerta = msg['tipo'] == 'alerta_tiempo';
-                          final esBienvenida = msg['tipo'] == 'bienvenida';
-                          final faseIndexChat = msg['faseIndexChat'];
-                          final listaRecursosMsg =
-                              (msg['listaRecursos'] as List?) ?? [];
+                    final conversation = _buildConversation();
 
-                          List<dynamic> subpasosDeEstaFase = [];
-                          bool faseCompletadaEstado = false;
-                          bool faseCargandoEstado = false;
-
-                          if (faseIndexChat != null &&
-                              faseIndexChat < fasesPasos.length) {
-                            final faseObj = fasesPasos[faseIndexChat];
-                            subpasosDeEstaFase =
-                                (faseObj['subpasos'] as List?) ?? [];
-                            faseCompletadaEstado =
-                                faseObj['completado'] == true;
-                            faseCargandoEstado = cargandoFases[faseIndexChat];
-                          }
-
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: Row(
-                              mainAxisAlignment: esBot
-                                  ? MainAxisAlignment.start
-                                  : MainAxisAlignment.end,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (esBot) ...[
-                                  _buildAvatarLumi(radius: 16),
-                                  const SizedBox(width: 8),
-                                ],
-                                Flexible(
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: Responsive.esEscritorio(context)
-                                          ? 720
-                                          : double.infinity,
-                                    ),
-                                    child: Column(
-                                    crossAxisAlignment: esBot
-                                        ? CrossAxisAlignment.start
-                                        : CrossAxisAlignment.end,
-                                    children: [
-                                      Container(
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          // 🔴 Fondo rojizo si es alerta, normal si es bot o usuario
-                                          color: esAlerta
-                                              ? const Color(0xFF3D1414)
-                                              : (esBot
-                                                  ? const Color(0xFF1A1736)
-                                                  : const Color(0xFF32285E)),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          border: Border.all(
-                                            // 🔴 Borde rojo brillante si es alerta
-                                            color: esAlerta
-                                                ? Colors.redAccent
-                                                : (esBot
-                                                    ? const Color(0xFF4A3E8D)
-                                                        .withOpacity(0.4)
-                                                    : const Color(0xFFBD00FF)),
-                                            width: esAlerta ? 1.5 : 1,
-                                          ),
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            Text(
-                                              msg['texto'] ?? '',
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 13.5,
-                                                height: 1.4,
-                                                fontWeight: esAlerta
-                                                    ? FontWeight.w600
-                                                    : FontWeight.normal,
-                                              ),
-                                            ),
-                                            if (listaRecursosMsg.isNotEmpty) ...[
-                                              const SizedBox(height: 12),
-                                              ...listaRecursosMsg.map((rec) {
-                                                final nombreRec =
-                                                    rec['nombre'] ??
-                                                        rec['titulo'] ??
-                                                        'Enlace de apoyo';
-                                                final urlRec = rec['url'] ?? '';
-
-                                                if (urlRec.isEmpty) {
-                                                  return const SizedBox.shrink();
-                                                }
-
-                                                return Padding(
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                    bottom: 8,
-                                                  ),
-                                                  child: InkWell(
-                                                    onTap: () =>
-                                                        _abrirUrl(urlRec),
-                                                    child: Container(
-                                                      padding: const EdgeInsets
-                                                          .symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 8,
-                                                      ),
-                                                      decoration: BoxDecoration(
-                                                        color: const Color(
-                                                          0xFF00F0FF,
-                                                        ).withOpacity(0.15),
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                        border: Border.all(
-                                                          color: const Color(
-                                                            0xFF00F0FF,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                      child: Row(
-                                                        children: [
-                                                          const Icon(
-                                                            Icons.link,
-                                                            color: Color(
-                                                              0xFF00F0FF,
-                                                            ),
-                                                            size: 16,
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 8,
-                                                          ),
-                                                          Expanded(
-                                                            child: Text(
-                                                              'Abrir: $nombreRec 🚀',
-                                                              style:
-                                                                  const TextStyle(
-                                                                color: Color(
-                                                                  0xFF00F0FF,
-                                                                ),
-                                                                fontSize: 12,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold,
-                                                              ),
-                                                              overflow:
-                                                                  TextOverflow
-                                                                      .ellipsis,
-                                                            ),
-                                                          ),
-                                                        ],
-                                                      ),
-                                                    ),
-                                                  ),
-                                                );
-                                              }),
-                                            ],
-                                            if (subpasosDeEstaFase.isNotEmpty &&
-                                                faseIndexChat != null) ...[
-                                              const SizedBox(height: 12),
-                                              const Divider(
-                                                color: Color(0xFF4A3E8D),
-                                                height: 1,
-                                              ),
-                                              const SizedBox(height: 8),
-                                              const Text(
-                                                '📌 Subpasos obligatorios para este paso:',
-                                                style: TextStyle(
-                                                  color: Color(0xFF00F0FF),
-                                                  fontSize: 12,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              ...List.generate(
-                                                subpasosDeEstaFase.length,
-                                                (sIdx) {
-                                                  final subMap =
-                                                      subpasosDeEstaFase[sIdx];
-                                                  final subCompletado =
-                                                      subMap['completado'] ==
-                                                          true;
-
-                                                  return CheckboxListTile(
-                                                    contentPadding:
-                                                        EdgeInsets.zero,
-                                                    dense: true,
-                                                    title: Text(
-                                                      subMap['texto'] ?? '',
-                                                      style: TextStyle(
-                                                        color: subCompletado
-                                                            ? Colors.white38
-                                                            : Colors.white,
-                                                        fontSize: 11.5,
-                                                        decoration:
-                                                            subCompletado
-                                                                ? TextDecoration
-                                                                    .lineThrough
-                                                                : null,
-                                                      ),
-                                                    ),
-                                                    value: subCompletado,
-                                                    activeColor: const Color(
-                                                      0xFFFF44AA,
-                                                    ),
-                                                    checkColor: Colors.black,
-                                                    onChanged:
-                                                        faseCompletadaEstado
-                                                            ? null
-                                                            : (bool? val) {
-                                                                _actualizarSubpasoFase(
-                                                                  faseIndexChat,
-                                                                  sIdx,
-                                                                  val,
-                                                                );
-                                                              },
-                                                  );
-                                                },
-                                              ),
-                                            ],
-                                            if (faseIndexChat != null &&
-                                                !faseCompletadaEstado) ...[
-                                              const SizedBox(height: 12),
-                                              Wrap(
-                                                spacing: 8,
-                                                runSpacing: 8,
-                                                children: [
-                                                  OutlinedButton.icon(
-                                                    style: OutlinedButton
-                                                        .styleFrom(
-                                                      foregroundColor:
-                                                          const Color(
-                                                        0xFF00F0FF,
-                                                      ),
-                                                      side: const BorderSide(
-                                                        color:
-                                                            Color(0xFF00F0FF),
-                                                      ),
-                                                      padding:
-                                                          const EdgeInsets
-                                                              .symmetric(
-                                                        horizontal: 10,
-                                                        vertical: 6,
-                                                      ),
-                                                    ),
-                                                    onPressed: () =>
-                                                        _explicarFase(
-                                                      faseIndexChat,
-                                                    ),
-                                                    icon: const Icon(
-                                                      Icons.help_outline,
-                                                      size: 14,
-                                                    ),
-                                                    label: Text(
-                                                      'Explicar Paso ${faseIndexChat + 1}',
-                                                      style: const TextStyle(
-                                                        fontSize: 11,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  faseCargandoEstado
-                                                      ? const SizedBox(
-                                                          width: 20,
-                                                          height: 20,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: Color(
-                                                              0xFFFF44AA,
-                                                            ),
-                                                          ),
-                                                        )
-                                                      : ElevatedButton.icon(
-                                                          style: ElevatedButton
-                                                              .styleFrom(
-                                                            backgroundColor:
-                                                                const Color(
-                                                              0xFFFF44AA,
-                                                            ),
-                                                            foregroundColor:
-                                                                Colors.black,
-                                                            padding:
-                                                                const EdgeInsets
-                                                                    .symmetric(
-                                                              horizontal: 10,
-                                                              vertical: 6,
-                                                            ),
-                                                          ),
-                                                          onPressed: () =>
-                                                              _completarFasePaso(
-                                                            faseIndexChat,
-                                                          ),
-                                                          icon: const Icon(
-                                                            Icons
-                                                                .check_circle_outline,
-                                                            size: 14,
-                                                          ),
-                                                          label: Text(
-                                                            'Completar Paso ${faseIndexChat + 1}',
-                                                            style:
-                                                                const TextStyle(
-                                                              fontSize: 11,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                ],
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ),
-                                      if (esBienvenida) ...[
-                                        const SizedBox(height: 10),
-                                        GestureDetector(
-                                          onTap: _cambiarMetodoEstudio,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                              horizontal: 14,
-                                              vertical: 10,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: const Color(0xFF261D4C),
-                                              borderRadius:
-                                                  BorderRadius.circular(20),
-                                              border: Border.all(
-                                                color: const Color(0xFFBD00FF),
-                                              ),
-                                            ),
-                                            child: const Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                Icon(
-                                                  Icons.settings_suggest,
-                                                  color: Color(0xFF00F0FF),
-                                                  size: 18,
-                                                ),
-                                                SizedBox(width: 8),
-                                                Text(
-                                                  'Cambiar método de estudio',
-                                                  style: TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                ),
-                                                SizedBox(width: 8),
-                                                CircleAvatar(
-                                                  radius: 10,
-                                                  backgroundColor:
-                                                      Color(0xFFBD00FF),
-                                                  child: Icon(
-                                                    Icons.arrow_forward_ios,
-                                                    color: Colors.white,
-                                                    size: 10,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                    ),
-                                  ),
-                                ),
-                                if (!esBot && !Responsive.esEscritorio(context)) ...[
-                                  const SizedBox(width: 8),
-                                  const CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: Color(0xFF2E7D32),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: Colors.white,
-                                      size: 18,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                    _buildQuickSuggestions(),
-                  ],
-                    );
-
-                    if (!Responsive.esEscritorio(context)) return conversation;
+                    if (!Responsive.esEscritorio(context)) {
+                      return conversation;
+                    }
 
                     return Center(
                       child: ConstrainedBox(
@@ -1207,31 +880,449 @@ void _inicializarMensajesChat() {
     );
   }
 
+  void _mostrarDialogoReinicio() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: LumiAppTheme.surface(context),
+        title: Text(
+          tr('¿Reiniciar progreso?', 'Reset progress?'),
+          style: TextStyle(color: LumiAppTheme.primaryText(context)),
+        ),
+        content: Text(
+          tr(
+            'Esto desmarcará todos tus checkboxes y te devolverá al Paso 1. ¿Deseas continuar?',
+            'This will uncheck every checkbox and return you to Step 1. Do you want to continue?',
+          ),
+          style: TextStyle(
+            color: LumiAppTheme.secondaryText(context),
+            fontSize: 13,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text(
+              tr('Cancelar', 'Cancel'),
+              style: const TextStyle(color: Color(0xFF9E9AC8)),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF44AA),
+            ),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _reiniciarProgreso();
+            },
+            child: Text(
+              tr('Sí, reiniciar', 'Yes, reset'),
+              style: const TextStyle(
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversation() {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: const Color(0xFF13102A),
+          child: Text(
+            tr(
+              'Consejo: toca 🔄 arriba para reiniciar tus pasos o ⚡ para abrir tu técnica de estudio.',
+              'Tip: tap 🔄 above to reset your steps or ⚡ to open your study technique.',
+            ),
+            style: const TextStyle(
+              color: Color(0xFF9E9AC8),
+              fontSize: 11,
+              height: 1.3,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            itemCount: _mensajes.length,
+            itemBuilder: _buildMensaje,
+          ),
+        ),
+        _buildQuickSuggestions(),
+      ],
+    );
+  }
+
+  Widget _buildMensaje(BuildContext context, int index) {
+    final msg = _mensajes[index];
+    final esBot = msg['esBot'] as bool;
+    final esAlerta = msg['tipo'] == 'alerta_tiempo';
+    final esBienvenida = msg['tipo'] == 'bienvenida';
+    final faseIndexChat = msg['faseIndexChat'];
+    final listaRecursosMsg = (msg['listaRecursos'] as List?) ?? [];
+
+    List<dynamic> subpasos = [];
+    var faseCompletada = false;
+    var faseCargando = false;
+
+    if (faseIndexChat != null && faseIndexChat < fasesPasos.length) {
+      final fase = fasesPasos[faseIndexChat];
+      subpasos = (fase['subpasos'] as List?) ?? [];
+      faseCompletada = fase['completado'] == true;
+      faseCargando = cargandoFases[faseIndexChat];
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment:
+            esBot ? MainAxisAlignment.start : MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (esBot) ...[
+            _buildAvatarLumi(radius: 16),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: Responsive.esEscritorio(context)
+                    ? 720
+                    : double.infinity,
+              ),
+              child: Column(
+                crossAxisAlignment:
+                    esBot ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: esAlerta
+                          ? const Color(0xFF3D1414)
+                          : esBot
+                              ? const Color(0xFF1A1736)
+                              : const Color(0xFF32285E),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: esAlerta
+                            ? Colors.redAccent
+                            : esBot
+                                ? const Color(0xFF4A3E8D).withOpacity(0.4)
+                                : const Color(0xFFBD00FF),
+                        width: esAlerta ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          msg['texto'] ?? '',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 13.5,
+                            height: 1.4,
+                            fontWeight: esAlerta
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        if (listaRecursosMsg.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          ...listaRecursosMsg.map(
+                            (rec) => _buildResourceLink(rec),
+                          ),
+                        ],
+                        if (subpasos.isNotEmpty && faseIndexChat != null) ...[
+                          const SizedBox(height: 12),
+                          const Divider(color: Color(0xFF4A3E8D), height: 1),
+                          const SizedBox(height: 8),
+                          Text(
+                            tr(
+                              '📌 Subpasos obligatorios para este paso:',
+                              '📌 Required substeps for this step:',
+                            ),
+                            style: const TextStyle(
+                              color: Color(0xFF00F0FF),
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          ...List.generate(
+                            subpasos.length,
+                            (subIndex) => _buildSubpaso(
+                              faseIndexChat,
+                              subIndex,
+                              subpasos[subIndex],
+                              faseCompletada,
+                            ),
+                          ),
+                        ],
+                        if (faseIndexChat != null && !faseCompletada) ...[
+                          const SizedBox(height: 12),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: const Color(0xFF00F0FF),
+                                  side: const BorderSide(
+                                    color: Color(0xFF00F0FF),
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
+                                ),
+                                onPressed: () => _explicarFase(faseIndexChat),
+                                icon: const Icon(
+                                  Icons.help_outline,
+                                  size: 14,
+                                ),
+                                label: Text(
+                                  tr(
+                                    'Explicar paso ${faseIndexChat + 1}',
+                                    'Explain step ${faseIndexChat + 1}',
+                                  ),
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                              ),
+                              faseCargando
+                                  ? const SizedBox(
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Color(0xFFFF44AA),
+                                      ),
+                                    )
+                                  : ElevatedButton.icon(
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFFFF44AA),
+                                        foregroundColor: Colors.black,
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 10,
+                                          vertical: 6,
+                                        ),
+                                      ),
+                                      onPressed: () =>
+                                          _completarFasePaso(faseIndexChat),
+                                      icon: const Icon(
+                                        Icons.check_circle_outline,
+                                        size: 14,
+                                      ),
+                                      label: Text(
+                                        tr(
+                                          'Completar paso ${faseIndexChat + 1}',
+                                          'Complete step ${faseIndexChat + 1}',
+                                        ),
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (esBienvenida) ...[
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: _cambiarMetodoEstudio,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF261D4C),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: const Color(0xFFBD00FF),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.settings_suggest,
+                              color: Color(0xFF00F0FF),
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              tr(
+                                'Cambiar método de estudio',
+                                'Change study method',
+                              ),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const CircleAvatar(
+                              radius: 10,
+                              backgroundColor: Color(0xFFBD00FF),
+                              child: Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.white,
+                                size: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          if (!esBot && !Responsive.esEscritorio(context)) ...[
+            const SizedBox(width: 8),
+            const CircleAvatar(
+              radius: 16,
+              backgroundColor: Color(0xFF2E7D32),
+              child: Icon(Icons.person, color: Colors.white, size: 18),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResourceLink(dynamic rec) {
+    final nombreRec = rec['nombre'] ??
+        rec['titulo'] ??
+        tr('Enlace de apoyo', 'Support link');
+    final urlRec = rec['url'] ?? '';
+
+    if (urlRec.toString().isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: InkWell(
+        onTap: () => _abrirUrl(urlRec.toString()),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00F0FF).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF00F0FF)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.link, color: Color(0xFF00F0FF), size: 16),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tr('Abrir: $nombreRec 🚀', 'Open: $nombreRec 🚀'),
+                  style: const TextStyle(
+                    color: Color(0xFF00F0FF),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSubpaso(
+    int faseIndex,
+    int subpasoIndex,
+    dynamic subMap,
+    bool faseCompletada,
+  ) {
+    final subCompletado = subMap['completado'] == true;
+
+    return CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        subMap['texto'] ?? '',
+        style: TextStyle(
+          color: subCompletado ? Colors.white38 : Colors.white,
+          fontSize: 11.5,
+          decoration:
+              subCompletado ? TextDecoration.lineThrough : null,
+        ),
+      ),
+      value: subCompletado,
+      activeColor: const Color(0xFFFF44AA),
+      checkColor: Colors.black,
+      onChanged: faseCompletada
+          ? null
+          : (val) => _actualizarSubpasoFase(
+                faseIndex,
+                subpasoIndex,
+                val,
+              ),
+    );
+  }
+
   Widget _buildQuickSuggestions() {
     final suggestions = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Row(
           children: [
-            Expanded(child: _buildBotonPredeterminado('Paso a Paso')),
+            Expanded(
+              child: _buildBotonPredeterminado(
+                tr('Paso a paso', 'Step by step'),
+                'step',
+              ),
+            ),
             const SizedBox(width: 8),
             Expanded(
-              child: _buildBotonPredeterminado('Explica que toca hacer'),
+              child: _buildBotonPredeterminado(
+                tr('Explica qué toca hacer', 'Explain what I need to do'),
+                'explain',
+              ),
             ),
           ],
         ),
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildBotonPredeterminado('¿Qué es este tema?')),
+            Expanded(
+              child: _buildBotonPredeterminado(
+                tr('¿Qué es este tema?', 'What is this topic?'),
+                'topic',
+              ),
+            ),
             const SizedBox(width: 8),
-            Expanded(child: _buildBotonPredeterminado('Dame un consejo')),
+            Expanded(
+              child: _buildBotonPredeterminado(
+                tr('Dame un consejo', 'Give me advice'),
+                'advice',
+              ),
+            ),
           ],
         ),
       ],
     );
 
-    final suggestionPanel = Container(
+    final panel = Container(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 18),
       color: const Color(0xFF0D0B1E),
       child: suggestions,
@@ -1244,10 +1335,10 @@ void _inicializarMensajesChat() {
           ? Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 760),
-                child: suggestionPanel,
+                child: panel,
               ),
             )
-          : suggestionPanel,
+          : panel,
     );
   }
 
@@ -1255,14 +1346,17 @@ void _inicializarMensajesChat() {
     final query = _sidebarSearchController.text.trim().toLowerCase();
     final currentId =
         (guiaActual['id'] ?? guiaActual['plan_id'] ?? '').toString();
+
     final conversations = _historialConversaciones.where((conversation) {
       final title = (conversation['nombre'] ?? conversation['titulo'] ?? '')
           .toString()
           .toLowerCase();
-      final description = (conversation['descripcion'] ?? '')
-          .toString()
-          .toLowerCase();
-      return query.isEmpty || title.contains(query) || description.contains(query);
+      final description =
+          (conversation['descripcion'] ?? '').toString().toLowerCase();
+
+      return query.isEmpty ||
+          title.contains(query) ||
+          description.contains(query);
     }).toList();
 
     return Container(
@@ -1272,7 +1366,7 @@ void _inicializarMensajesChat() {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Conversaciones',
+            tr('Conversaciones', 'Conversations'),
             style: TextStyle(
               color: LumiAppTheme.primaryText(context),
               fontSize: 20,
@@ -1295,7 +1389,10 @@ void _inicializarMensajesChat() {
             onChanged: (_) => setState(() {}),
             style: TextStyle(color: LumiAppTheme.primaryText(context)),
             decoration: InputDecoration(
-              hintText: 'Buscar conversaciones',
+              hintText: tr(
+                'Buscar conversaciones',
+                'Search conversations',
+              ),
               prefixIcon: const Icon(Icons.search, size: 19),
               isDense: true,
               filled: true,
@@ -1308,7 +1405,7 @@ void _inicializarMensajesChat() {
           ),
           const SizedBox(height: 16),
           Text(
-            'HISTORIAL',
+            tr('HISTORIAL', 'HISTORY'),
             style: TextStyle(
               color: LumiAppTheme.secondaryText(context),
               fontSize: 11,
@@ -1320,9 +1417,15 @@ void _inicializarMensajesChat() {
             child: conversations.isEmpty
                 ? Center(
                     child: Text(
-                  query.isEmpty
-                    ? 'No hay conversaciones anteriores.'
-                    : 'No se encontraron conversaciones.',
+                      query.isEmpty
+                          ? tr(
+                              'No hay conversaciones anteriores.',
+                              'There are no previous conversations.',
+                            )
+                          : tr(
+                              'No se encontraron conversaciones.',
+                              'No conversations were found.',
+                            ),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: LumiAppTheme.secondaryText(context),
@@ -1331,7 +1434,7 @@ void _inicializarMensajesChat() {
                     ),
                   )
                 : ListView.separated(
-                  itemCount: conversations.length,
+                    itemCount: conversations.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 4),
                     itemBuilder: (context, index) {
                       final conversation = conversations[index];
@@ -1341,8 +1444,9 @@ void _inicializarMensajesChat() {
                       final isCurrent = conversationId == currentId;
                       final title = (conversation['nombre'] ??
                               conversation['titulo'] ??
-                              'Plan de estudio')
+                              tr('Plan de estudio', 'Study plan'))
                           .toString();
+
                       return ListTile(
                         dense: true,
                         contentPadding: const EdgeInsets.symmetric(
@@ -1375,14 +1479,17 @@ void _inicializarMensajesChat() {
                         ),
                         selected: isCurrent,
                         selectedTileColor: const Color(0xFF00F0FF)
-                          .withValues(alpha: 0.08),
+                            .withOpacity(0.08),
                         minVerticalPadding: 9,
                         onTap: () async {
                           if (isCurrent || conversationId.isEmpty) return;
+
                           final navigator = Navigator.of(context);
                           final plan =
                               await ApiService.obtenerPlan(conversationId);
+
                           if (!mounted || plan == null) return;
+
                           await navigator.pushReplacement(
                             MaterialPageRoute(
                               builder: (_) =>
@@ -1409,7 +1516,7 @@ void _inicializarMensajesChat() {
           width: radius * 2,
           height: radius * 2,
           fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
+          errorBuilder: (_, __, ___) {
             return Icon(
               Icons.smart_toy,
               color: const Color(0xFF00F0FF),
@@ -1421,7 +1528,7 @@ void _inicializarMensajesChat() {
     );
   }
 
-  Widget _buildBotonPredeterminado(String texto) {
+  Widget _buildBotonPredeterminado(String texto, String opcion) {
     return ElevatedButton(
       style: ElevatedButton.styleFrom(
         backgroundColor: const Color(0xFF1F1A3A),
@@ -1433,7 +1540,7 @@ void _inicializarMensajesChat() {
         ),
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
       ),
-      onPressed: () => _procesarOpcionRapida(texto),
+      onPressed: () => _procesarOpcionRapida(opcion),
       child: Text(
         texto,
         textAlign: TextAlign.center,

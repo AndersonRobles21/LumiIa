@@ -8,6 +8,7 @@ import 'dart:async';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/pdf_download.dart';
+import 'app_language.dart';
 
 class AdminEstadisticasScreen extends StatefulWidget {
   final Map<String, dynamic> summary;
@@ -24,7 +25,9 @@ class AdminEstadisticasScreen extends StatefulWidget {
       _AdminEstadisticasScreenState();
 }
 
-class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
+class _AdminEstadisticasScreenState
+    extends State<AdminEstadisticasScreen>
+    with AppLanguageListenerMixin<AdminEstadisticasScreen> {
   late Timer _refreshTimer;
   late Map<String, dynamic> _currentSummary;
   bool _isLoading = false;
@@ -128,7 +131,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
         backgroundColor: LumiAppTheme.surface(context),
         elevation: 0,
         title: Text(
-          'Estadísticas • $_adminName',
+          tr('Estadísticas • $_adminName', 'Statistics • $_adminName'),
           style: GoogleFonts.orbitron(
             fontWeight: FontWeight.w700,
             fontSize: 16,
@@ -181,7 +184,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Reportes y Estadísticas',
+                          tr('Reportes y Estadísticas', 'Reports and statistics'),
                           style: GoogleFonts.orbitron(
                             color: LumiAppTheme.primaryText(context),
                             fontSize: 22,
@@ -656,7 +659,10 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               ),
               pw.SizedBox(height: 8),
               _pdfIndicator(
-                'Tasa Global de Completación de Tareas',
+                tr(
+                  'Tasa Global de Completación de Tareas',
+                  'Overall task completion rate',
+                ),
                 _calculateCompletionRate(),
               ),
             ],
@@ -738,7 +744,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               ),
               pw.SizedBox(height: 14),
               pw.Text(
-                'Planes de Estudio por Día',
+                tr('Planes de Estudio por Día', 'Study plans per day'),
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -751,7 +757,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
               ),
               pw.SizedBox(height: 14),
               pw.Text(
-                'Tareas Generadas por Día',
+                tr('Tareas Generadas por Día', 'Tasks created per day'),
                 style: pw.TextStyle(
                   fontSize: 11,
                   fontWeight: pw.FontWeight.bold,
@@ -798,7 +804,14 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
   Future<void> _onPrintPdf(BuildContext context) async {
     final scaffold = ScaffoldMessenger.of(context);
     scaffold.showSnackBar(
-      const SnackBar(content: Text('Abriendo vista previa de impresión...')),
+      SnackBar(
+        content: Text(
+          tr(
+            'Abriendo vista previa de impresión...',
+            'Opening print preview...',
+          ),
+        ),
+      ),
     );
 
     try {
@@ -809,7 +822,10 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
       scaffold.showSnackBar(
         SnackBar(
           content: Text(
-            'Error generando vista de impresión: ${_sanitizeText(e.toString())}',
+            tr(
+              'Error generando vista de impresión: ${_sanitizeText(e.toString())}',
+              'Error generating print preview: ${_sanitizeText(e.toString())}',
+            ),
           ),
         ),
       );
@@ -948,7 +964,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
   pw.Widget _pwTableFromSeriesDetailado(dynamic rows) {
     if (rows == null || (rows as List).isEmpty)
       return pw.Text(
-        'Sin datos en los últimos 30 días',
+        tr('Sin datos en los últimos 30 días', 'No data in the last 30 days'),
         style: pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
       );
     final list = rows.cast<Map<String, dynamic>>();
@@ -962,7 +978,7 @@ class _AdminEstadisticasScreenState extends State<AdminEstadisticasScreen> {
         .toList();
 
     return pw.TableHelper.fromTextArray(
-      headers: ['Fecha Específica', 'Cantidad'],
+      headers: [tr('Fecha Específica', 'Specific date'), tr('Cantidad', 'Count')],
       data: data,
       border: pw.TableBorder.all(color: PdfColors.grey300),
       headerStyle: pw.TextStyle(

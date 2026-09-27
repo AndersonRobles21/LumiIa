@@ -20,7 +20,8 @@ class ConfiguracionScreen extends StatefulWidget {
   State<ConfiguracionScreen> createState() => _ConfiguracionScreenState();
 }
 
-class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
+class _ConfiguracionScreenState extends State<ConfiguracionScreen>
+    with AppLanguageListenerMixin<ConfiguracionScreen> {
   bool _notificacionesTareas = true;
   bool _recordatoriosDiarios = true;
   String _horaNotificacion = '18:00';
@@ -28,7 +29,6 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   bool _autenticacionBiometrica = false;
   bool _verificandoBiometria = false;
   bool _cerrandoSesion = false;
-  bool _isEnglish = false;
   bool _isAdmin = false;
   bool _sonidosActivados = true;
 
@@ -42,9 +42,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   @override
   void initState() {
     super.initState();
-    AppLanguage.instance.addListener(_onLanguageChanged);
     ThemeController.instance.addListener(_onThemeChanged);
-    _isEnglish = AppLanguage.instance.isEnglish;
     _initializeAdminStatus();
     _initializeNotificationSettings();
     _initializeSoundSettings();
@@ -147,15 +145,8 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
 
   @override
   void dispose() {
-    AppLanguage.instance.removeListener(_onLanguageChanged);
     ThemeController.instance.removeListener(_onThemeChanged);
     super.dispose();
-  }
-
-  void _onLanguageChanged() {
-    if (mounted) {
-      setState(() => _isEnglish = AppLanguage.instance.isEnglish);
-    }
   }
 
   void _onThemeChanged() {
@@ -163,7 +154,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
   }
 
   String _text(String spanish, String english) =>
-      _isEnglish ? english : spanish;
+      AppLanguage.instance.isEnglish ? english : spanish;
 
   // --- Activar/desactivar biometría con verificación real del dispositivo ---
   Future<void> _onBiometricChanged(bool value) async {
@@ -392,7 +383,9 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
                           _buildNavTile(
                             icon: Icons.language_outlined,
                             title: _text('Idioma', 'Language'),
-                            trailingText: _isEnglish ? 'English' : 'Español',
+                            trailingText: AppLanguage.instance.isEnglish
+                                ? 'English'
+                                : 'Español',
                             onTap: () => _mostrarSelectorIdioma(context, lang),
                           ),
                           _buildNavTile(
@@ -1087,7 +1080,7 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
           children: [
             RadioListTile<AppLang>(
               value: AppLang.es,
-              groupValue: _isEnglish ? AppLang.en : AppLang.es,
+              groupValue: AppLanguage.instance.current,
               activeColor: accentPink,
               title: Text(
                 'Español',
@@ -1096,13 +1089,12 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               onChanged: (_) async {
                 await AppLanguage.instance.setLanguage(AppLang.es);
                 if (!mounted) return;
-                setState(() => _isEnglish = false);
                 Navigator.pop(ctx);
               },
             ),
             RadioListTile<AppLang>(
               value: AppLang.en,
-              groupValue: _isEnglish ? AppLang.en : AppLang.es,
+              groupValue: AppLanguage.instance.current,
               activeColor: accentPink,
               title: Text(
                 'English',
@@ -1111,7 +1103,6 @@ class _ConfiguracionScreenState extends State<ConfiguracionScreen> {
               onChanged: (_) async {
                 await AppLanguage.instance.setLanguage(AppLang.en);
                 if (!mounted) return;
-                setState(() => _isEnglish = true);
                 Navigator.pop(ctx);
               },
             ),

@@ -7,6 +7,7 @@ import 'historial_ia_screen.dart';
 import 'progreso_screen.dart';
 import 'profile_screen.dart';
 import '../theme/app_theme.dart';
+import 'app_language.dart';
 
 class AppBottomNavbar extends StatelessWidget {
   final String userId;
@@ -72,6 +73,13 @@ class AppBottomNavbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: AppLanguage.instance,
+      builder: (context, _) => _buildForCurrentLanguage(context),
+    );
+  }
+
+  Widget _buildForCurrentLanguage(BuildContext context) {
     if (Responsive.esEscritorio(context)) {
       return SizedBox(
         width: Responsive.anchoSidebar(context),
@@ -104,7 +112,7 @@ class AppBottomNavbar extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(left: 12, bottom: 8),
                     child: Text(
-                      'NAVEGACIÓN',
+                      appLanguageText('NAVEGACIÓN', 'NAVIGATION'),
                       style: TextStyle(
                         color: LumiAppTheme.secondaryText(context),
                         fontSize: 10,
@@ -113,11 +121,11 @@ class AppBottomNavbar extends StatelessWidget {
                       ),
                     ),
                   ),
-                  _navItem(context, index: 0, icon: Icons.home, label: 'Inicio'),
-                  _navItem(context, index: 1, icon: Icons.calendar_month_outlined, label: 'Calendario'),
-                  _navItem(context, index: 2, icon: Icons.psychology_outlined, label: 'Historial IA'),
-                  _navItem(context, index: 3, icon: Icons.bar_chart_rounded, label: 'Progreso'),
-                  _navItem(context, index: 4, icon: Icons.person_outline, label: 'Perfil'),
+                  _navItem(context, index: 0, icon: Icons.home, label: appLanguageText('Inicio', 'Home')),
+                  _navItem(context, index: 1, icon: Icons.calendar_month_outlined, label: appLanguageText('Calendario', 'Calendar')),
+                  _navItem(context, index: 2, icon: Icons.psychology_outlined, label: appLanguageText('Historial IA', 'AI History')),
+                  _navItem(context, index: 3, icon: Icons.bar_chart_rounded, label: appLanguageText('Progreso', 'Progress')),
+                  _navItem(context, index: 4, icon: Icons.person_outline, label: appLanguageText('Perfil', 'Profile')),
                   const SizedBox(height: 18),
                   Divider(color: LumiAppTheme.outline(context), height: 1),
                   const SizedBox(height: 14),
@@ -195,7 +203,7 @@ class AppBottomNavbar extends StatelessWidget {
               ),
             ),
             Text(
-              'Estudia mejor',
+              appLanguageText('Estudia mejor', 'Study better'),
               style: TextStyle(color: LumiAppTheme.secondaryText(context), fontSize: 11),
             ),
           ],
@@ -323,10 +331,28 @@ class AppBottomNavbar extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: EdgeInsets.all(Responsive.espacio(context)),
-        child: Icon(
-          icon,
-          color: active ? LumiAppTheme.accent(context) : LumiAppTheme.secondaryText(context),
-          size: Responsive.tamanioSubtitulo(context),
+        child: Tooltip(
+          message: appLanguageText(
+            switch (index) {
+              0 => 'Inicio',
+              1 => 'Calendario',
+              2 => 'Historial IA',
+              3 => 'Progreso',
+              _ => 'Perfil',
+            },
+            switch (index) {
+              0 => 'Home',
+              1 => 'Calendar',
+              2 => 'AI History',
+              3 => 'Progress',
+              _ => 'Profile',
+            },
+          ),
+          child: Icon(
+            icon,
+            color: active ? LumiAppTheme.accent(context) : LumiAppTheme.secondaryText(context),
+            size: Responsive.tamanioSubtitulo(context),
+          ),
         ),
       ),
     );
