@@ -601,9 +601,7 @@ export async function completarTarea(
     if (userId) {
       const statsResult = await pool.query(
         `
-        SELECT
-          COUNT(*) AS total_tareas,
-          COUNT(*) FILTER (WHERE t.completada = true) AS tareas_completadas
+        SELECT COUNT(*) FILTER (WHERE t.completada = true) AS tareas_completadas
         FROM tareas t
         JOIN actividades a ON a.id = t.actividad_id
         JOIN planes_estudio p ON p.id = a.plan_id
@@ -612,22 +610,22 @@ export async function completarTarea(
         [userId]
       );
 
-      const totalTareas = Number(statsResult.rows[0]?.total_tareas ?? 0);
       const tareasCompletadas = Number(statsResult.rows[0]?.tareas_completadas ?? 0);
 
-      await pool.query(
+      const updatedStats = await pool.query(
         `
-        INSERT INTO estadisticas (usuario_id, tareas_completadas, racha, horas_estudio)
-        VALUES ($1, $2, 0, 0)
-        ON CONFLICT (usuario_id) DO UPDATE SET tareas_completadas = EXCLUDED.tareas_completadas
+        UPDATE estadisticas
+        SET tareas_completadas = $2
+        WHERE usuario_id = $1
         `,
         [userId, tareasCompletadas]
       );
 
-      if (totalTareas === 0) {
+      if (updatedStats.rowCount === 0) {
         await pool.query(
-          `UPDATE estadisticas SET tareas_completadas = 0 WHERE usuario_id = $1`,
-          [userId]
+          `INSERT INTO estadisticas (usuario_id, tareas_completadas, racha, horas_estudio)
+           VALUES ($1, $2, 0, 0)`,
+          [userId, tareasCompletadas]
         );
       }
     }

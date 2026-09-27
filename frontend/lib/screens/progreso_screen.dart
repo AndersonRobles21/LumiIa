@@ -26,6 +26,7 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
   List<double> _horasPorDia = List.filled(7, 0.0);
   String _mejorDia = '';
   double _mejorHoras = 0.0;
+  String? _errorHoras;
 
   static const List<String> _diasSemana = [
     'Lun',
@@ -74,145 +75,65 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
         fechaNormalizada.isBefore(finNormalizado);
   }
 
-  Future<void> _cargarDatos() async {
+    Future<void> _cargarDatos() async {
     setState(() => _isLoading = true);
 
     try {
       final resultados = await Future.wait([
         ApiService.getEstadisticas(widget.userId),
         ApiService.getPlanesEstudio(widget.userId),
-        ApiService.obtenerHistorial(widget.userId),
+        ApiService.getHorasPorSemana(widget.userId),
       ]);
 
       final stats = resultados[0] as Map<String, dynamic>?;
       final tareasRaw = resultados[1] as List<dynamic>?;
-      final historialRaw = resultados[2] as List<dynamic>?;
-
-      int completadas = 0;
-      int faltantes = 0;
-      double totalHorasReales = 0.0;
-      final List<double> horasPorDia = List.filled(7, 0.0);
-      final ahora = DateTime.now();
+      final horasPorDiaApi = resultados[2] as List<double>?;
 
       final tareas = (tareasRaw ?? [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
+      int completadas = 0;
+      int faltantes = 0;
       for (final t in tareas) {
-        final estaComp = _estaCompletada(t);
-
-        if (estaComp) {
+        if (_estaCompletada(t)) {
           completadas++;
-          totalHorasReales += 1.0;
-
-          final raw =
-              t['fecha_entrega'] ??
-              t['fecha'] ??
-              t['fecha_creacion'] ??
-              t['created_at'];
-
-          final fecha = DateTime.tryParse('$raw');
-
-          if (fecha != null && _esDeEstaSemana(fecha)) {
-            final idx = (fecha.weekday - 1).clamp(0, 6);
-            horasPorDia[idx] += 1.0;
-          }
         } else {
           faltantes++;
         }
       }
 
-      for (final h in (historialRaw ?? [])) {
-        if (h is! Map) continue;
-
-        final planId = h['id']?.toString();
-        if (planId == null) continue;
-
-        final tiempoEstimadoMin =
-            (h['tiempo_estimado_total'] as num?)?.toInt() ?? 60;
-
-        final duracionHoras = double.parse(
-          (tiempoEstimadoMin / 60.0).toStringAsFixed(1),
-        );
-
-        final estado = (h['estado'] ?? '').toString().toUpperCase();
-        bool planTerminado = estado == 'COMPLETADO' || estado == 'FINALIZADO';
-
-        final planCompleto = await ApiService.obtenerPlan(planId);
-
-        if (planCompleto != null && planCompleto['pasos'] is List) {
-          final pasos = planCompleto['pasos'] as List;
-
-          if (pasos.isNotEmpty) {
-            int totalSub = 0;
-            int compSub = 0;
-
-            for (var p in pasos) {
-              if (p['subpasos'] is List) {
-                final subList = p['subpasos'] as List;
-                totalSub += subList.length;
-                compSub += subList
-                    .where(
-                      (s) => s['completado'] == true || s['completado'] == 1,
-                    )
-                    .length;
-              }
-            }
-
-            if (totalSub > 0) {
-              planTerminado = (compSub / totalSub) >= 1.0;
-            }
-          }
-        }
-
-        if (planTerminado) {
-          completadas++;
-          totalHorasReales += duracionHoras;
-
-          final rawFecha = h['fecha_creacion'] ?? h['fecha_entrega'];
-          final fecha = DateTime.tryParse('$rawFecha');
-
-          if (fecha != null && _esDeEstaSemana(fecha)) {
-            final idx = (fecha.weekday - 1).clamp(0, 6);
-            horasPorDia[idx] += duracionHoras;
-          } else {
-            final hoyIdx = (ahora.weekday - 1).clamp(0, 6);
-            horasPorDia[hoyIdx] += duracionHoras;
-          }
-        } else {
-          faltantes++;
-        }
-      }
-
-      final racha = (stats?['racha'] as num?)?.toInt() ?? 0;
-
-      final horasFinales = totalHorasReales > 0
-          ? double.parse(totalHorasReales.toStringAsFixed(1))
-          : (completadas > 0
-                ? double.parse((completadas * 1.5).toStringAsFixed(1))
-                : 0.0);
+      final horasPorDia = (horasPorDiaApi != null && horasPorDiaApi.length == 7)
+          ? horasPorDiaApi
+          : List.filled(7, 0.0);
 
       double maxHoras = 0.0;
       int mejorDiaIndex = -1;
-
       for (int i = 0; i < horasPorDia.length; i++) {
-        horasPorDia[i] = double.parse(horasPorDia[i].toStringAsFixed(1));
-
         if (horasPorDia[i] > maxHoras) {
           maxHoras = horasPorDia[i];
           mejorDiaIndex = i;
         }
       }
 
+      final horasTotalesRaw = stats?['horas_estudio'];
+      final horasTotales = horasTotalesRaw is num
+          ? horasTotalesRaw.toDouble()
+          : double.tryParse('$horasTotalesRaw') ?? 0.0;
+      final racha = (stats?['racha'] as num?)?.toInt() ?? 0;
+
       if (!mounted) return;
 
       setState(() {
-        _horasEstudio = horasFinales;
+        _horasEstudio = double.parse(horasTotales.toStringAsFixed(1));
         _tareasCompletadas = completadas;
         _tareasFaltantes = faltantes;
         _racha = racha;
         _horasPorDia = horasPorDia;
+        _errorHoras = horasPorDiaApi == null
+          ? 'No se pudo cargar el resumen semanal. Desliza para reintentar.'
+          : null;
         _mejorDia = (mejorDiaIndex >= 0 && maxHoras > 0)
             ? _diasCompletos[mejorDiaIndex]
             : '';
@@ -652,6 +573,33 @@ class _ProgresoScreenState extends State<ProgresoScreen> {
               fontSize: 11,
             ),
           ),
+          if (_errorHoras != null ||
+              _horasPorDia.every((horas) => horas <= 0)) ...[
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  _errorHoras != null ? Icons.error_outline : Icons.info_outline,
+                  size: 16,
+                  color: _errorHoras != null
+                      ? const Color(0xFFE87979)
+                      : LumiAppTheme.secondaryText(context),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _errorHoras ??
+                        'Aún no hay sesiones de estudio registradas esta semana.',
+                    style: TextStyle(
+                      color: LumiAppTheme.secondaryText(context),
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 20),
           SizedBox(
             height: 170,

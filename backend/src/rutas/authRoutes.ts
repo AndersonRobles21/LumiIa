@@ -576,16 +576,13 @@
     try {
       const { userId } = req.params;
       const resultado = await pool.query(
-        "SELECT tareas_completadas, horas_estudio, racha FROM estadisticas WHERE usuario_id = $1",
+        `SELECT COALESCE(MAX(tareas_completadas), 0) AS tareas_completadas,
+                COALESCE(MAX(horas_estudio), 0) AS horas_estudio,
+                COALESCE(MAX(racha), 0) AS racha
+         FROM estadisticas
+         WHERE usuario_id = $1`,
         [userId]
       );
-      if (resultado.rows.length === 0) {
-        await pool.query(
-          "INSERT INTO estadisticas (usuario_id) VALUES ($1) ON CONFLICT DO NOTHING",
-          [userId]
-        );
-        return res.status(200).json({ tareas_completadas: 0, horas_estudio: 0, racha: 0 });
-      }
       return res.status(200).json(resultado.rows[0]);
     } catch (error: any) {
       console.error("❌ Error en GET /estadisticas:", error);
@@ -606,13 +603,11 @@
   try {
     const { userId } = req.params;
 
-    await pool.query(
-      "INSERT INTO estadisticas (usuario_id, racha, tareas_completadas, horas_estudio) VALUES ($1, 0, 0, 0) ON CONFLICT DO NOTHING",
-      [userId]
-    );
-
     const resultado = await pool.query(
-      "SELECT racha, ultima_racha_fecha FROM estadisticas WHERE usuario_id = $1",
+      `SELECT COALESCE(MAX(racha), 0) AS racha,
+              MAX(ultima_racha_fecha) AS ultima_racha_fecha
+       FROM estadisticas
+       WHERE usuario_id = $1`,
       [userId]
     );
 
@@ -654,10 +649,19 @@
           : 1;
     }
 
-    await pool.query(
+    const updatedStats = await pool.query(
       "UPDATE estadisticas SET racha = $1, ultima_racha_fecha = $2 WHERE usuario_id = $3",
      [nuevaRacha, hoyFecha, userId]
     );
+
+    if (updatedStats.rowCount === 0) {
+      await pool.query(
+        `INSERT INTO estadisticas
+           (usuario_id, racha, tareas_completadas, horas_estudio, ultima_racha_fecha)
+         VALUES ($1, $2, 0, 0, $3)`,
+        [userId, nuevaRacha, hoyFecha]
+      );
+    }
 
     return res.status(200).json({
       mensaje: "Racha actualizada",

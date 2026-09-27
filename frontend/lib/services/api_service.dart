@@ -268,10 +268,40 @@ static Future<Map<String, dynamic>> login({required String userId}) async {
     }
   }
 
-static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
+  static Future<List<double>?> getHorasPorSemana(String userId) async {
     try {
-      // Volvemos a incluir el userId en la ruta, que es como Node.js lo tiene configurado
-      final url = '$adminBaseUrl/summary/$userId'; 
+      final response = await http.get(
+        Uri.parse('$progresoBaseUrl/$userId/semana'),
+      );
+
+      if (response.statusCode != 200 || response.body.isEmpty) {
+        return null;
+      }
+
+      final data = jsonDecode(response.body);
+      final raw = data is Map ? data['horas_por_dia'] : null;
+
+      if (raw is! List || raw.length != 7) {
+        return null;
+      }
+
+      final lista = raw.map<double>((e) {
+        if (e == null) return 0.0;
+        if (e is num) return e.toDouble();
+        final parsed = double.tryParse(e.toString());
+        return parsed ?? 0.0;
+      }).toList();
+
+      return lista;
+    } catch (e) {
+      print('Error en ApiService getHorasPorSemana: $e');
+      return null;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getAdminSummary(String userId) async {
+    try {
+      final url = '$adminBaseUrl/summary/$userId';
       print('Llamando a: $url');
       
       final response = await http.get(Uri.parse(url));

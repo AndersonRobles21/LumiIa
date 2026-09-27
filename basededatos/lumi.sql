@@ -81,6 +81,20 @@ CREATE TABLE public.horarios (
   CONSTRAINT horarios_pkey PRIMARY KEY (id),
   CONSTRAINT horarios_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
 );
+CREATE TABLE public.sesiones_estudio (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  usuario_id uuid NOT NULL,
+  tipo_origen character varying NOT NULL DEFAULT 'manual',
+  origen_id uuid,
+  categoria character varying,
+  duracion_minutos integer NOT NULL CHECK (duracion_minutos > 0),
+  inicio timestamp without time zone,
+  fin timestamp without time zone NOT NULL DEFAULT now(),
+  CONSTRAINT sesiones_estudio_pkey PRIMARY KEY (id),
+  CONSTRAINT sesiones_estudio_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id)
+);
+CREATE INDEX sesiones_estudio_usuario_fin_idx
+  ON public.sesiones_estudio (usuario_id, fin DESC);
 CREATE TABLE public.historial_ia (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   usuario_id uuid,
