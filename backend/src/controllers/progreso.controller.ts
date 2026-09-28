@@ -1,18 +1,13 @@
 import { Request, Response } from "express";
 import { pool } from "../config/db";
+import { obtenerResumenEstadisticas } from "../services/estadisticas.service";
 
 export async function obtenerProgreso(req: Request, res: Response): Promise<any> {
   try {
-    const result = await pool.query(
-      `SELECT tareas_completadas, horas_estudio, racha
-       FROM estadisticas
-       WHERE usuario_id = $1`,
-      [req.params.userId],
-    );
-
-    return res.status(200).json(
-      result.rows[0] ?? { tareas_completadas: 0, horas_estudio: 0, racha: 0 },
-    );
+    const userId = Array.isArray(req.params.userId)
+      ? req.params.userId[0] ?? ""
+      : req.params.userId;
+    return res.status(200).json(await obtenerResumenEstadisticas(userId));
   } catch (error) {
     console.error("Error obteniendo progreso:", error);
     return res.status(500).json({ mensaje: "Error al obtener progreso" });
@@ -34,7 +29,7 @@ export async function registrarSesionEstudio(
   } = req.body;
   const minutos = Number(duracion_minutos);
 
-  if (!usuario_id || !Number.isFinite(minutos) || minutos <= 0) {
+  if (!usuario_id || !Number.isSafeInteger(minutos) || minutos <= 0) {
     return res.status(400).json({ mensaje: "Datos de sesión inválidos" });
   }
 
@@ -101,8 +96,9 @@ export async function obtenerHorasSemana(req: Request, res: Response): Promise<a
     const horasPorDia = Array(7).fill(0);
     for (const fila of result.rows) {
       const idx = Number(fila.dia_iso) - 1;
-      if (idx >= 0 && idx < 7) {
-        horasPorDia[idx] = Number((Number(fila.minutos) / 60).toFixed(1));
+      const minutos = Number(fila.minutos);
+      if (idx >= 0 && idx < 7 && Number.isFinite(minutos) && minutos >= 0) {
+        horasPorDia[idx] = minutos / 60;
       }
     }
 
