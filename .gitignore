@@ -199,3 +199,4 @@ frontend/linux/flutter/ephemeral/
 # Credenciales o configuraciones locales de Flutter
 frontend/android/local.properties
 frontend/android/.gradle/
+frontend/LUMI.apk
