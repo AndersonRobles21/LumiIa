@@ -6,6 +6,7 @@
     franjasDisponiblesEntreFechas,
     HorarioSemanal,
   } from "../services/disponibilidad.service";
+  import { obtenerResumenEstadisticas } from "../services/estadisticas.service";
 
   const router = Router();
 
@@ -78,7 +79,7 @@
       const streak = Number(stats.racha) || 0;
       const hours = Number(stats.horas_estudio) || 0;
       const plansResult = await client.query(
-        "SELECT COUNT(*)::int AS total FROM historial_ia WHERE usuario_id = $1",
+        "SELECT COUNT(*)::int AS total FROM planes_estudio WHERE usuario_id = $1",
         [userId],
       );
       const plans = Number(plansResult.rows[0]?.total) || 0;
@@ -574,16 +575,11 @@
   */
   router.get("/estadisticas/:userId", async (req: Request, res: Response): Promise<any> => {
     try {
-      const { userId } = req.params;
-      const resultado = await pool.query(
-        `SELECT COALESCE(MAX(tareas_completadas), 0) AS tareas_completadas,
-                COALESCE(MAX(horas_estudio), 0) AS horas_estudio,
-                COALESCE(MAX(racha), 0) AS racha
-         FROM estadisticas
-         WHERE usuario_id = $1`,
-        [userId]
-      );
-      return res.status(200).json(resultado.rows[0]);
+      const userId = Array.isArray(req.params.userId)
+        ? req.params.userId[0] ?? ""
+        : req.params.userId;
+      const resumen = await obtenerResumenEstadisticas(userId);
+      return res.status(200).json(resumen);
     } catch (error: any) {
       console.error("❌ Error en GET /estadisticas:", error);
       return res.status(500).json({ mensaje: "Error al obtener estadísticas" });
