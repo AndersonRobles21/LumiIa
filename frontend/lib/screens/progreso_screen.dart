@@ -87,10 +87,10 @@ class _ProgresoScreenState extends State<ProgresoScreen>
     _cargarDatos();
   }
 
-  bool _estaCompletada(Map tarea) {
-    final estado = (tarea['estado'] ?? '').toString().toUpperCase();
-
-    return tarea['completada'] == true || estado == 'COMPLETADA';
+  int? _enteroEstadistica(dynamic valor) {
+    final numero = valor is num ? valor : num.tryParse(valor?.toString() ?? '');
+    if (numero == null || !numero.isFinite) return null;
+    return numero.toInt();
   }
 
   Future<void> _cargarDatos() async {
@@ -99,29 +99,21 @@ class _ProgresoScreenState extends State<ProgresoScreen>
     try {
       final resultados = await Future.wait([
         ApiService.getEstadisticas(widget.userId),
-        ApiService.getPlanesEstudio(widget.userId),
         ApiService.getHorasPorSemana(widget.userId),
       ]);
 
       final stats = resultados[0] as Map<String, dynamic>?;
-      final tareasRaw = resultados[1] as List<dynamic>?;
-      final horasPorDiaApi = resultados[2] as List<double>?;
+      final horasPorDiaApi = resultados[1] as List<double>?;
 
-      final tareas = (tareasRaw ?? [])
-          .whereType<Map>()
-          .map((item) => Map<String, dynamic>.from(item))
-          .toList();
-
-      int completadas = 0;
-      int faltantes = 0;
-
-      for (final tarea in tareas) {
-        if (_estaCompletada(tarea)) {
-          completadas++;
-        } else {
-          faltantes++;
-        }
-      }
+        final completadas = _enteroEstadistica(stats?['tareas_completadas']) ?? 0;
+        final pasosPrincipalesTotales =
+          _enteroEstadistica(stats?['pasos_principales_totales']) ?? 0;
+        final pasosPrincipalesCompletados =
+          _enteroEstadistica(stats?['pasos_principales_completados']) ?? 0;
+        final faltantes = math.max(
+        0,
+        pasosPrincipalesTotales - pasosPrincipalesCompletados,
+        );
 
       final horasPorDia =
           horasPorDiaApi != null && horasPorDiaApi.length == 7
@@ -143,12 +135,14 @@ class _ProgresoScreenState extends State<ProgresoScreen>
           ? horasTotalesRaw.toDouble()
           : double.tryParse('$horasTotalesRaw') ?? 0.0;
 
-      final racha = (stats?['racha'] as num?)?.toInt() ?? 0;
+      final racha = _enteroEstadistica(stats?['racha']) ?? 0;
 
       if (!mounted) return;
 
       setState(() {
-        _horasEstudio = double.parse(horasTotales.toStringAsFixed(1));
+        _horasEstudio = horasTotales.isFinite && horasTotales >= 0
+          ? horasTotales
+          : 0;
         _tareasCompletadas = completadas;
         _tareasFaltantes = faltantes;
         _racha = racha;
