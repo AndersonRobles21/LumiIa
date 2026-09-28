@@ -5,43 +5,46 @@ function numeroNoNegativo(valor: unknown): number {
   return Number.isFinite(numero) && numero >= 0 ? numero : 0;
 }
 
-export function contarPasosPrincipales(
-  planes: Array<{ pasos: unknown }>,
-): { total: number; completados: number } {
+export function contarPlanesPrincipales(
+  planes: Array<{ pasos: unknown; completado_en?: unknown }>,
+): { total: number; completados: number; faltantes: number } {
   let total = 0;
   let completados = 0;
 
   for (const plan of planes) {
+    total++;
+
     let pasos: unknown = plan.pasos;
     if (typeof pasos === "string") {
       try {
         pasos = JSON.parse(pasos);
       } catch {
-        continue;
+        pasos = [];
       }
     }
-    if (!Array.isArray(pasos)) continue;
+    const fases = Array.isArray(pasos) ? pasos : [];
+    const planCompletado = plan.completado_en != null || (
+      fases.length > 0 && fases.every((paso) => {
+        if (!paso || typeof paso !== "object") return false;
+        const subpasos = Array.isArray((paso as Record<string, unknown>).subpasos)
+          ? (paso as Record<string, unknown>).subpasos as unknown[]
+          : [];
+        const pasoCompletado = (paso as Record<string, unknown>).completado === true;
+        const subpasosCompletos = subpasos.length > 0 && subpasos.every(
+          (subpaso) =>
+            subpaso != null &&
+            typeof subpaso === "object" &&
+            (subpaso as Record<string, unknown>).completado === true,
+        );
 
-    for (const paso of pasos) {
-      if (!paso || typeof paso !== "object") continue;
-      total++;
+        return pasoCompletado || subpasosCompletos;
+      })
+    );
 
-      const subpasos = Array.isArray((paso as Record<string, unknown>).subpasos)
-        ? (paso as Record<string, unknown>).subpasos as unknown[]
-        : [];
-      const pasoCompletado = (paso as Record<string, unknown>).completado === true;
-      const subpasosCompletos = subpasos.length > 0 && subpasos.every(
-        (subpaso) =>
-          subpaso != null &&
-          typeof subpaso === "object" &&
-          (subpaso as Record<string, unknown>).completado === true,
-      );
-
-      if (pasoCompletado || subpasosCompletos) completados++;
-    }
+    if (planCompletado) completados++;
   }
 
-  return { total, completados };
+  return { total, completados, faltantes: total - completados };
 }
 
 export async function obtenerResumenEstadisticas(usuarioId: string) {
@@ -68,19 +71,20 @@ export async function obtenerResumenEstadisticas(usuarioId: string) {
       [usuarioId],
     ),
     pool.query(
-      `SELECT pi.pasos
+      `SELECT p.completado_en, pi.pasos
        FROM planes_estudio p
-       JOIN planes_ia pi ON pi.plan_id = p.id
+       LEFT JOIN planes_ia pi ON pi.plan_id = p.id
        WHERE p.usuario_id = $1`,
       [usuarioId],
     ),
   ]);
 
   const fila = estadisticasResult.rows[0] ?? {};
-  const pasosPrincipales = contarPasosPrincipales(planesResult.rows);
+  const planesPrincipales = contarPlanesPrincipales(planesResult.rows);
   return {
-    pasos_principales_totales: pasosPrincipales.total,
-    pasos_principales_completados: pasosPrincipales.completados,
+    planes_principales_totales: planesPrincipales.total,
+    planes_principales_completados: planesPrincipales.completados,
+    tareas_faltantes: planesPrincipales.faltantes,
     tareas_completadas: Math.trunc(numeroNoNegativo(fila.tareas_completadas)),
     horas_estudio: numeroNoNegativo(fila.horas_estudio),
     racha: Math.trunc(numeroNoNegativo(fila.racha)),

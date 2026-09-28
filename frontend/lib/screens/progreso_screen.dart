@@ -105,15 +105,10 @@ class _ProgresoScreenState extends State<ProgresoScreen>
       final stats = resultados[0] as Map<String, dynamic>?;
       final horasPorDiaApi = resultados[1] as List<double>?;
 
-        final completadas = _enteroEstadistica(stats?['tareas_completadas']) ?? 0;
-        final pasosPrincipalesTotales =
-          _enteroEstadistica(stats?['pasos_principales_totales']) ?? 0;
-        final pasosPrincipalesCompletados =
-          _enteroEstadistica(stats?['pasos_principales_completados']) ?? 0;
-        final faltantes = math.max(
-        0,
-        pasosPrincipalesTotales - pasosPrincipalesCompletados,
-        );
+      final completadas =
+          _enteroEstadistica(stats?['planes_principales_completados']) ?? 0;
+      final faltantes =
+          _enteroEstadistica(stats?['tareas_faltantes']) ?? 0;
 
       final horasPorDia =
           horasPorDiaApi != null && horasPorDiaApi.length == 7
