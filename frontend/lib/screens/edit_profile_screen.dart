@@ -38,7 +38,6 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       final results = await Future.wait([
         ApiService.getProfile(widget.userId),
         ApiService.getEstadisticas(widget.userId),
-        ApiService.getPlanesEstudio(widget.userId),
         ApiService.obtenerHistorial(widget.userId),
         ApiService.getPersonajes(widget.userId),
       ]);
@@ -51,7 +50,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
       final achievementCount = _achievementCount(tasks, streak, plans, hours);
       final xp =
           (tasks * 20) + (streak * 15) + (plans * 25) + (achievementCount * 35);
-      final purchasedRows = (results[4] as List<dynamic>?) ?? [];
+      final purchasedRows = (results[3] as List<dynamic>?) ?? [];
       final purchased = purchasedRows
           .whereType<Map>()
           .map((row) => (row['personaje'] as num).toInt())

@@ -27,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   int _nivelProcrastinacion = 1;
   bool _isLoading = true;
+  bool _isSavingProfile = false;
   String get _userId => widget.userId;
 
   List<ScheduleSlot> _scheduleSlots = [];
@@ -316,32 +317,45 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
       return false;
     }
-    setState(() => _isLoading = true);
-    final horarioParaBackend = scheduleSlots
-        .map(
-          (slot) => {
-            'dia': ScheduleDayMapper.serverNameForKey(slot.dayKey),
-            'hora_inicio': _formatMinutesForBackend(slot.startMinutes),
-            'hora_fin': _formatMinutesForBackend(slot.endMinutes),
-          },
-        )
-        .toList();
-    final minutosDisponibles = scheduleSlots.fold<int>(
-      0,
-      (total, slot) => total + slot.endMinutes - slot.startMinutes,
-    );
-    final resultado = await ApiService.updateProfile(
-      userId: _userId,
-      nombre: _nameController.text.trim(),
-      apellido: _apellidoController.text.trim(),
-      horasDisponibles: (minutosDisponibles / 60).ceil(),
-      objetivo: _objetivoController.text.trim(),
-      nivelProcrastinacion: _nivelProcrastinacion,
-      fotoPerfil: _base64Image,
-      horario: horarioParaBackend,
-    );
-    setState(() => _isLoading = false);
-    if (resultado != null) {
+    if (_isSavingProfile) return false;
+
+    setState(() => _isSavingProfile = true);
+    try {
+      final horarioParaBackend = scheduleSlots
+          .map(
+            (slot) => {
+              'dia': ScheduleDayMapper.serverNameForKey(slot.dayKey),
+              'hora_inicio': _formatMinutesForBackend(slot.startMinutes),
+              'hora_fin': _formatMinutesForBackend(slot.endMinutes),
+            },
+          )
+          .toList();
+      final minutosDisponibles = scheduleSlots.fold<int>(
+        0,
+        (total, slot) => total + slot.endMinutes - slot.startMinutes,
+      );
+      final resultado = await ApiService.updateProfile(
+        userId: _userId,
+        nombre: _nameController.text.trim(),
+        apellido: _apellidoController.text.trim(),
+        horasDisponibles: (minutosDisponibles / 60).ceil(),
+        objetivo: _objetivoController.text.trim(),
+        nivelProcrastinacion: _nivelProcrastinacion,
+        fotoPerfil: _base64Image,
+        horario: horarioParaBackend,
+      );
+
+      if (!mounted) return false;
+      if (resultado == null) {
+        _showSnackBar(
+          tr(
+            'Error al intentar guardar cambios. Inténtalo de nuevo.',
+            'Could not save your changes. Please try again.',
+          ),
+        );
+        return false;
+      }
+
       setState(() {
         _scheduleSlots = List<ScheduleSlot>.from(scheduleSlots);
         _scheduleRevision++;
@@ -357,15 +371,55 @@ class _ProfileScreenState extends State<ProfileScreen>
         ),
       );
       return true;
-    } else {
-      _showSnackBar(
-        tr(
-          'Error al intentar guardar cambios.',
-          'Error trying to save changes.',
-        ),
-      );
+    } catch (error) {
+      debugPrint('Error guardando perfil: $error');
+      if (mounted) {
+        _showSnackBar(
+          tr(
+            'No se pudieron guardar los cambios. Revisa tu conexión e inténtalo de nuevo.',
+            'Could not save your changes. Check your connection and try again.',
+          ),
+        );
+      }
       return false;
+    } finally {
+      if (mounted) setState(() => _isSavingProfile = false);
     }
+  }
+
+  Widget _buildSaveChangesButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isLoading || _isSavingProfile
+            ? null
+            : () => _handleSend(List<ScheduleSlot>.from(_scheduleSlots)),
+        icon: _isSavingProfile
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(Icons.save_outlined),
+        label: Text(
+          _isSavingProfile
+              ? tr('Guardando...', 'Saving...')
+              : tr('Guardar cambios', 'Save changes'),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF7C3AED),
+          foregroundColor: Colors.white,
+          disabledBackgroundColor: const Color(0xFF7C3AED).withValues(alpha: 0.6),
+          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+      ),
+    );
   }
 
   String _formatMinutesForBackend(int minutes) {
@@ -720,6 +774,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                                                 _scheduleSlots,
                                                             onSave: _handleSend,
                                                           ),
+                                                          const SizedBox(height: 18),
+                                                          _buildSaveChangesButton(
+                                                            layoutContext,
+                                                          ),
                                                         ],
                                                       ),
                                                     ),
@@ -880,6 +938,10 @@ class _ProfileScreenState extends State<ProfileScreen>
                                             initialSlots: _scheduleSlots,
                                             onSave: _handleSend,
                                           ),
+                                          SizedBox(
+                                            height: Responsive.espacio(ctx) * 2,
+                                          ),
+                                          _buildSaveChangesButton(ctx),
                                           SizedBox(
                                             height: Responsive.espacio(ctx) * 3,
                                           ),
