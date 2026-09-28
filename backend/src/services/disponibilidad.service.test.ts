@@ -25,8 +25,8 @@ test("no traduce errores que no son de rango horario", () => {
 test("suma intervalos reales incluyendo minutos", () => {
   assert.equal(
     minutosPorDiaDesdeHorarios([
-      { hora_inicio: "14:30", hora_fin: "16:00" },
-      { hora_inicio: "18:00", hora_fin: "19:15" },
+      { dia: "lunes", hora_inicio: "14:30", hora_fin: "16:00" },
+      { dia: "lunes", hora_inicio: "18:00", hora_fin: "19:15" },
     ]),
     165,
   );
@@ -35,7 +35,7 @@ test("suma intervalos reales incluyendo minutos", () => {
 test("clasifica como ajustado con el tiempo exacto porque no deja margen", () => {
   const capacidad = calcularCapacidadPlan(
     new Date(Date.now() + 24 * 60 * 60 * 1000),
-    [{ hora_inicio: "09:00", hora_fin: "10:00" }],
+    [{ dia: "lunes", hora_inicio: "09:00", hora_fin: "10:00" }],
     60,
   );
 
@@ -45,7 +45,7 @@ test("clasifica como ajustado con el tiempo exacto porque no deja margen", () =>
 test("clasifica como ajustado cuando queda menos de 20% de margen", () => {
   const capacidad = calcularCapacidadPlan(
     new Date(Date.now() + 24 * 60 * 60 * 1000),
-    [{ hora_inicio: "09:00", hora_fin: "10:00" }],
+    [{ dia: "lunes", hora_inicio: "09:00", hora_fin: "10:00" }],
     55,
   );
 
@@ -55,7 +55,7 @@ test("clasifica como ajustado cuando queda menos de 20% de margen", () => {
 test("clasifica como insuficiente cuando falta capacidad", () => {
   const capacidad = calcularCapacidadPlan(
     new Date(Date.now() + 24 * 60 * 60 * 1000),
-    [{ hora_inicio: "09:00", hora_fin: "10:00" }],
+    [{ dia: "lunes", hora_inicio: "09:00", hora_fin: "10:00" }],
     61,
   );
 
